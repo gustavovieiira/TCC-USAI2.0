@@ -28,6 +28,45 @@ variável de ambiente não controlada — sempre fixar o estado que o teste prec
 
 ---
 
+## 2026-09-15 — Validação manual ponta a ponta (para mostrar amanhã)
+
+Subi o ambiente local de verdade (não só os testes automatizados) pra confirmar que o fluxo funciona:
+
+1. `docker compose up -d mysql` — sobe só o banco (ver `docker-compose.yml` na raiz).
+2. `npx prisma migrate dev --name init` dentro de `apps/backend` — cria as tabelas
+   (`apps/backend/prisma/migrations/20260915021734_init/`).
+3. `npm run prisma:seed --workspace=apps/backend` — roda `apps/backend/prisma/seed.ts`, que cria um
+   condomínio de teste (`residencial-jardim-europa`, PIN `1234`) via `prisma.condominio.upsert`.
+4. Backend (`npm run dev --workspace=apps/backend`) e frontend (`npm run dev --workspace=apps/frontend`)
+   rodando localmente.
+5. No navegador: acessei `/cadastro?condominio=residencial-jardim-europa`, preenchi o formulário
+   (`apps/frontend/src/features/auth/cadastro/CadastroForm.tsx`), fui redirecionado pro dashboard já
+   autenticado. Fiz logout, entrei de novo pela tela de login
+   (`apps/frontend/src/features/auth/login/LoginForm.tsx`) com o mesmo e-mail/senha — funcionou.
+
+**Resultado:** RF01, RF02, RF03 e RN03 confirmados funcionando de ponta a ponta contra um MySQL real,
+não só nos testes com mock.
+
+**Detalhe de ambiente importante (só nesta máquina):** as portas padrão 3000 e 5173 já estão ocupadas
+por outro projeto (`versalengenharia-*`) rodando em Docker nesta máquina. Por isso o `apps/backend/.env`
+local usa `PORT=3010` e `apps/frontend/.env` usa `VITE_API_URL=http://localhost:3010/api` — isso é só
+configuração local (`.env` é gitignorado), o `.env.example` de cada app continua com os valores padrão
+(3000/5173) que valem para qualquer outra máquina, incluindo a VPS de produção.
+
+**Para rodar de novo amanhã antes da orientação:**
+
+```bash
+docker compose up -d mysql
+cd apps/backend && npm run dev
+# em outro terminal:
+cd apps/frontend && npm run dev
+```
+
+Se o Docker Desktop não estiver aberto, abra-o primeiro (o `docker compose up` falha silenciosamente
+sem o daemon rodando).
+
+---
+
 ## 2026-09-14 — M0: Fundação do projeto
 
 **O que foi feito:**
