@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import { MinhasLocacoesPage } from './MinhasLocacoesPage';
 import * as locacoesApi from '@/features/locacoes/locacoes.api';
@@ -20,22 +21,34 @@ function buildLocacao(overrides: Partial<LocacaoDTO> = {}): LocacaoDTO {
   };
 }
 
+function renderPage() {
+  return render(
+    <MemoryRouter>
+      <MinhasLocacoesPage />
+    </MemoryRouter>,
+  );
+}
+
 describe('MinhasLocacoesPage', () => {
   it('mostra as locações como locatário por padrão', async () => {
     vi.spyOn(locacoesApi, 'listarComoLocatario').mockResolvedValue([buildLocacao()]);
     vi.spyOn(locacoesApi, 'listarComoProprietario').mockResolvedValue([]);
 
-    render(<MinhasLocacoesPage />);
+    renderPage();
 
     expect(await screen.findByText('Furadeira Bosch')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Aprovar' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Mensagens' })).toHaveAttribute(
+      'href',
+      '/locacoes/locacao-1/mensagens',
+    );
   });
 
   it('mostra aprovar/rejeitar para locações pendentes recebidas', async () => {
     vi.spyOn(locacoesApi, 'listarComoLocatario').mockResolvedValue([]);
     vi.spyOn(locacoesApi, 'listarComoProprietario').mockResolvedValue([buildLocacao()]);
 
-    render(<MinhasLocacoesPage />);
+    renderPage();
 
     await userEvent.click(await screen.findByRole('button', { name: 'Recebidas' }));
 
@@ -49,7 +62,7 @@ describe('MinhasLocacoesPage', () => {
     vi.spyOn(locacoesApi, 'listarComoProprietario').mockResolvedValue([buildLocacao()]);
     vi.spyOn(locacoesApi, 'aprovarLocacao').mockResolvedValue(buildLocacao({ status: 'APROVADA' }));
 
-    render(<MinhasLocacoesPage />);
+    renderPage();
     await userEvent.click(await screen.findByRole('button', { name: 'Recebidas' }));
     await userEvent.click(await screen.findByRole('button', { name: 'Aprovar' }));
 
@@ -65,7 +78,7 @@ describe('MinhasLocacoesPage', () => {
       buildLocacao({ status: 'CANCELADA' }),
     ]);
 
-    render(<MinhasLocacoesPage />);
+    renderPage();
     await userEvent.click(await screen.findByRole('button', { name: 'Recebidas' }));
 
     await screen.findByText('Cancelada');

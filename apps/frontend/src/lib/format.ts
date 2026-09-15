@@ -23,6 +23,13 @@ export function formatDate(iso: string): string {
   return dateFormatter.format(new Date(iso));
 }
 
+/** createdAt de mensagem é um instante de verdade (não um dia de calendário) — exibe no fuso local. */
+const timeFormatter = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+export function formatTime(iso: string): string {
+  return timeFormatter.format(new Date(iso));
+}
+
 const MS_POR_DIA = 1000 * 60 * 60 * 24;
 
 export function calcularDias(dataInicio: string, dataFim: string): number {

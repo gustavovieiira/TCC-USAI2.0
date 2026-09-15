@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -126,27 +127,37 @@ export function MinhasLocacoesPage() {
                 </p>
               </div>
 
-              {aba === 'proprietario' && locacao.status === 'PENDENTE' && (
-                <div className="flex gap-2 sm:flex-col">
-                  <Button
-                    fullWidth={false}
-                    isLoading={processandoId === locacao.id}
-                    onClick={() => handleAprovar(locacao)}
-                    className="flex-1 sm:flex-none"
-                  >
-                    Aprovar
-                  </Button>
-                  <Button
-                    variant="danger"
-                    fullWidth={false}
-                    disabled={processandoId === locacao.id}
-                    onClick={() => handleRejeitar(locacao)}
-                    className="flex-1 sm:flex-none"
-                  >
-                    Rejeitar
-                  </Button>
-                </div>
-              )}
+              <div className="flex flex-col gap-2 sm:items-end">
+                <Link
+                  to={`/locacoes/${locacao.id}/mensagens`}
+                  state={{ itemTitulo: locacao.item.titulo }}
+                  className="text-sm font-semibold text-brand-600 hover:underline"
+                >
+                  Mensagens
+                </Link>
+
+                {aba === 'proprietario' && locacao.status === 'PENDENTE' && (
+                  <div className="flex gap-2">
+                    <Button
+                      fullWidth={false}
+                      isLoading={processandoId === locacao.id}
+                      onClick={() => handleAprovar(locacao)}
+                      className="flex-1 sm:flex-none"
+                    >
+                      Aprovar
+                    </Button>
+                    <Button
+                      variant="danger"
+                      fullWidth={false}
+                      disabled={processandoId === locacao.id}
+                      onClick={() => handleRejeitar(locacao)}
+                      className="flex-1 sm:flex-none"
+                    >
+                      Rejeitar
+                    </Button>
+                  </div>
+                )}
+              </div>
             </Card>
           ))}
         </div>

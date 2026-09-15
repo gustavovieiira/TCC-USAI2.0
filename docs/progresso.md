@@ -6,6 +6,41 @@
 
 ---
 
+## 2026-09-15 — Frontend: chat da locação em tempo real
+
+**O que foi feito:** UI do chat que já existia no backend desde o M4 (WebSocket via Socket.IO). Nova
+tela `MensagensLocacaoPage` em `/locacoes/:id/mensagens`, acessível pelo link "Mensagens" em cada
+card de `MinhasLocacoesPage` (para os dois lados — locatário e proprietário).
+
+- `lib/socket.ts` — cria o cliente Socket.IO tipado (`ServerToClientEvents`/`ClientToServerEvents`
+  espelhando `apps/backend/src/realtime/socket.ts`), autenticando no handshake com o mesmo JWT do
+  REST. A URL do socket é derivada de `VITE_API_URL` removendo o sufixo `/api` (o Socket.IO roda na
+  raiz do servidor, não sob `/api`).
+- `features/mensagens/` — `mensagens.api.ts` (histórico via REST,
+  `GET /api/locacoes/:id/mensagens`) e tipos.
+- `MensagensLocacaoPage.tsx`: carrega o histórico, conecta o socket, entra na sala da locação
+  (`locacao:entrar`) e escuta `mensagem:nova` pra atualizar a lista ao vivo. Envio via
+  `mensagem:enviar` (ack confirma sucesso/erro). Bolhas de mensagem alinhadas à direita (azul) quando
+  o remetente é o usuário logado, à esquerda (cinza) caso contrário. Scroll automático pra última
+  mensagem.
+- **Testes:** mock da própria camada `lib/socket.ts` (não do pacote `socket.io-client` direto) com um
+  socket falso que registra handlers e permite disparar eventos manualmente — mesmo padrão de mockar
+  a própria API interna já usado nos outros testes do projeto. Cobre: histórico carregado, conexão
+  bem-sucedida, erro quando o usuário não participa da locação, recebimento de mensagem em tempo
+  real, envio pelo formulário, e desconexão ao desmontar. Precisou de um polyfill de
+  `Element.prototype.scrollIntoView` no `tests/setup.ts` — o jsdom não implementa esse método.
+- **Validado de verdade com duas sessões simultâneas** (Bruno e Ana, cada um logado numa aba): Ana
+  mandou mensagem pela UI e ela apareceu **instantaneamente** na tela do Bruno, sem reload — o
+  WebSocket funciona ponta a ponta com o front real. (Detalhe do teste: como as duas abas eram do
+  mesmo navegador/origem, elas compartilham o mesmo `localStorage` — em algum momento o "quem sou eu"
+  de uma tela ficou temporariamente confuso por causa disso, não por um bug de verdade; a lógica de
+  "mensagem minha vs. do outro" já está coberta e correta nos testes automatizados, que isolam cada
+  usuário sem esse artefato de dois logins na mesma origem.)
+
+**Onde mexer a seguir:** faltam as telas de síndico, admin e saque. Depois disso, só Asaas e deploy.
+
+---
+
 ## 2026-09-15 — Frontend: catálogo, publicar item, solicitar locação, minhas locações
 
 **O que foi feito:** primeira leva de telas do frontend além de auth, cobrindo o fluxo completo de

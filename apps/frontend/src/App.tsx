@@ -7,6 +7,7 @@ import { DashboardPage } from '@/pages/DashboardPage';
 import { ItemDetalhePage } from '@/pages/ItemDetalhePage';
 import { LandingPage } from '@/pages/LandingPage';
 import { LoginPage } from '@/pages/LoginPage';
+import { MensagensLocacaoPage } from '@/pages/MensagensLocacaoPage';
 import { MinhasLocacoesPage } from '@/pages/MinhasLocacoesPage';
 import { PublicarItemPage } from '@/pages/PublicarItemPage';
 
@@ -24,6 +25,7 @@ export default function App() {
           <Route path="/itens/novo" element={<PublicarItemPage />} />
           <Route path="/itens/:id" element={<ItemDetalhePage />} />
           <Route path="/locacoes" element={<MinhasLocacoesPage />} />
+          <Route path="/locacoes/:id/mensagens" element={<MensagensLocacaoPage />} />
         </Route>
       </Route>
 

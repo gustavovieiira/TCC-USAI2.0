@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calcularDias, formatCurrency, formatDate } from './format';
+import { calcularDias, formatCurrency, formatDate, formatTime } from './format';
 
 describe('formatCurrency', () => {
   it('formata valor em reais', () => {
@@ -11,6 +11,12 @@ describe('formatCurrency', () => {
 describe('formatDate', () => {
   it('formata data ISO no padrão brasileiro', () => {
     expect(formatDate('2026-10-01T00:00:00.000Z')).toBe('01/10/2026');
+  });
+});
+
+describe('formatTime', () => {
+  it('formata um instante como hora:minuto', () => {
+    expect(formatTime('2026-09-15T12:05:00.000Z')).toMatch(/^\d{2}:\d{2}$/);
   });
 });
 
