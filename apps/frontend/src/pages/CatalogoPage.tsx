@@ -21,7 +21,9 @@ export function CatalogoPage() {
 
   const categorias = useMemo(() => {
     if (!itens) return [];
-    return Array.from(new Set(itens.map((item) => item.categoria))).sort();
+    return Array.from(new Set(itens.map((item) => item.categoria))).sort((a, b) =>
+      a.localeCompare(b, 'pt-BR'),
+    );
   }, [itens]);
 
   const itensFiltrados = useMemo(() => {
