@@ -6,6 +6,64 @@
 
 ---
 
+## 2026-09-15 — M4: Mensagens em tempo real + Solicitação de saque
+
+**O que foi feito:** dois módulos novos no backend — chat da locação (com WebSocket) e solicitação de
+saque para o Admin USAI avaliar. Decisão de escopo: seguir de backend antes do frontend (combinado com
+o orientando), deixando a integração de pagamentos (Asaas/M3) para uma fase final.
+
+- **Mensagens** (`apps/backend/src/modules/mensagens/`) — chat entre locatário e proprietário dentro de
+  uma locação:
+  - `mensagens.service.ts`: `verificarParticipante` garante que só o locatário ou o dono do item podem
+    ver/enviar mensagens da locação (`ForbiddenError` caso contrário); `enviar`/`listarPorLocacao`
+    persistem e listam o histórico em ordem cronológica.
+  - Histórico via REST — `GET/POST /api/locacoes/:id/mensagens`, montado como sub-router de
+    `locacoesRouter` (`mensagens.routes.ts` usa `Router({ mergeParams: true })` pra enxergar o `:id` da
+    locação do router pai).
+  - **Envio/recebimento ao vivo via WebSocket** (`apps/backend/src/realtime/socket.ts`, Socket.IO): o
+    cliente autentica no handshake com o mesmo JWT do REST (`verifyAccessToken`, extraído do
+    `authGuard.ts` pra ser reaproveitado fora do ciclo HTTP), entra na sala `locacao:<id>` (evento
+    `locacao:entrar`, só se passar por `verificarParticipante`) e manda mensagens com
+    `mensagem:enviar` — o servidor persiste via `MensagensService` e emite `mensagem:nova` pra todo
+    mundo na sala. `server.ts` agora cria um `http.Server` explícito pra anexar o Socket.IO ao lado do
+    Express.
+- **Saques** (`apps/backend/src/modules/saques/`) — morador solicita, Admin USAI aprova/rejeita:
+  - `saques.service.ts`: `solicitar` (morador informa valor + chave PIX, começa `PENDENTE`),
+    `listarPorUsuario`, `listarTodas` (Admin, filtro por status), `aprovar`/`rejeitar` (só em
+    solicitações `PENDENTE`, `rejeitar` exige `motivoRejeicao`). Toda aprovação/rejeição grava em
+    `LogAuditoria` (rastreabilidade financeira, RN? do playbook de "Admin controla o financeiro").
+  - Rotas em `saques.routes.ts` → `/api/saques`: `POST /` e `GET /minhas` (qualquer morador
+    autenticado), `GET /`, `POST /:id/aprovar`, `POST /:id/rejeitar` atrás de `requireRole('ADMIN')`
+    (primeiro uso desse guard no projeto — só existia definido, sem rota usando).
+  - **Nota importante:** ainda não valida o valor solicitado contra o saldo real do usuário — isso
+    depende do M3 (Asaas) popular `Pagamento` com locações efetivamente pagas. Por ora é só o registro
+    da solicitação para avaliação manual do admin; a validação de saldo entra junto com o M3.
+- **Testes:** `tests/modules/mensagens/mensagens.service.test.ts`,
+  `tests/modules/saques/saques.service.test.ts`, `tests/modules/saques/saques.routes.test.ts` (RBAC:
+  morador autenticado recebe 403 nas rotas de admin) e `tests/realtime/socket.test.ts` — sobe um
+  `http.Server` efêmero com `MensagensService` mockado (sem precisar de banco real) e usa
+  `socket.io-client` pra testar auth no handshake, entrar na sala, enviar e receber mensagem em tempo
+  real, e o ack de erro quando quem envia não participa da locação. 66 testes no total, todos passando.
+- **Validado manualmente** contra o MySQL real: cadastrei Ana (dona) e Bruno (locatário), publiquei
+  item, Bruno solicitou e Ana aprovou a locação; testei mensagens via REST (enviar + listar histórico)
+  e depois um script Node com `socket.io-client` conectando os dois como sockets diferentes — Bruno
+  mandou mensagem e Ana recebeu `mensagem:nova` instantaneamente. Pra saques, criei um usuário `ADMIN`
+  direto via Prisma (não existe cadastro público pra esse papel), confirmei que morador toma 403 em
+  `GET /api/saques`, admin lista/aprova/rejeita normalmente, e confirmei que `LogAuditoria` grava as duas ações.
+
+**Detalhe de ambiente (só nesta máquina):** a porta 3306 já está ocupada por um MySQL local (serviço do
+Windows, não é Docker). Criei um `docker-compose.override.yml` (gitignorado, igual o `.env`) remapeando
+`3307:3306` só para o serviço `mysql` — usa a sintaxe `ports: !override` do Compose Spec porque o merge
+padrão *soma* as portas em vez de substituir. O `apps/backend/.env` local aponta
+`DATABASE_URL` para `localhost:3307`. Em outra máquina sem esse conflito, não precisa do override.
+
+**Onde mexer a seguir:** M5 (painel do síndico) e M6 (financeiro/condomínios do Admin) seguem o mesmo
+padrão modular. Frontend continua pendente para tudo além de auth — entra depois que o backend estiver
+fechado (combinado: deixar a UI, com design moderno, para depois de fechar o backend quase inteiro,
+faltando só o M3/Asaas por último).
+
+---
+
 ## 2026-09-15 — M2: Catálogo de itens e Locações
 
 **O que foi feito:** dois módulos novos no backend, seguindo o mesmo padrão do módulo de auth

@@ -6,6 +6,7 @@ import { metricsRegistry } from '@/metrics/registry';
 import { authRouter } from '@/modules/auth/auth.routes';
 import { itensRouter } from '@/modules/itens/itens.routes';
 import { locacoesRouter } from '@/modules/locacoes/locacoes.routes';
+import { saquesRouter } from '@/modules/saques/saques.routes';
 
 export function createApp(): Express {
   const app = express();
@@ -26,6 +27,7 @@ export function createApp(): Express {
   app.use('/api/auth', authRouter);
   app.use('/api/itens', itensRouter);
   app.use('/api/locacoes', locacoesRouter);
+  app.use('/api/saques', saquesRouter);
 
   app.use(errorHandler);
 

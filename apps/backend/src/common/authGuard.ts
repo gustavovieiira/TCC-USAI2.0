@@ -18,6 +18,12 @@ declare global {
   }
 }
 
+/** Compartilhado com o servidor de WebSocket (`realtime/socket.ts`), que autentica fora do ciclo HTTP. */
+export function verifyAccessToken(token: string): AuthPayload {
+  const secret = process.env.JWT_ACCESS_SECRET ?? 'dev-secret';
+  return jwt.verify(token, secret) as AuthPayload;
+}
+
 export function authGuard(req: Request, _res: Response, next: NextFunction) {
   const header = req.headers.authorization;
   if (!header?.startsWith('Bearer ')) {
@@ -27,9 +33,7 @@ export function authGuard(req: Request, _res: Response, next: NextFunction) {
   const token = header.substring('Bearer '.length);
 
   try {
-    const secret = process.env.JWT_ACCESS_SECRET ?? 'dev-secret';
-    const payload = jwt.verify(token, secret) as AuthPayload;
-    req.auth = payload;
+    req.auth = verifyAccessToken(token);
     next();
   } catch {
     throw new UnauthorizedError('Token inválido ou expirado');

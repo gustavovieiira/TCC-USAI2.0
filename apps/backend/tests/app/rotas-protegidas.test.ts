@@ -24,6 +24,36 @@ describe('Rotas protegidas exigem autenticação (RNF08)', () => {
     expect(response.status).toBe(401);
   });
 
+  it('GET /api/locacoes/:id/mensagens sem token retorna 401', async () => {
+    const response = await request(app).get('/api/locacoes/qualquer-id/mensagens');
+    expect(response.status).toBe(401);
+  });
+
+  it('POST /api/locacoes/:id/mensagens sem token retorna 401', async () => {
+    const response = await request(app).post('/api/locacoes/qualquer-id/mensagens').send({});
+    expect(response.status).toBe(401);
+  });
+
+  it('POST /api/saques sem token retorna 401', async () => {
+    const response = await request(app).post('/api/saques').send({});
+    expect(response.status).toBe(401);
+  });
+
+  it('GET /api/saques/minhas sem token retorna 401', async () => {
+    const response = await request(app).get('/api/saques/minhas');
+    expect(response.status).toBe(401);
+  });
+
+  it('GET /api/saques (admin) sem token retorna 401', async () => {
+    const response = await request(app).get('/api/saques');
+    expect(response.status).toBe(401);
+  });
+
+  it('POST /api/saques/:id/aprovar sem token retorna 401', async () => {
+    const response = await request(app).post('/api/saques/qualquer-id/aprovar');
+    expect(response.status).toBe(401);
+  });
+
   it('rejeita token malformado com 401', async () => {
     const response = await request(app)
       .get('/api/itens')
