@@ -6,6 +6,41 @@
 
 ---
 
+## 2026-09-15 — Observabilidade: dashboards do Grafana
+
+**O que foi feito:** o Prometheus já coletava métricas reais desde o M0 (`GET /metrics`), mas o Grafana
+estava rodando vazio — sem datasource nem dashboard configurados. Fechado via *provisioning* (arquivos
+versionados, não clique manual na UI):
+
+- `infra/grafana/provisioning/datasources/prometheus.yml` — datasource do Prometheus
+  (`http://prometheus:9090`), criado automaticamente ao subir o container.
+- `infra/grafana/provisioning/dashboards/dashboards.yml` — aponta pra pasta de dashboards.
+- `infra/grafana/dashboards/usai-backend.json` — dashboard "USAI Backend — Visão Geral" com 7 painéis,
+  todos baseados nas métricas que o backend já expõe (`http_request_duration_seconds` +
+  `collectDefaultMetrics` do prom-client): requisições/s, erros 5xx/s, latência p95, requisições por
+  rota, latência por percentil (p50/p95/p99), memória do processo, event loop lag.
+- `docker-compose.yml` — monta os dois diretórios de provisioning no serviço `grafana`.
+
+**Validado de verdade:** subi `prometheus` + `grafana` via Docker, gerei tráfego real contra o backend
+(`/health`, `/api/itens`) e confirmei via API do Prometheus (`/api/v1/query`) e do Grafana
+(`/api/search`, `/api/datasources`) que: o target `usai-backend` fica `up`, os contadores separam por
+`route`/`status_code` (ex.: `/api/itens` com `401`, 30 requisições — confirma que o guard de auth é
+contabilizado certo), o datasource e o dashboard aparecem provisionados automaticamente, sem precisar
+criar nada na UI.
+
+**Detalhe de ambiente:** pra esse teste, apontei temporariamente o `prometheus.yml` pra
+`host.docker.internal:3000` (porque o backend estava rodando local via `npm run dev`, não como
+container). O valor **commitado é `backend:3000`**, que é o correto quando o stack inteiro sobe junto
+via `docker compose up -d` (cenário do deploy em produção). **Isso expõe uma lacuna real:** hoje o
+fluxo de desenvolvimento local documentado (`docker compose up -d mysql` + `npm run dev` pros dois
+apps) nunca conseguiria alimentar esse Prometheus, porque o alvo `backend:3000` só existe quando o
+backend também roda como serviço Docker. Não corrigi isso agora — fica registrado como pendência: ou o
+dev local troca pra rodar o backend também via Docker, ou o `prometheus.yml` precisa de um mecanismo
+pra apontar pro host em dev (ex.: variável de ambiente/override local, do jeito que já fazemos com o
+`docker-compose.override.yml` do MySQL).
+
+---
+
 ## 2026-09-15 — Análise estática: SonarCloud
 
 **O que foi feito:** configurado o SonarCloud (item obrigatório do "núcleo comum de engenharia" do
