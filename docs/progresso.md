@@ -6,6 +6,46 @@
 
 ---
 
+## 2026-09-15 — M2: Catálogo de itens e Locações
+
+**O que foi feito:** dois módulos novos no backend, seguindo o mesmo padrão do módulo de auth
+(`common/errors` + service testável isoladamente + controller fino + rotas protegidas por `authGuard`).
+
+- **Catálogo de itens** (`apps/backend/src/modules/itens/`) — RF06-RF09:
+  - `itens.service.ts`: `criar` (publica item + imagens vinculado ao condomínio do morador logado),
+    `listarPorCondominio` (catálogo filtrado por categoria, só itens `ativo=true` — RN02 garante escopo
+    por condomínio), `atualizar`/`remover` (só o dono edita/remove — `remover` é *soft delete*,
+    `ativo=false`, para não quebrar o histórico de locações que referenciam o item).
+  - Rotas em `itens.routes.ts`, montadas em `/api/itens`.
+- **Locações** (`apps/backend/src/modules/locacoes/`) — RF10-RF14, RN04:
+  - `locacoes.service.ts`: `solicitar` calcula `valorTotal` automaticamente
+    (`valorDiaria × dias`, RF11), bloqueia locar o próprio item (RN04) e bloqueia sobreposição de datas
+    contra locações que já ocupam o período (status `PENDENTE/APROVADA/PAGA/EM_ANDAMENTO`).
+    `aprovar`/`rejeitar` só podem ser chamados pelo dono do item (`ForbiddenError` caso contrário) e só
+    se a locação ainda estiver `PENDENTE`. `listarComoLocatario`/`listarComoProprietario` dão as duas
+    visões do RF14.
+  - Rotas em `locacoes.routes.ts` → `/api/locacoes` (`POST /`, `GET /minhas`, `GET /recebidas`,
+    `POST /:id/aprovar`, `POST /:id/rejeitar`).
+  - **Nota:** a máquina de estados completa é `PENDENTE → APROVADA → PAGA → EM_ANDAMENTO → CONCLUÍDA`;
+    por enquanto só implementamos até `APROVADA` porque `PAGA` depende do webhook do Asaas (M3, ainda não
+    feito). Quando o M3 entrar, o service de pagamentos vai ser quem dispara `APROVADA → PAGA`.
+- **Testes:** `tests/modules/itens/itens.service.test.ts` e
+  `tests/modules/locacoes/locacoes.service.test.ts` (mock do Prisma, cobrem sucesso e cada regra de
+  negócio/erro). Também `tests/app/rotas-protegidas.test.ts` confirmando que toda rota de item/locação
+  exige token válido (RNF08). 38 testes no total, todos passando.
+- **Validado manualmente** com curl contra o MySQL real: cadastrei dois moradores (proprietária e
+  locatário), publiquei um item, solicitei a locação (valor calculado certo: 2 dias × R$20 = R$40),
+  confirmei que a proprietária não consegue locar o próprio item (400), que o locatário não consegue
+  aprovar a própria solicitação (403), e que a proprietária aprova normalmente (200, status vira
+  `APROVADA`).
+
+**Onde mexer a seguir:** M3 (Asaas) vai criar `apps/backend/src/modules/pagamentos/` e
+`apps/backend/src/modules/financeiro/`, e vai ligar no `locacoes.service.ts` pra mover
+`APROVADA → PAGA` quando o webhook confirmar o pagamento. O frontend ainda não tem as telas de
+catálogo/publicar item/solicitar locação — só auth (login/cadastro/dashboard) está com UI pronta.
+
+---
+
 ## 2026-09-15 — Correção: CI quebrando no teste de refresh token
 
 **O que aconteceu:** o primeiro push para `main` quebrou o pipeline do GitHub Actions (só nele — local
