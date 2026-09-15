@@ -6,6 +6,37 @@
 
 ---
 
+## 2026-09-15 — M5: Painel do síndico
+
+**O que foi feito:** módulo novo no backend (`apps/backend/src/modules/sindico/`) — visão e controle do
+síndico sobre o próprio condomínio, seguindo o mesmo padrão dos demais módulos.
+
+- `sindico.service.ts`: `listarMoradores` (moradores vinculados ao condomínio do síndico autenticado),
+  `listarLocacoesAtivas` (locações que ainda ocupam algum item do condomínio — reaproveita
+  `STATUS_QUE_OCUPAM_PERIODO`, exportado de `locacoes.service.ts`, como definição de "ativa", em vez de
+  duplicar a lista de status), `buscarCondominio` e `atualizarPin` (síndico gerencia o PIN de acesso do
+  condomínio, usado no cadastro de moradores — RN03 do módulo de auth).
+- Rotas em `sindico.routes.ts` → `/api/sindico`: `GET /condominio`, `PATCH /condominio/pin`,
+  `GET /moradores`, `GET /locacoes` — todas atrás de `authGuard` + `requireRole('SINDICO')` (segundo
+  módulo do projeto com RBAC por papel, depois de saques).
+- **Como um usuário vira síndico:** ainda não há endpoint de gestão pra isso — hoje só é possível criar
+  via Prisma diretamente (`papel: 'SINDICO'` + `condominioId`). Isso deve virar parte do M6 (Admin USAI
+  gerencia condomínios).
+- **Testes:** `tests/modules/sindico/sindico.service.test.ts` (mock do Prisma) e
+  `tests/modules/sindico/sindico.routes.test.ts` (RBAC: morador recebe 403 nas rotas de síndico). 79
+  testes no total, todos passando. Cobertura geral do backend: ~70,7% (meta 75% na prova de autoria —
+  os controllers continuam sendo o ponto fraco de cobertura, como já vinha acontecendo desde o M2).
+- **Validado manualmente** contra o MySQL real: criei um síndico pro condomínio de teste, confirmei que
+  ele vê os dois moradores cadastrados e a locação aprovada da Furadeira Bosch, testei a troca de PIN
+  (`1234` → `5678`, confirmado na sequência) e confirmei que morador autenticado toma 403 tentando
+  acessar qualquer rota de síndico.
+
+**Onde mexer a seguir:** M6 (financeiro global + gestão de condomínios do Admin USAI, incluindo criar
+síndicos). Depois disso só falta o M3 (Asaas), combinado para uma fase final, e o frontend inteiro
+(além das telas de auth).
+
+---
+
 ## 2026-09-15 — M4: Mensagens em tempo real + Solicitação de saque
 
 **O que foi feito:** dois módulos novos no backend — chat da locação (com WebSocket) e solicitação de

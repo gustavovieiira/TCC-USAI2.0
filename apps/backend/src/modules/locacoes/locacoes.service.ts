@@ -4,8 +4,16 @@ import { CriarLocacaoInput, LocacaoDTO } from './locacoes.types';
 
 const MS_POR_DIA = 1000 * 60 * 60 * 24;
 
-/** Status que efetivamente reservam o item no período (bloqueiam sobreposição). */
-const STATUS_QUE_OCUPAM_PERIODO: StatusLocacao[] = ['PENDENTE', 'APROVADA', 'PAGA', 'EM_ANDAMENTO'];
+/**
+ * Status que efetivamente reservam o item no período (bloqueiam sobreposição) — também usado pelo
+ * painel do síndico (`sindico.service.ts`) como definição de "locação ativa".
+ */
+export const STATUS_QUE_OCUPAM_PERIODO: StatusLocacao[] = [
+  'PENDENTE',
+  'APROVADA',
+  'PAGA',
+  'EM_ANDAMENTO',
+];
 
 type LocacaoComItem = Locacao & { item: Item };
 
