@@ -6,6 +6,28 @@
 
 ---
 
+## 2026-09-15 — Análise estática: SonarCloud
+
+**O que foi feito:** configurado o SonarCloud (item obrigatório do "núcleo comum de engenharia" do
+playbook) em modo **CI-based** (via GitHub Actions), não o "Automatic Analysis" padrão — o automático
+não roda os testes, então não calcula cobertura real; o modo CI-based lê o `lcov.info` gerado pelo
+próprio Jest/Vitest e mostra a cobertura de verdade no dashboard.
+
+- `sonar-project.properties` (raiz) — `projectKey=gustavovieiira_TCC-USAI2.0`,
+  `organization=gustavovieiira`, aponta `sonar.sources`/`sonar.tests` pros dois apps do monorepo e os
+  `lcov.info` de backend e frontend.
+- Job novo `sonarcloud` em `.github/workflows/ci.yml` — roda depois de `backend`/`frontend`
+  (`needs: [backend, frontend]`), repete a execução dos testes (precisa gerar os `lcov.info` de novo
+  nesse job, já que artefatos não são compartilhados entre jobs) e roda
+  `SonarSource/sonarqube-scan-action@v4` com `SONAR_TOKEN` (secret do repo).
+- `apps/frontend/vite.config.ts` — adicionado `lcov` aos `coverage.reporter` do Vitest (só tinha
+  `text`/`html`; sem `lcov` o Sonar não lê a cobertura do frontend).
+- Secret `SONAR_TOKEN` adicionado ao repositório via `gh secret set` (não fica no código).
+
+**Onde ver:** [sonarcloud.io/project/overview?id=gustavovieiira_TCC-USAI2.0](https://sonarcloud.io/project/overview?id=gustavovieiira_TCC-USAI2.0).
+
+---
+
 ## 2026-09-15 — M6: Admin USAI (condomínios, síndicos, financeiro)
 
 **O que foi feito:** módulo novo no backend (`apps/backend/src/modules/admin/`) — a última peça de
