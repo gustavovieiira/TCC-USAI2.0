@@ -1,7 +1,13 @@
 import { Link } from 'react-router-dom';
-import { getStoredUser } from '@/lib/authStorage';
+import { getStoredUser, Papel } from '@/lib/authStorage';
 
-const ACOES = [
+interface Acao {
+  to: string;
+  titulo: string;
+  texto: string;
+}
+
+const ACOES_MORADOR: Acao[] = [
   {
     to: '/catalogo',
     titulo: 'Catálogo',
@@ -17,10 +23,38 @@ const ACOES = [
     titulo: 'Minhas locações',
     texto: 'Acompanhe o que você alugou e o que emprestou.',
   },
+  {
+    to: '/saques',
+    titulo: 'Saques',
+    texto: 'Solicite o saque do que você recebeu em locações.',
+  },
 ];
+
+const ACOES_SINDICO: Acao[] = [
+  {
+    to: '/sindico',
+    titulo: 'Painel do síndico',
+    texto: 'Moradores, locações ativas e PIN do condomínio.',
+  },
+];
+
+const ACOES_ADMIN: Acao[] = [
+  {
+    to: '/admin',
+    titulo: 'Painel do Admin USAI',
+    texto: 'Condomínios, síndicos e financeiro da plataforma.',
+  },
+];
+
+function acoesPara(papel?: Papel): Acao[] {
+  if (papel === 'SINDICO') return ACOES_SINDICO;
+  if (papel === 'ADMIN') return ACOES_ADMIN;
+  return ACOES_MORADOR;
+}
 
 export function DashboardPage() {
   const user = getStoredUser();
+  const acoes = acoesPara(user?.papel);
 
   return (
     <div className="flex flex-col gap-6">
@@ -32,7 +66,7 @@ export function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        {ACOES.map((acao) => (
+        {acoes.map((acao) => (
           <Link
             key={acao.to}
             to={acao.to}

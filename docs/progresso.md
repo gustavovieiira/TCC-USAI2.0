@@ -6,6 +6,44 @@
 
 ---
 
+## 2026-09-15 — Frontend: painéis de síndico e Admin USAI, saques
+
+**O que foi feito:** as três últimas telas que faltavam no frontend, fechando o RFC quase inteiro
+(falta só o Asaas). Navegação da `AppShell` e o `DashboardPage` agora são **baseados no papel** do
+usuário (`MORADOR`/`SINDICO`/`ADMIN`) — cada um vê só o que faz sentido pro próprio papel, em vez de
+um menu único genérico.
+
+- **`RoleRoute`** (`components/RoleRoute.tsx`) — guarda de UX (não de segurança; o backend já aplica
+  `requireRole`) que redireciona pro dashboard se o papel do usuário não bate com a rota. Evita o
+  morador comum cair numa tela de admin e levar um 403 confuso.
+- **`/saques`** (morador) — solicitar saque (valor + chave PIX) e ver o histórico próprio com status
+  e motivo de rejeição.
+- **`/sindico`** — dados do condomínio (link de acesso, PIN com edição inline), abas de moradores e
+  locações ativas.
+- **`/admin`** — 3 abas: **Financeiro** (cards de resumo + saques pendentes com aprovar/rejeitar,
+  rejeitar exige motivo inline), **Condomínios** (cadastrar + ativar/desativar), **Síndicos** (criar
+  conta, com select dos condomínios cadastrados).
+- **Testes:** 57 testes no total (18 novos — `RoleRoute`, `SaquesPage`, `SindicoPage`, `AdminPage` com
+  as 3 abas). Cobertura do frontend em **80%**.
+- **Bug pego na validação manual, não nos testes automatizados:** depois de aprovar/rejeitar um saque
+  no painel do Admin, os cards de resumo financeiro (quantidade/valor por status) não atualizavam —
+  só a lista de pendentes. Corrigido: `onMudou` agora também rechama `resumoFinanceiro()` (best-effort;
+  se falhar, só fica desatualizado até a próxima visita, não vira erro pro usuário). Os testes
+  automatizados não pegaram isso porque mockavam `resumoFinanceiro` uma vez só — o valor mockado
+  "por acidente" continuava consistente. Fica de lição: mockar retornos diferentes em chamadas
+  sucessivas quando o comportamento depende de reconsulta.
+- **Validado de ponta a ponta com 3 contas reais** (Bruno/morador, Carla/síndica, Admin USAI):
+  Bruno solicitou saque pela UI → apareceu pendente no painel do Admin → Admin aprovou → cards e
+  lista atualizaram corretamente. Admin criou um condomínio novo e uma síndica nova pra ele, cadastro
+  íntegro (senha real, síndica loga normalmente). Síndica viu moradores e locações ativas do próprio
+  condomínio e trocou o PIN.
+
+**Onde mexer a seguir:** falta só o **M3 (Asaas)** — combinado desde o início pra fase final — e
+depois o **deploy em nuvem**. Com essas telas, o frontend cobre auth, catálogo, locações, chat, saques,
+síndico e admin.
+
+---
+
 ## 2026-09-15 — Frontend: chat da locação em tempo real
 
 **O que foi feito:** UI do chat que já existia no backend desde o M4 (WebSocket via Socket.IO). Nova

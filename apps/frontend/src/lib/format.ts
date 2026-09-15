@@ -30,6 +30,17 @@ export function formatTime(iso: string): string {
   return timeFormatter.format(new Date(iso));
 }
 
+/** Para instantes reais exibidos como data (ex.: createdAt de saque) — fuso local, sem o fix de UTC. */
+const dateTimeFormatter = new Intl.DateTimeFormat('pt-BR', {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+});
+
+export function formatDateTime(iso: string): string {
+  return dateTimeFormatter.format(new Date(iso));
+}
+
 const MS_POR_DIA = 1000 * 60 * 60 * 24;
 
 export function calcularDias(dataInicio: string, dataFim: string): number {

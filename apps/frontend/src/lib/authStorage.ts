@@ -2,11 +2,13 @@ const ACCESS_TOKEN_KEY = 'usai:accessToken';
 const REFRESH_TOKEN_KEY = 'usai:refreshToken';
 const USER_KEY = 'usai:user';
 
+export type Papel = 'MORADOR' | 'SINDICO' | 'ADMIN';
+
 export interface StoredUser {
   id: string;
   nome: string;
   email: string;
-  papel: 'MORADOR' | 'SINDICO' | 'ADMIN';
+  papel: Papel;
   condominioId: string | null;
 }
 
