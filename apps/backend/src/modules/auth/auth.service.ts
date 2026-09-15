@@ -12,7 +12,8 @@ import {
 
 const ACCESS_TOKEN_TTL = '15m';
 const REFRESH_TOKEN_TTL = '7d';
-const BCRYPT_ROUNDS = 10;
+/** Reaproveitado pelo Admin USAI ao criar contas de síndico (`admin.service.ts`). */
+export const BCRYPT_ROUNDS = 10;
 
 function toAuthenticatedUser(user: {
   id: string;

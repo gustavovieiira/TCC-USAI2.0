@@ -6,6 +6,39 @@
 
 ---
 
+## 2026-09-15 — M6: Admin USAI (condomínios, síndicos, financeiro)
+
+**O que foi feito:** módulo novo no backend (`apps/backend/src/modules/admin/`) — a última peça de
+gestão antes do Asaas. Fecha o gap deixado no M5 (não havia como criar um síndico).
+
+- `admin.service.ts`: `criarCondominio`/`listarCondominios`/`atualizarCondominio` (cadastro da
+  plataforma — nome, link de acesso, PIN, ativar/desativar), `criarSindico` (cria a conta de síndico de
+  um condomínio — só o Admin pode, não existe autocadastro para esse papel; reaproveita
+  `BCRYPT_ROUNDS`, agora exportado de `auth.service.ts`, pra manter o mesmo custo de hash em toda a
+  aplicação), `resumoFinanceiro` (financeiro global: totais de solicitações de saque por status —
+  `PENDENTE`/`APROVADO`/`REJEITADO`, quantidade e soma via `prisma.solicitacaoSaque.aggregate` — mais
+  contagem de condomínios ativos).
+- Rotas em `admin.routes.ts` → `/api/admin`: `POST/GET /condominios`, `PATCH /condominios/:id`,
+  `POST /sindicos`, `GET /financeiro/resumo` — todas atrás de `requireRole('ADMIN')`.
+- **Testes:** `tests/modules/admin/admin.service.test.ts` (mock do Prisma, inclusive o `aggregate`) e
+  `tests/modules/admin/admin.routes.test.ts` (RBAC: morador e síndico recebem 403 nas rotas de admin).
+  94 testes no total, todos passando. Cobertura geral do backend: ~71% (meta 75% na prova de autoria —
+  segue precisando de atenção nos controllers, que continuam sem teste direto).
+- **Validado manualmente** contra o MySQL real, fechando o ciclo inteiro: criei um segundo condomínio
+  via admin, listei os dois, desativei o novo (confirmei `condominiosAtivos` cair de 2 pra 1 no resumo
+  financeiro), criei a síndica "Carla" pro condomínio de teste — e confirmei que ela **loga
+  normalmente** pelo `/api/auth/login` já existente, provando que a conta criada pelo admin é uma conta
+  de verdade, não um caminho separado. Resumo financeiro bateu com os saques do M4 (1 aprovado R$40, 1
+  rejeitado R$9999). Síndico tentando acessar rota de admin: 403.
+
+**Onde mexer a seguir:** com auth, itens, locações, mensagens, saques, síndico e admin prontos, só
+falta o **M3 (Asaas)** — combinado desde o início pra uma fase final — e o **frontend inteiro** além
+das telas de auth. A partir daqui o backend cobre a maior parte do RFC; a prioridade muda pra fechar os
+itens do núcleo comum de engenharia que ainda faltam (análise estática, deploy em nuvem) e pra
+cobertura de testes, antes de migrar o esforço pro frontend.
+
+---
+
 ## 2026-09-15 — M5: Painel do síndico
 
 **O que foi feito:** módulo novo no backend (`apps/backend/src/modules/sindico/`) — visão e controle do

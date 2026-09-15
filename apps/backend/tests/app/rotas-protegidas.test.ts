@@ -74,6 +74,21 @@ describe('Rotas protegidas exigem autenticação (RNF08)', () => {
     expect(response.status).toBe(401);
   });
 
+  it('GET /api/admin/condominios sem token retorna 401', async () => {
+    const response = await request(app).get('/api/admin/condominios');
+    expect(response.status).toBe(401);
+  });
+
+  it('POST /api/admin/sindicos sem token retorna 401', async () => {
+    const response = await request(app).post('/api/admin/sindicos').send({});
+    expect(response.status).toBe(401);
+  });
+
+  it('GET /api/admin/financeiro/resumo sem token retorna 401', async () => {
+    const response = await request(app).get('/api/admin/financeiro/resumo');
+    expect(response.status).toBe(401);
+  });
+
   it('rejeita token malformado com 401', async () => {
     const response = await request(app)
       .get('/api/itens')

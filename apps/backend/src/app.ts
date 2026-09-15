@@ -3,6 +3,7 @@ import express, { Express } from 'express';
 import { errorHandler } from '@/common/errorHandler';
 import { metricsMiddleware } from '@/metrics/metricsMiddleware';
 import { metricsRegistry } from '@/metrics/registry';
+import { adminRouter } from '@/modules/admin/admin.routes';
 import { authRouter } from '@/modules/auth/auth.routes';
 import { itensRouter } from '@/modules/itens/itens.routes';
 import { locacoesRouter } from '@/modules/locacoes/locacoes.routes';
@@ -30,6 +31,7 @@ export function createApp(): Express {
   app.use('/api/locacoes', locacoesRouter);
   app.use('/api/saques', saquesRouter);
   app.use('/api/sindico', sindicoRouter);
+  app.use('/api/admin', adminRouter);
 
   app.use(errorHandler);
 
