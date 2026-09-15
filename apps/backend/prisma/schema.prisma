@@ -1,0 +1,182 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Papel {
+  MORADOR
+  SINDICO
+  ADMIN
+}
+
+enum StatusLocacao {
+  PENDENTE
+  APROVADA
+  PAGA
+  EM_ANDAMENTO
+  CONCLUIDA
+  CANCELADA
+}
+
+enum StatusSaque {
+  PENDENTE
+  APROVADO
+  REJEITADO
+}
+
+model Condominio {
+  id        String   @id @default(uuid())
+  nome      String
+  linkSlug  String   @unique
+  pin       String
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  usuarios User[]
+  itens    Item[]
+
+  @@map("condominios")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  nome         String
+  email        String   @unique
+  senhaHash    String
+  cpf          String?  @unique
+  papel        Papel    @default(MORADOR)
+  apartamento  String?
+  chavePix     String?
+  condominioId String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  condominio         Condominio?        @relation(fields: [condominioId], references: [id])
+  itens              Item[]
+  locacoesComoLocatario Locacao[]       @relation("Locatario")
+  mensagens          Mensagem[]
+  solicitacoesSaque  SolicitacaoSaque[]
+  logsAuditoria      LogAuditoria[]
+
+  @@index([condominioId])
+  @@map("users")
+}
+
+model Item {
+  id           String   @id @default(uuid())
+  titulo       String
+  descricao    String   @db.Text
+  categoria    String
+  valorDiaria  Decimal  @db.Decimal(10, 2)
+  ativo        Boolean  @default(true)
+  ownerId      String
+  condominioId String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  owner      User          @relation(fields: [ownerId], references: [id])
+  condominio Condominio    @relation(fields: [condominioId], references: [id])
+  imagens    ItemImagem[]
+  locacoes   Locacao[]
+
+  @@index([condominioId])
+  @@index([ownerId])
+  @@map("itens")
+}
+
+model ItemImagem {
+  id     String @id @default(uuid())
+  itemId String
+  url    String
+
+  item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId])
+  @@map("item_imagens")
+}
+
+model Locacao {
+  id           String         @id @default(uuid())
+  itemId       String
+  locatarioId  String
+  dataInicio   DateTime
+  dataFim      DateTime
+  valorTotal   Decimal        @db.Decimal(10, 2)
+  status       StatusLocacao  @default(PENDENTE)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  item      Item       @relation(fields: [itemId], references: [id])
+  locatario User       @relation("Locatario", fields: [locatarioId], references: [id])
+  pagamento Pagamento?
+  mensagens Mensagem[]
+
+  @@index([itemId])
+  @@index([locatarioId])
+  @@map("locacoes")
+}
+
+model Pagamento {
+  id             String    @id @default(uuid())
+  locacaoId      String    @unique
+  asaasChargeId  String?   @unique
+  status         String    @default("PENDENTE")
+  valor          Decimal   @db.Decimal(10, 2)
+  pagoEm         DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  locacao Locacao @relation(fields: [locacaoId], references: [id])
+
+  @@map("pagamentos")
+}
+
+model Mensagem {
+  id          String   @id @default(uuid())
+  locacaoId   String
+  remetenteId String
+  conteudo    String   @db.Text
+  createdAt   DateTime @default(now())
+
+  locacao   Locacao @relation(fields: [locacaoId], references: [id])
+  remetente User    @relation(fields: [remetenteId], references: [id])
+
+  @@index([locacaoId])
+  @@map("mensagens")
+}
+
+model SolicitacaoSaque {
+  id             String      @id @default(uuid())
+  userId         String
+  valor          Decimal     @db.Decimal(10, 2)
+  chavePixUsada  String
+  status         StatusSaque @default(PENDENTE)
+  motivoRejeicao String?
+  createdAt      DateTime    @default(now())
+  processadoEm   DateTime?
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("solicitacoes_saque")
+}
+
+model LogAuditoria {
+  id        String   @id @default(uuid())
+  adminId   String
+  acao      String
+  alvoTipo  String
+  alvoId    String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  admin User @relation(fields: [adminId], references: [id])
+
+  @@index([adminId])
+  @@map("logs_auditoria")
+}
