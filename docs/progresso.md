@@ -6,6 +6,26 @@
 
 ---
 
+## 2026-09-15 — Correção: CI quebrando no teste de refresh token
+
+**O que aconteceu:** o primeiro push para `main` quebrou o pipeline do GitHub Actions (só nele — local
+passava). O teste de `AuthService.refresh` em
+`apps/backend/tests/modules/auth/auth.service.test.ts` assinava o refresh token de teste com o valor
+literal `'dev-refresh-secret'` — que é o *fallback* hardcoded dentro de
+`apps/backend/src/modules/auth/auth.service.ts` (`getSecrets()`), usado só quando a variável de ambiente
+não existe. Local não tinha `JWT_REFRESH_SECRET` setada (então caía no fallback e o teste passava por
+coincidência); o `ci.yml` define `JWT_REFRESH_SECRET: ci-refresh-secret` para o job inteiro, então em CI
+o serviço assinava/validava com outro segredo e o teste falhava.
+
+**Correção:** o teste agora fixa `process.env.JWT_ACCESS_SECRET`/`JWT_REFRESH_SECRET` para um valor
+conhecido num `beforeAll`, em vez de depender do que estiver (ou não) definido no ambiente que roda o
+teste. Deixa de existir dependência implícita do fallback interno do serviço.
+
+**Lição para a prova de autoria:** nunca deixar um teste passar "por acidente" dependendo de uma
+variável de ambiente não controlada — sempre fixar o estado que o teste precisa.
+
+---
+
 ## 2026-09-14 — M0: Fundação do projeto
 
 **O que foi feito:**

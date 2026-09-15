@@ -3,6 +3,15 @@ import jwt from 'jsonwebtoken';
 import { AuthService } from '@/modules/auth/auth.service';
 import { AppError, ConflictError, NotFoundError, UnauthorizedError } from '@/common/errors';
 
+// Fixa os segredos independentemente do ambiente (local ou CI podem ter valores diferentes
+// para JWT_ACCESS_SECRET/JWT_REFRESH_SECRET), para o teste não depender do fallback interno do serviço.
+const TEST_REFRESH_SECRET = 'test-refresh-secret';
+
+beforeAll(() => {
+  process.env.JWT_ACCESS_SECRET = 'test-access-secret';
+  process.env.JWT_REFRESH_SECRET = TEST_REFRESH_SECRET;
+});
+
 function buildPrismaMock() {
   return {
     condominio: { findUnique: jest.fn() },
@@ -160,7 +169,7 @@ describe('AuthService.refresh', () => {
       papel: 'MORADOR' as const,
       condominioId: 'cond-1',
     };
-    const refreshToken = jwt.sign({ userId: usuario.id }, 'dev-refresh-secret', {
+    const refreshToken = jwt.sign({ userId: usuario.id }, TEST_REFRESH_SECRET, {
       expiresIn: '7d',
     });
     prisma.user.findUnique.mockResolvedValue(usuario);
