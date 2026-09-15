@@ -54,7 +54,8 @@ docker compose up -d
 - API: http://localhost:3000
 - Frontend: http://localhost:5173
 
-Veja o guia completo em [docs/deploy.md](docs/deploy.md) *(em construção)*.
+Veja o guia completo, incluindo o plano de deploy em produção, na
+[página de Deploy da Wiki](https://github.com/gustavovieiira/TCC-USAI2.0/wiki/Deploy).
 
 ## Documentação
 
