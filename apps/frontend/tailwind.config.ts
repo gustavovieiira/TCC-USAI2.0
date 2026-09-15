@@ -18,6 +18,14 @@ export default {
           900: '#1b408e',
         },
       },
+      fontFamily: {
+        sans: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'monospace'],
+      },
+      boxShadow: {
+        soft: '0 1px 2px rgba(15,22,34,.05), 0 10px 24px -18px rgba(15,22,34,.4)',
+        'soft-lg': '0 2px 4px rgba(15,22,34,.06), 0 22px 44px -22px rgba(15,22,34,.5)',
+      },
     },
   },
   plugins: [],

@@ -21,7 +21,12 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],
-      include: ['src/features/**/*.{ts,tsx}', 'src/components/**/*.{ts,tsx}'],
+      include: [
+        'src/features/**/*.{ts,tsx}',
+        'src/components/**/*.{ts,tsx}',
+        'src/pages/**/*.{ts,tsx}',
+        'src/lib/**/*.{ts,tsx}',
+      ],
     },
   },
 });

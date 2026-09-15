@@ -6,6 +6,55 @@
 
 ---
 
+## 2026-09-15 — Frontend: catálogo, publicar item, solicitar locação, minhas locações
+
+**O que foi feito:** primeira leva de telas do frontend além de auth, cobrindo o fluxo completo de
+catálogo e locação (RF06-RF14). Design baseado num protótipo feito no Claude Design (paleta azul
+`#1c6ff5` — a mesma já usada no Tailwind desde o M0 —, tipografia Plus Jakarta Sans + JetBrains Mono
+pros valores numéricos, cantos arredondados, sombras suaves).
+
+- **Design system** (`tailwind.config.ts`, `index.html`, `index.css`): fontes via Google Fonts,
+  `boxShadow.soft`/`soft-lg`. Paleta `brand` e neutros `slate` já existentes foram reaproveitados (o
+  protótipo usa exatamente essas cores).
+- **Componentes de UI novos** (`components/ui/`): `Badge` (pílula de status da locação, uma cor por
+  status), `Card`, `Textarea`, `Select`, `EmptyState`, `Spinner`. `Button` ganhou variantes
+  (`primary`/`secondary`/`danger`/`ghost`) e `fullWidth` opcional.
+- **Layout responsivo** (`components/layout/AppShell.tsx`): nav superior (desktop) e barra de
+  navegação inferior fixa (mobile) com os mesmos 3 destinos (Catálogo/Publicar/Locações) — pedido
+  explícito de boa usabilidade em celular *e* notebook. Envolve as rotas autenticadas via
+  `<Outlet/>` aninhado dentro de `ProtectedRoute` em `App.tsx`.
+- **Telas:**
+  - `CatalogoPage` — grid responsivo (2 colunas no mobile, até 4 no desktop), busca por texto e
+    filtro por categoria (ambos client-side sobre a lista já carregada), estado vazio.
+  - `PublicarItemPage` — formulário de criação de item (sem upload de arquivo ainda — usa URL de
+    imagem opcional, já que não há storage de arquivos no backend).
+  - `ItemDetalhePage` — mostra o item, calcula diárias/valor estimado em tempo real conforme as
+    datas mudam, e **esconde o formulário de solicitar locação quando o usuário logado é o dono do
+    item** (reflete a RN04 do backend na UI, evitando um 400 previsível).
+  - `MinhasLocacoesPage` — abas "Como locatário"/"Recebidas"; a aba do proprietário mostra
+    Aprovar/Rejeitar em locações `PENDENTE` e atualiza o card localmente após a ação, sem refetch.
+- **Testes:** 29 testes (Vitest + Testing Library) cobrindo os componentes novos e as 4 páginas —
+  incluindo o cálculo de dias/valor, a regra de dono não poder solicitar (RN04 refletida na UI), o
+  fluxo de aprovar/rejeitar atualizando o card, e filtros do catálogo. Cobertura do frontend subiu de
+  ~21% pra **~60%** (meta do playbook: 25%) — o escopo de cobertura do Vitest
+  (`apps/frontend/vite.config.ts`) também foi ampliado pra incluir `src/pages/**` e `src/lib/**`, que
+  antes ficavam de fora da métrica mesmo tendo lógica de negócio real.
+- **Bug pego pelos testes antes de ir pro ar:** `formatDate` usava `Intl.DateTimeFormat` sem
+  `timeZone: 'UTC'` — como `dataInicio`/`dataFim` são dias de calendário armazenados como meia-noite
+  UTC, em qualquer fuso a oeste de UTC (ex.: horário de Brasília) a data exibida vinha um dia
+  atrasada. Corrigido fixando `timeZone: 'UTC'` no formatter (`src/lib/format.ts`).
+- **Validado manualmente contra o backend real**: logei como Bruno (locatário), solicitei uma
+  locação da Furadeira Bosch pelo formulário (cálculo de "2 diárias · R$ 40,00" bateu), depois logei
+  como Ana (proprietária), vi a solicitação pendente na aba "Recebidas" e apertei "Aprovar" — o card
+  atualizou pra "Aprovada" na hora, sem reload. Testado em viewport desktop (1280px) e mobile
+  (375px) — catálogo, publicar item e a barra de navegação inferior renderizam corretamente nos dois.
+
+**Onde mexer a seguir:** falta UI pro chat da locação (mensagens em tempo real), pros painéis de
+síndico e admin, e pro fluxo de saque. Upload de imagem de verdade (hoje é só URL) depende de decidir
+onde guardar arquivo (S3/Cloudinary/disco do servidor) — ainda não decidido.
+
+---
+
 ## 2026-09-15 — Observabilidade: dashboards do Grafana
 
 **O que foi feito:** o Prometheus já coletava métricas reais desde o M0 (`GET /metrics`), mas o Grafana
