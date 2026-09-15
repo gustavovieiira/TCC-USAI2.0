@@ -6,6 +6,48 @@
 
 ---
 
+## 2026-09-15 — M2 (continuação): interface de Catálogo e Locações
+
+**O que foi feito:** frontend completo para o que o backend do M2 já expunha — antes só dava pra testar
+via curl.
+
+- `apps/frontend/src/components/AppShell.tsx`: layout compartilhado (header com nav + logout) usado por
+  todas as páginas autenticadas, pra não repetir esse header em cada página (`DashboardPage` foi
+  refeito pra usar esse shell).
+- **Catálogo** (`apps/frontend/src/pages/CatalogoPage.tsx` +
+  `apps/frontend/src/features/itens/ItemCard.tsx`): grade de itens do condomínio, filtro por categoria,
+  badge "Seu item" quando `item.ownerId === usuário logado` (RF09). Cada card não-próprio tem o botão
+  "Solicitar locação" que expande o `SolicitarLocacaoForm` inline.
+- **Anunciar item** (`apps/frontend/src/pages/AnunciarPage.tsx` +
+  `apps/frontend/src/features/itens/PublicarItemForm.tsx`): formulário de publicação (RF06).
+- **Solicitar locação** (`apps/frontend/src/features/locacoes/SolicitarLocacaoForm.tsx`): calcula
+  dias × valor diário **no cliente**, em tempo real, conforme a pessoa escolhe as datas — antes de
+  confirmar. O valor final de verdade continua sendo calculado no backend (RF11); esse cálculo no
+  frontend é só para dar feedback imediato.
+- **Acompanhamento** (`apps/frontend/src/pages/AcompanhamentoPage.tsx`): duas colunas — "recebidas"
+  (itens meus que pediram pra alugar, com botões Aprovar/Rejeitar quando `PENDENTE`) e "minhas
+  solicitações" (o que eu pedi). Usa `StatusBadge` (`features/locacoes/StatusBadge.tsx`) pra colorir
+  cada status da máquina de estados.
+
+**Bug encontrado e corrigido na validação manual:** as datas apareciam um dia a menos no
+Acompanhamento (ex.: pedi 05/11–08/11 e aparecia 04/11–07/11). Causa: `new Date(iso).toLocaleDateString()`
+converte pro fuso horário local do navegador antes de formatar — como a data é armazenada como
+meia-noite UTC, em fusos atrás de UTC (ex.: Brasil, UTC-3) isso empurra pro dia anterior. Corrigido em
+`apps/frontend/src/lib/formatters.ts` (`formatarDataISO`), que lê o `YYYY-MM-DD` direto da string ISO
+sem instanciar `Date`. Tem teste de regressão em `formatters.test.ts` — é exatamente o tipo de bug que
+não aparece rodando `npm test` de manhã e some sozinho: só aparece testando de verdade no navegador.
+
+**Validado manualmente no navegador** (não só curl): login como proprietária (Ana), publiquei um item
+pela UI, troquei pra locatário (Carlos) noutra sessão, vi os dois itens da Ana no catálogo sem a badge
+"Seu item", solicitei a locação da escada (cálculo de R$30 apareceu certo antes de confirmar), voltei
+como Ana, vi a solicitação pendente em "recebidas", aprovei, e o status virou "Aprovada" na hora sem
+precisar recarregar a página.
+
+**Onde mexer a seguir:** M3 (Asaas) — o botão de aprovar hoje só muda o status pra `APROVADA`; quando
+o pagamento entrar, a tela de Acompanhamento vai precisar mostrar o link de checkout depois da aprovação.
+
+---
+
 ## 2026-09-15 — M2: Catálogo de itens e Locações
 
 **O que foi feito:** dois módulos novos no backend, seguindo o mesmo padrão do módulo de auth
