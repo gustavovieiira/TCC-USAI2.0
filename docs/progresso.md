@@ -24,6 +24,8 @@ teste. Deixa de existir dependência implícita do fallback interno do serviço.
 **Lição para a prova de autoria:** nunca deixar um teste passar "por acidente" dependendo de uma
 variável de ambiente não controlada — sempre fixar o estado que o teste precisa.
 
+**Status:** CI verde em `main` e `develop` — https://github.com/gustavovieiira/TCC-USAI2.0/actions
+
 ---
 
 ## 2026-09-14 — M0: Fundação do projeto
