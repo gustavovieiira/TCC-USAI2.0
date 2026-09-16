@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { clearSession, getStoredUser, Papel } from '@/lib/authStorage';
+import { clearSession, getStoredUser, homeRouteFor, Papel } from '@/lib/authStorage';
 
 interface NavItem {
   to: string;
@@ -11,10 +11,16 @@ const MORADOR_NAV: NavItem[] = [
   { to: '/catalogo', label: 'Catálogo', icon: IconCatalogo },
   { to: '/itens/novo', label: 'Publicar', icon: IconPublicar },
   { to: '/locacoes', label: 'Locações', icon: IconLocacoes },
+  { to: '/mural', label: 'Mural', icon: IconMural },
+  { to: '/conversas', label: 'Conversas', icon: IconConversas },
   { to: '/saques', label: 'Saques', icon: IconSaques },
 ];
 
-const SINDICO_NAV: NavItem[] = [{ to: '/sindico', label: 'Síndico', icon: IconSindico }];
+const SINDICO_NAV: NavItem[] = [
+  { to: '/sindico', label: 'Síndico', icon: IconSindico },
+  { to: '/mural', label: 'Mural', icon: IconMural },
+  { to: '/conversas', label: 'Conversas', icon: IconConversas },
+];
 
 const ADMIN_NAV: NavItem[] = [{ to: '/admin', label: 'Admin', icon: IconAdmin }];
 
@@ -38,7 +44,7 @@ export function AppShell() {
     <div className="min-h-screen bg-slate-50">
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 md:px-6">
-          <NavLink to="/dashboard" className="text-xl font-extrabold text-brand-600">
+          <NavLink to={homeRouteFor(user?.papel)} className="text-xl font-extrabold text-brand-600">
             USAI
           </NavLink>
 
@@ -139,6 +145,34 @@ function IconSaques({ className }: { className?: string }) {
     <svg viewBox="0 0 24 24" fill="none" className={className}>
       <path
         d="M12 3v12m0 0l-4-4m4 4l4-4M5 17v2a2 2 0 002 2h10a2 2 0 002-2v-2"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function IconMural({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
+      <path
+        d="M4 5h16v10H9l-4 4v-4H4V5z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path d="M8 9h8M8 12h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function IconConversas({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
+      <path
+        d="M21 11.5a7.5 7.5 0 01-11.4 6.4L4 19l1.1-4A7.5 7.5 0 1121 11.5z"
         stroke="currentColor"
         strokeWidth="1.8"
         strokeLinecap="round"

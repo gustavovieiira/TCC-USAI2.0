@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CadastroForm } from '@/features/auth/cadastro/CadastroForm';
-import { saveSession } from '@/lib/authStorage';
+import { homeRouteFor, saveSession } from '@/lib/authStorage';
 import { AuthShell } from './AuthShell';
 
 export function CadastroPage() {
@@ -48,7 +48,7 @@ export function CadastroPage() {
         linkSlug={linkSlug}
         onSuccess={(result) => {
           saveSession(result.accessToken, result.refreshToken, result.user);
-          navigate('/dashboard');
+          navigate(homeRouteFor(result.user.papel));
         }}
       />
     </AuthShell>

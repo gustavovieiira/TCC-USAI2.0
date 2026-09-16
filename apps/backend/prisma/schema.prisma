@@ -28,6 +28,16 @@ enum StatusSaque {
   REJEITADO
 }
 
+enum StatusPost {
+  ABERTO
+  ATENDIDO
+}
+
+enum TipoPost {
+  PEDIDO
+  AVISO
+}
+
 model Condominio {
   id        String   @id @default(uuid())
   nome      String
@@ -37,8 +47,10 @@ model Condominio {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  usuarios User[]
-  itens    Item[]
+  usuarios          User[]
+  itens             Item[]
+  posts             Post[]
+  conversasPrivadas ConversaPrivada[]
 
   @@map("condominios")
 }
@@ -56,12 +68,17 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  condominio         Condominio?        @relation(fields: [condominioId], references: [id])
-  itens              Item[]
-  locacoesComoLocatario Locacao[]       @relation("Locatario")
-  mensagens          Mensagem[]
-  solicitacoesSaque  SolicitacaoSaque[]
-  logsAuditoria      LogAuditoria[]
+  condominio            Condominio?        @relation(fields: [condominioId], references: [id])
+  itens                 Item[]
+  locacoesComoLocatario Locacao[]          @relation("Locatario")
+  mensagens             Mensagem[]
+  solicitacoesSaque     SolicitacaoSaque[]
+  logsAuditoria         LogAuditoria[]
+  posts                 Post[]
+  comentariosPost       ComentarioPost[]
+  conversasComoA        ConversaPrivada[]  @relation("ConversaParticipanteA")
+  conversasComoB        ConversaPrivada[]  @relation("ConversaParticipanteB")
+  mensagensPrivadas     MensagemPrivada[]
 
   @@index([condominioId])
   @@map("users")
@@ -79,8 +96,8 @@ model Item {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  owner      User          @relation(fields: [ownerId], references: [id])
-  condominio Condominio    @relation(fields: [condominioId], references: [id])
+  owner      User         @relation(fields: [ownerId], references: [id])
+  condominio Condominio   @relation(fields: [condominioId], references: [id])
   imagens    ItemImagem[]
   locacoes   Locacao[]
 
@@ -101,15 +118,15 @@ model ItemImagem {
 }
 
 model Locacao {
-  id           String         @id @default(uuid())
-  itemId       String
-  locatarioId  String
-  dataInicio   DateTime
-  dataFim      DateTime
-  valorTotal   Decimal        @db.Decimal(10, 2)
-  status       StatusLocacao  @default(PENDENTE)
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  id          String        @id @default(uuid())
+  itemId      String
+  locatarioId String
+  dataInicio  DateTime
+  dataFim     DateTime
+  valorTotal  Decimal       @db.Decimal(10, 2)
+  status      StatusLocacao @default(PENDENTE)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
   item      Item       @relation(fields: [itemId], references: [id])
   locatario User       @relation("Locatario", fields: [locatarioId], references: [id])
@@ -122,14 +139,14 @@ model Locacao {
 }
 
 model Pagamento {
-  id             String    @id @default(uuid())
-  locacaoId      String    @unique
-  asaasChargeId  String?   @unique
-  status         String    @default("PENDENTE")
-  valor          Decimal   @db.Decimal(10, 2)
-  pagoEm         DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id            String    @id @default(uuid())
+  locacaoId     String    @unique
+  asaasChargeId String?   @unique
+  status        String    @default("PENDENTE")
+  valor         Decimal   @db.Decimal(10, 2)
+  pagoEm        DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   locacao Locacao @relation(fields: [locacaoId], references: [id])
 
@@ -164,6 +181,80 @@ model SolicitacaoSaque {
 
   @@index([userId])
   @@map("solicitacoes_saque")
+}
+
+model Post {
+  id           String      @id @default(uuid())
+  conteudo     String      @map("descricao") @db.Text
+  tipo         TipoPost    @default(PEDIDO)
+  categoria    String?
+  status       StatusPost?
+  autorId      String
+  condominioId String
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  autor           User              @relation(fields: [autorId], references: [id])
+  condominio      Condominio        @relation(fields: [condominioId], references: [id])
+  comentarios     ComentarioPost[]
+  conversasOrigem ConversaPrivada[]
+
+  @@index([condominioId])
+  @@index([autorId])
+  @@map("pedidos")
+}
+
+model ComentarioPost {
+  id        String   @id @default(uuid())
+  postId    String   @map("pedidoId")
+  autorId   String
+  conteudo  String   @db.Text
+  createdAt DateTime @default(now())
+
+  post  Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  autor User @relation(fields: [autorId], references: [id])
+
+  @@index([postId])
+  @@map("respostas_pedido")
+}
+
+/// Chat privado 1:1 aberto a partir do Mural (autor de um post ou de um comentário). Efêmero por
+/// design: expira 7 dias depois de criado (`expiraEm`) e é apagado de vez — não reaproveita o
+/// padrão do chat de locação (que dura o ciclo todo da locação).
+model ConversaPrivada {
+  id              String   @id @default(uuid())
+  postOrigemId    String?
+  participanteAId String
+  participanteBId String
+  condominioId    String
+  createdAt       DateTime @default(now())
+  expiraEm        DateTime
+
+  postOrigem    Post?             @relation(fields: [postOrigemId], references: [id], onDelete: SetNull)
+  participanteA User              @relation("ConversaParticipanteA", fields: [participanteAId], references: [id])
+  participanteB User              @relation("ConversaParticipanteB", fields: [participanteBId], references: [id])
+  condominio    Condominio        @relation(fields: [condominioId], references: [id])
+  mensagens     MensagemPrivada[]
+
+  @@index([condominioId])
+  @@index([participanteAId])
+  @@index([participanteBId])
+  @@index([expiraEm])
+  @@map("conversas_privadas")
+}
+
+model MensagemPrivada {
+  id          String   @id @default(uuid())
+  conversaId  String
+  remetenteId String
+  conteudo    String   @db.Text
+  createdAt   DateTime @default(now())
+
+  conversa  ConversaPrivada @relation(fields: [conversaId], references: [id], onDelete: Cascade)
+  remetente User            @relation(fields: [remetenteId], references: [id])
+
+  @@index([conversaId])
+  @@map("mensagens_privadas")
 }
 
 model LogAuditoria {

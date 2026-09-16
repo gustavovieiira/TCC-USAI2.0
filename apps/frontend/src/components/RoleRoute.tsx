@@ -1,5 +1,5 @@
 import { Navigate, Outlet } from 'react-router-dom';
-import { getStoredUser, Papel } from '@/lib/authStorage';
+import { getStoredUser, homeRouteFor, Papel } from '@/lib/authStorage';
 
 interface RoleRouteProps {
   allow: Papel[];
@@ -13,7 +13,7 @@ export function RoleRoute({ allow }: RoleRouteProps) {
   const user = getStoredUser();
 
   if (!user || !allow.includes(user.papel)) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={homeRouteFor(user?.papel)} replace />;
   }
 
   return <Outlet />;

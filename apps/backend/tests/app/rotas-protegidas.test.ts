@@ -4,6 +4,26 @@ import { createApp } from '@/app';
 describe('Rotas protegidas exigem autenticação (RNF08)', () => {
   const app = createApp();
 
+  it('GET /api/conversas sem token retorna 401', async () => {
+    const response = await request(app).get('/api/conversas');
+    expect(response.status).toBe(401);
+  });
+
+  it('POST /api/conversas sem token retorna 401', async () => {
+    const response = await request(app).post('/api/conversas').send({});
+    expect(response.status).toBe(401);
+  });
+
+  it('POST /api/conversas/:id/mensagens sem token retorna 401', async () => {
+    const response = await request(app).post('/api/conversas/qualquer-id/mensagens').send({});
+    expect(response.status).toBe(401);
+  });
+
+  it('GET /api/conversas/usuarios sem token retorna 401', async () => {
+    const response = await request(app).get('/api/conversas/usuarios');
+    expect(response.status).toBe(401);
+  });
+
   it('GET /api/itens sem token retorna 401', async () => {
     const response = await request(app).get('/api/itens');
     expect(response.status).toBe(401);
@@ -41,6 +61,26 @@ describe('Rotas protegidas exigem autenticação (RNF08)', () => {
 
   it('POST /api/saques sem token retorna 401', async () => {
     const response = await request(app).post('/api/saques').send({});
+    expect(response.status).toBe(401);
+  });
+
+  it('GET /api/mural sem token retorna 401', async () => {
+    const response = await request(app).get('/api/mural');
+    expect(response.status).toBe(401);
+  });
+
+  it('POST /api/mural sem token retorna 401', async () => {
+    const response = await request(app).post('/api/mural').send({});
+    expect(response.status).toBe(401);
+  });
+
+  it('POST /api/mural/:id/respostas sem token retorna 401', async () => {
+    const response = await request(app).post('/api/mural/qualquer-id/respostas').send({});
+    expect(response.status).toBe(401);
+  });
+
+  it('DELETE /api/mural/:id sem token retorna 401', async () => {
+    const response = await request(app).delete('/api/mural/qualquer-id');
     expect(response.status).toBe(401);
   });
 

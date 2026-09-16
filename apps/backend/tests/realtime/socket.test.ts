@@ -4,6 +4,8 @@ import jwt from 'jsonwebtoken';
 import { Server as SocketIOServer } from 'socket.io';
 import { io as ioClient, Socket as ClientSocket } from 'socket.io-client';
 import { createSocketServer } from '@/realtime/socket';
+import { ConversasService } from '@/modules/conversas/conversas.service';
+import { MensagemPrivadaDTO } from '@/modules/conversas/conversas.types';
 import { MensagensService } from '@/modules/mensagens/mensagens.service';
 import { MensagemDTO } from '@/modules/mensagens/mensagens.types';
 
@@ -29,18 +31,30 @@ function buildMensagensServiceMock(): jest.Mocked<
   };
 }
 
+function buildConversasServiceMock(): jest.Mocked<
+  Pick<ConversasService, 'verificarParticipante' | 'enviarMensagem'>
+> {
+  return {
+    verificarParticipante: jest.fn().mockResolvedValue(undefined),
+    enviarMensagem: jest.fn(),
+  };
+}
+
 describe('WebSocket de mensagens em tempo real (M4)', () => {
   let httpServer: http.Server;
   let io: SocketIOServer;
   let port: number;
   let mensagensService: ReturnType<typeof buildMensagensServiceMock>;
+  let conversasService: ReturnType<typeof buildConversasServiceMock>;
   const clients: ClientSocket[] = [];
 
   beforeEach((done) => {
     mensagensService = buildMensagensServiceMock();
+    conversasService = buildConversasServiceMock();
     httpServer = http.createServer();
     io = createSocketServer(httpServer, {
       mensagensService: mensagensService as unknown as MensagensService,
+      conversasService: conversasService as unknown as ConversasService,
     });
     httpServer.listen(0, () => {
       port = (httpServer.address() as AddressInfo).port;
@@ -152,5 +166,94 @@ describe('WebSocket de mensagens em tempo real (M4)', () => {
     });
 
     expect(ack).toEqual({ ok: false, erro: 'Você não participa desta locação' });
+  });
+
+  it('entra na sala da conversa privada quando participante', async () => {
+    const client = await connect('user-ana');
+
+    const ok = await new Promise<boolean>((resolve) => {
+      client.emit('conversa:entrar', 'conversa-1', resolve);
+    });
+
+    expect(ok).toBe(true);
+    expect(conversasService.verificarParticipante).toHaveBeenCalledWith(
+      'conversa-1',
+      'cond-1',
+      'user-ana',
+    );
+  });
+
+  it('nega entrada na conversa privada quando o usuário não participa', async () => {
+    conversasService.verificarParticipante.mockRejectedValue(new Error('sem acesso'));
+    const client = await connect('user-estranho');
+
+    const ok = await new Promise<boolean>((resolve) => {
+      client.emit('conversa:entrar', 'conversa-1', resolve);
+    });
+
+    expect(ok).toBe(false);
+  });
+
+  it('envia mensagem privada e ambos participantes da sala recebem em tempo real', async () => {
+    const remetente = await connect('user-ana');
+    const outroParticipante = await connect('user-bruno');
+
+    const mensagemPersistida: MensagemPrivadaDTO = {
+      id: 'mensagem-1',
+      conversaId: 'conversa-1',
+      remetenteId: 'user-ana',
+      conteudo: 'Ainda precisa da furadeira?',
+      createdAt: new Date('2026-09-16T12:00:00.000Z'),
+    };
+    conversasService.enviarMensagem.mockResolvedValue(mensagemPersistida);
+
+    await Promise.all([
+      new Promise((resolve) => remetente.emit('conversa:entrar', 'conversa-1', resolve)),
+      new Promise((resolve) => outroParticipante.emit('conversa:entrar', 'conversa-1', resolve)),
+    ]);
+
+    const recebida = new Promise((resolve) => {
+      outroParticipante.on('conversa:mensagem:nova', resolve);
+    });
+
+    const ack = await new Promise((resolve) => {
+      remetente.emit(
+        'conversa:mensagem:enviar',
+        { conversaId: 'conversa-1', conteudo: 'Ainda precisa da furadeira?' },
+        resolve,
+      );
+    });
+
+    expect(conversasService.enviarMensagem).toHaveBeenCalledWith(
+      'conversa-1',
+      'cond-1',
+      'user-ana',
+      { conteudo: 'Ainda precisa da furadeira?' },
+    );
+    expect(ack).toMatchObject({
+      ok: true,
+      mensagem: { id: 'mensagem-1', conteudo: 'Ainda precisa da furadeira?' },
+    });
+    await expect(recebida).resolves.toMatchObject({
+      id: 'mensagem-1',
+      conteudo: 'Ainda precisa da furadeira?',
+    });
+  });
+
+  it('retorna erro no ack quando o envio da mensagem privada falha', async () => {
+    const client = await connect('user-estranho');
+    conversasService.enviarMensagem.mockRejectedValue(
+      new Error('Você não participa desta conversa'),
+    );
+
+    const ack = await new Promise((resolve) => {
+      client.emit(
+        'conversa:mensagem:enviar',
+        { conversaId: 'conversa-1', conteudo: 'oi' },
+        resolve,
+      );
+    });
+
+    expect(ack).toEqual({ ok: false, erro: 'Você não participa desta conversa' });
   });
 });

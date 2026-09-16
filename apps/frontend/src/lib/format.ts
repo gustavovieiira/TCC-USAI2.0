@@ -41,7 +41,35 @@ export function formatDateTime(iso: string): string {
   return dateTimeFormatter.format(new Date(iso));
 }
 
+/** Estilo "feed" (Twitter-like): "agora", "5m", "3h", "2d", e a partir de uma semana vira data. */
+export function formatRelativeTime(iso: string): string {
+  const instante = new Date(iso).getTime();
+  const diffMs = Date.now() - instante;
+  const diffMin = Math.floor(diffMs / (1000 * 60));
+
+  if (diffMin < 1) return 'agora';
+  if (diffMin < 60) return `${diffMin}m`;
+
+  const diffHoras = Math.floor(diffMin / 60);
+  if (diffHoras < 24) return `${diffHoras}h`;
+
+  const diffDias = Math.floor(diffHoras / 24);
+  if (diffDias < 7) return `${diffDias}d`;
+
+  return formatDateTime(iso);
+}
+
 const MS_POR_DIA = 1000 * 60 * 60 * 24;
+
+/** Conversas privadas do Mural expiram em 7 dias — usado pra mostrar "expira em Xd" na UI. */
+export function formatDiasRestantes(expiraEmIso: string): string {
+  const restanteMs = new Date(expiraEmIso).getTime() - Date.now();
+  const dias = Math.ceil(restanteMs / MS_POR_DIA);
+
+  if (dias <= 0) return 'expira em breve';
+  if (dias === 1) return 'expira em 1 dia';
+  return `expira em ${dias} dias`;
+}
 
 export function calcularDias(dataInicio: string, dataFim: string): number {
   const inicio = new Date(dataInicio).getTime();

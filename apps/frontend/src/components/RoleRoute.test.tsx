@@ -8,7 +8,7 @@ function renderComPapel(allow: authStorage.Papel[]) {
   return render(
     <MemoryRouter initialEntries={['/admin']}>
       <Routes>
-        <Route path="/dashboard" element={<p>Dashboard</p>} />
+        <Route path="/mural" element={<p>Mural</p>} />
         <Route element={<RoleRoute allow={allow} />}>
           <Route path="/admin" element={<p>Painel restrito</p>} />
         </Route>
@@ -32,7 +32,7 @@ describe('RoleRoute', () => {
     expect(screen.getByText('Painel restrito')).toBeInTheDocument();
   });
 
-  it('redireciona pro dashboard quando o papel não está na lista permitida', () => {
+  it('redireciona pro Mural quando o papel do morador não está na lista permitida', () => {
     vi.spyOn(authStorage, 'getStoredUser').mockReturnValue({
       id: 'user-2',
       nome: 'Bruno',
@@ -43,15 +43,15 @@ describe('RoleRoute', () => {
 
     renderComPapel(['ADMIN']);
 
-    expect(screen.getByText('Dashboard')).toBeInTheDocument();
+    expect(screen.getByText('Mural')).toBeInTheDocument();
     expect(screen.queryByText('Painel restrito')).not.toBeInTheDocument();
   });
 
-  it('redireciona quando não há usuário logado', () => {
+  it('redireciona pro Mural quando não há usuário logado', () => {
     vi.spyOn(authStorage, 'getStoredUser').mockReturnValue(null);
 
     renderComPapel(['ADMIN']);
 
-    expect(screen.getByText('Dashboard')).toBeInTheDocument();
+    expect(screen.getByText('Mural')).toBeInTheDocument();
   });
 });

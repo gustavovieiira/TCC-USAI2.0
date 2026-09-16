@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { LoginForm } from '@/features/auth/login/LoginForm';
-import { saveSession } from '@/lib/authStorage';
+import { homeRouteFor, saveSession } from '@/lib/authStorage';
 import { AuthShell } from './AuthShell';
 
 export function LoginPage() {
@@ -14,7 +14,7 @@ export function LoginPage() {
       <LoginForm
         onSuccess={(result) => {
           saveSession(result.accessToken, result.refreshToken, result.user);
-          navigate('/dashboard');
+          navigate(homeRouteFor(result.user.papel));
         }}
       />
       <p className="mt-6 text-center text-sm text-slate-500">

@@ -6,6 +6,135 @@
 
 ---
 
+## 2026-09-16 — Conversas privadas a partir do Mural (chat efêmero, 7 dias)
+
+**O que foi feito:** pedido direto de uso — "no mural tem que ter a opção de poder conversar com
+uma pessoa, abrir um chat e deixar o chat lá por no máximo 7 dias". Além do comentário público, dá
+pra abrir um chat 1:1 com o autor de um post **ou de um comentário**, direto do Mural.
+
+- **Modelagem:** `ConversaPrivada` (dois participantes nomeados via `@relation` — mesmo padrão do
+  `Locatario` em `Locacao` — mais `postOrigemId?` opcional referenciando o post que originou o
+  chat) e `MensagemPrivada`. Migration `20260916143115_conversas_privadas_mural`.
+- **Efêmero por design — no máximo 7 dias, apagado de vez (não só ocultado):** `expiraEm` é
+  gravado na criação (`createdAt + 7 dias`) e **nunca atualizado**; toda operação do
+  `ConversasService` chama `expirarAntigas(condominioId)` primeiro (`deleteMany` das conversas
+  vencidas daquele condomínio — cascade apaga as mensagens junto). Como isso só limpa quando
+  alguém mexe no recurso, `server.ts` também roda uma varredura global a cada hora
+  (`setInterval` fora do `app.ts`, que precisa ficar sem efeitos colaterais pros testes com
+  supertest) — garante a exclusão mesmo que ninguém mais volte a acessar.
+- **Sem duplicar conversa:** `abrirOuContinuar` procura uma conversa ativa já existente entre os
+  dois (nos dois sentidos) antes de criar uma nova — abrir o chat a partir de um post diferente
+  com a mesma pessoa cai na mesma conversa.
+- **Backend** (`apps/backend/src/modules/conversas/`) — `POST /api/conversas` (abre/continua,
+  `usuarioId` + `postOrigemId?`), `GET /api/conversas` (minhas, com a última mensagem via
+  `_count`-like `include` pra preview), `GET /api/conversas/:id`, `GET/POST
+  /api/conversas/:id/mensagens`. Tempo real reaproveita o **mesmo servidor de WebSocket** do chat
+  de locação (`realtime/socket.ts`) — salas `conversa:<id>` ao lado de `locacao:<id>`, eventos
+  `conversa:entrar` / `conversa:mensagem:enviar` / `conversa:mensagem:nova`.
+- **Frontend** — `ConversarButton` (componente compartilhado, variantes ícone/texto) aparece no
+  `PostCard` (autor do post) e no `PostDetalhePage` (autor do post + autor de cada comentário),
+  sempre exceto pra si mesmo. `MinhasConversasPage` (nova, nav "Conversas") lista as conversas
+  ativas com prévia da última mensagem e `formatDiasRestantes` ("expira em N dias"; `lib/format.ts`).
+  `ConversaPage` é o chat em si — mesmo padrão do `MensagensLocacaoPage` (histórico via REST,
+  envio/recebimento ao vivo via socket), com um segundo par `createConversaSocket`/tipos em
+  `lib/socket.ts`.
+- **Buscar morador direto (sem precisar passar pelo Mural):** pedido de acompanhamento — às vezes
+  não tem um post/comentário pra ancorar a conversa, só quer falar com alguém específico do
+  condomínio. `GET /api/conversas/usuarios` (`conversas.service.ts#listarUsuariosDoCondominio`)
+  lista todo mundo do condomínio (exceto quem busca); registrado **antes** de `/:id` no router
+  pra não ser capturado como parâmetro. No `MinhasConversasPage`, um campo de busca filtra esse
+  cache local por nome (mesmo padrão client-side do filtro de categoria no `CatalogoPage` — o
+  condomínio é pequeno, não precisa de busca no servidor a cada tecla) e clicar num resultado
+  chama `abrirOuContinuar` normalmente.
+- **Testes:** backend — `conversas.service.test.ts` (abrir novo vs. reaproveitar conversa
+  existente, resolução do "outro participante" nos dois sentidos, admin precisa informar
+  `condominioId` explicitamente, bloqueio de conversa consigo mesmo, autorização por
+  participante, listagem de usuários do condomínio) + extensão de `realtime/socket.test.ts` pros
+  eventos `conversa:*` (entrar, negar quem não participa, broadcast de mensagem nova, erro no
+  ack) + 401 em `rotas-protegidas.test.ts`. 141/141 testes de backend passando. Frontend —
+  `ConversarButton`, `ConversaPage`, `MinhasConversasPage` (com busca) (novos) + casos
+  adicionados em `MuralPage`/`PostDetalhePage` (mostrar/esconder "Conversar" conforme autoria).
+  104/104 testes de frontend passando.
+- **Validação manual:** Ana abre conversa a partir do aviso da Carla (síndica); Carla recebe,
+  responde, e a mensagem chega em tempo real sem recarregar a página. Abrir "Conversar" de novo a
+  partir de outro post com a mesma pessoa (dessa vez pelo comentário dela) reabre a **mesma**
+  conversa, sem duplicar. Busca por "carla" e por "bru" no campo de busca do
+  `MinhasConversasPage` retorna os moradores certos (inclusive duas contas de teste homônimas,
+  "Bruno Locatario", corretamente listadas como pessoas distintas) e abrir uma nova conversa a
+  partir do resultado funciona sem precisar de um post de origem. Testado em viewport mobile
+  (375px).
+
+**Onde mexer a seguir:** nada pendente aqui. Segue faltando só o M3 (Asaas), o deploy em nuvem, e
+a UI do Admin USAI pra postar aviso no Mural escolhendo o condomínio.
+
+---
+
+## 2026-09-16 — Mural: feed único do condomínio (estilo rede social)
+
+**O que foi feito:** funcionalidade sugerida a partir do uso real do Dashboard — inicialmente um
+mural simples de "pedidos de ajuda com resposta pública", mas o formato de lista de cards ficou
+pouco natural pro caso de uso real (síndico avisando o condomínio, morador postando qualquer
+coisa). Redesenhado num único momento pra um **feed estilo Twitter/X**: qualquer post (aviso ou
+pedido) na mesma linha do tempo, com avatar, selo de papel, tempo relativo e comentários públicos.
+Não faz parte do RFC original (sem numeração RF própria) — recurso adicionado por pedido direto de
+uso, então a modelagem já nasceu no formato final (sem migration intermediária "errada" no
+histórico).
+
+- **Modelagem:** um único modelo `Post` (mapeado pra tabela `pedidos`, reaproveitando a primeira
+  migration) com `tipo: PEDIDO|AVISO`, `conteudo` (texto livre, sem título separado — como um
+  tweet), `categoria?`, `status: ABERTO|ATENDIDO` **opcional** (só preenchido quando `tipo=PEDIDO`;
+  `null` pra avisos/posts livres), `autorId`, `condominioId`. `ComentarioPost` pros comentários
+  públicos. Migration `20260916134147_mural_feed_unificado` (remove `titulo`, adiciona `tipo`,
+  torna `status` opcional).
+- **Quem pode postar o quê:** qualquer morador, síndico ou admin pode publicar um post de qualquer
+  tipo — não é só o síndico que avisa, e não é só o morador que pede ajuda; o feed é livre, do jeito
+  que uma rede social é. Admin USAI (que não pertence a um condomínio) precisa informar
+  explicitamente pra qual condomínio o post é (`condominioId` no corpo da requisição) — sem UI
+  própria ainda pro admin nessa primeira versão, só suporte no backend.
+- **Moderação:** o autor pode excluir o próprio post; o síndico pode excluir **qualquer** post do
+  próprio condomínio (`DELETE /api/mural/:id`) — pedido explícito do usuário ("o síndico tem opção
+  de poder excluir caso precise").
+- **Backend** (`apps/backend/src/modules/mural/`) — mesmo padrão em camadas dos outros módulos.
+  `POST /api/mural`, `GET /api/mural` (com contagem de comentários via `_count`), `GET
+  /api/mural/:id`, `POST /api/mural/:id/respostas`, `POST /api/mural/:id/atender` (só autor, só
+  `tipo=PEDIDO`), `DELETE /api/mural/:id`.
+- **Frontend** — `MuralPage` com um composer no estilo "o que está acontecendo?" (avatar + textarea
+  + toggle Post/Preciso de ajuda + categoria opcional só quando é pedido) e o feed abaixo
+  (`PostCard`, componente compartilhado com `PostDetalhePage`): avatar com inicial, nome, selo
+  "Síndico"/"Admin USAI" quando aplicável (`PapelTag`), tempo relativo (`formatRelativeTime` — "agora"
+  / "5m" / "3h" / "2d" / data completa a partir de uma semana), badge de status só pra pedidos,
+  contador de comentários, e ícone de excluir só pra quem pode. Acessível também pro síndico
+  (`RoleRoute allow={['MORADOR','SINDICO']}`), com item próprio na navegação.
+- **Mural como home:** depois de ver a primeira versão rodando, o feedback foi direto — o Mural
+  precisa ser a página principal, não mais um item de navegação qualquer. O antigo `DashboardPage`
+  (cards de atalho tipo "Catálogo", "Publicar item" etc.) foi **removido** — ele só duplicava links
+  que já existem na navegação (`AppShell`) e no `Mural`, então virou código morto assim que deixou
+  de ser a home. Criado `homeRouteFor(papel)` em `lib/authStorage.ts`: resolve `/mural` pra
+  morador/síndico e `/admin` pro Admin USAI (que ainda não tem acesso ao Mural — evita loop de
+  redirecionamento no `RoleRoute`). Usado em três lugares: clique no logo "USAI" (`AppShell`),
+  redirecionamento pós-login/cadastro (`LoginPage`, `CadastroPage`) e fallback do `RoleRoute`
+  quando o papel não bate com a rota.
+- **Testes:** backend — `mural.service.test.ts` (100% de cobertura: criar post/aviso, resolução de
+  condomínio pro admin, listar com contagem de comentários, marcar atendido só pra pedido,
+  exclusão por autor e por síndico, rejeição pra quem não é nem autor nem síndico) + caso de 401 em
+  `rotas-protegidas.test.ts`. 119/119 testes de backend passando. Frontend — `MuralPage.test.tsx` e
+  `PostDetalhePage.test.tsx` (14 testes: composer alternando tipo, exclusão por autor/síndico,
+  ocultação de "marcar atendido"/"excluir" pra quem não tem permissão, comentários, estados de
+  erro) + testes de `PapelTag`/`PostStatusBadge`, `formatRelativeTime` e `RoleRoute`/`homeRouteFor`
+  atualizados pro novo destino. 82/82 testes de frontend passando (a suíte do `DashboardPage`,
+  removida junto com a página).
+- **Validação manual:** três contas (Ana, Bruno — moradores; Carla — síndica) do mesmo condomínio.
+  Ana publica um aviso livre e um pedido com categoria; Carla acessa o Mural (rota liberada pro
+  papel dela), publica um aviso oficial com o selo "Síndico" visível, comenta no pedido da Ana, e
+  confirma que vê o ícone de excluir em **todos** os posts (moderação), enquanto o botão "Marcar
+  como atendido" só aparece pro autor. Testado em viewport mobile (375px) — feed, composer e selo
+  de papel renderizam corretamente empilhados.
+
+**Onde mexer a seguir:** UI do Admin USAI pra postar aviso escolhendo o condomínio (hoje só
+suportado no backend). Fora isso, falta só o M3 (Asaas) e o deploy em nuvem.
+
+---
+
 ## 2026-09-16 — Upload de imagem de verdade (fim do gap de "só URL")
 
 **O que foi feito:** publicar item aceitava só URL de imagem (link externo colado pelo usuário) —

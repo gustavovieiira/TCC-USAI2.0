@@ -32,3 +32,14 @@ export function getStoredUser(): StoredUser | null {
   const raw = localStorage.getItem(USER_KEY);
   return raw ? (JSON.parse(raw) as StoredUser) : null;
 }
+
+/**
+ * Página inicial de cada papel — pra onde vai o login/cadastro, o clique no logo "USAI" e o
+ * fallback do `RoleRoute` quando o papel não bate com a rota. Admin ainda não tem acesso ao Mural
+ * (não pertence a um condomínio), por isso cai no próprio painel em vez de entrar num loop de
+ * redirecionamento.
+ */
+export function homeRouteFor(papel?: Papel): string {
+  if (papel === 'ADMIN') return '/admin';
+  return '/mural';
+}
