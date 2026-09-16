@@ -14,6 +14,11 @@ describe('Rotas protegidas exigem autenticação (RNF08)', () => {
     expect(response.status).toBe(401);
   });
 
+  it('POST /api/itens/upload-imagem sem token retorna 401', async () => {
+    const response = await request(app).post('/api/itens/upload-imagem');
+    expect(response.status).toBe(401);
+  });
+
   it('GET /api/locacoes/minhas sem token retorna 401', async () => {
     const response = await request(app).get('/api/locacoes/minhas');
     expect(response.status).toBe(401);

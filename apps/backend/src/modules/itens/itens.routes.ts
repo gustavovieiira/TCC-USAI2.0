@@ -7,6 +7,7 @@ export const itensRouter = Router();
 
 itensRouter.use(authGuard);
 
+itensRouter.post('/upload-imagem', asyncHandler(itensController.uploadImagem));
 itensRouter.post('/', asyncHandler(itensController.criar));
 itensRouter.get('/', asyncHandler(itensController.listar));
 itensRouter.get('/:id', asyncHandler(itensController.buscarPorId));

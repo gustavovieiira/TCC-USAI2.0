@@ -6,6 +6,39 @@
 
 ---
 
+## 2026-09-16 — Upload de imagem de verdade (fim do gap de "só URL")
+
+**O que foi feito:** publicar item aceitava só URL de imagem (link externo colado pelo usuário) —
+trocado por upload de arquivo de verdade, armazenado em disco no backend via Multer.
+
+- **Backend** (`apps/backend/src/modules/itens/upload.middleware.ts`,
+  `common/uploads.ts`): `POST /api/itens/upload-imagem` (multipart, campo `imagem`) aceita só
+  JPEG/PNG/WebP (rejeita explicitamente outros tipos, inclusive SVG — evita XSS armazenado via SVG
+  com script embutido), limite de 5MB, nome de arquivo sempre gerado via `randomUUID()` (nunca o
+  nome original, evita path traversal). Retorna a URL pública; `app.ts` serve `/uploads` como
+  estático. `UPLOADS_DIR` é configurável via env (`UPLOADS_DIR`) pensando no dia do deploy — hoje é
+  disco local, mas pode virar volume montado ou trocar de estratégia sem mexer no resto do código.
+- **Frontend** (`PublicarItemPage.tsx`): campo de URL trocado por `<input type="file">` com
+  pré-visualização (via `URL.createObjectURL`) e validação de tipo antes mesmo de enviar. No submit:
+  se tem arquivo, faz upload primeiro (`uploadImagemItem`) pra pegar a URL, só depois cria o item com
+  ela — dois passos, uma ação só pro usuário.
+- **Testes:** backend — `tests/modules/itens/upload.test.ts`, integração real batendo em disco
+  (não mock), limpa os arquivos criados no `afterAll`. Frontend — 3 testes novos em
+  `PublicarItemPage.test.tsx` cobrindo upload+criação, rejeição de formato inválido e falha no
+  upload. Precisou de polyfill de `URL.createObjectURL`/`revokeObjectURL` no `tests/setup.ts`
+  (jsdom não implementa, mesma categoria do `scrollIntoView` já resolvido antes).
+- **Achado durante o teste de validação manual, não nos automatizados:** criei um JPEG mínimo à mão
+  (bytes escritos manualmente) só pra testar o upload via curl — o servidor armazenou e serviu o
+  arquivo perfeitamente (bytes idênticos, headers corretos, `Content-Type: image/jpeg`), mas o
+  Chromium se recusava a decodificá-lo (ícone de imagem quebrada). Troquei por um PNG 1x1 válido de
+  verdade (fixture conhecida) e renderizou normalmente — ou seja, **o bug era do meu arquivo de teste
+  handcrafted, não do pipeline de upload**. Fica de lição: pra testar upload de imagem manualmente,
+  usar sempre um arquivo real, nunca um "JPEG mínimo" escrito à mão.
+
+**Onde mexer a seguir:** nada pendente aqui. Segue faltando só o M3 (Asaas) e o deploy em nuvem.
+
+---
+
 ## 2026-09-15 — Frontend: painéis de síndico e Admin USAI, saques
 
 **O que foi feito:** as três últimas telas que faltavam no frontend, fechando o RFC quase inteiro

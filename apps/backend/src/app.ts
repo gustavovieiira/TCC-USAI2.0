@@ -1,6 +1,7 @@
 import cors from 'cors';
 import express, { Express } from 'express';
 import { errorHandler } from '@/common/errorHandler';
+import { UPLOADS_DIR } from '@/common/uploads';
 import { metricsMiddleware } from '@/metrics/metricsMiddleware';
 import { metricsRegistry } from '@/metrics/registry';
 import { adminRouter } from '@/modules/admin/admin.routes';
@@ -32,6 +33,8 @@ export function createApp(): Express {
   app.use('/api/saques', saquesRouter);
   app.use('/api/sindico', sindicoRouter);
   app.use('/api/admin', adminRouter);
+
+  app.use('/uploads', express.static(UPLOADS_DIR));
 
   app.use(errorHandler);
 

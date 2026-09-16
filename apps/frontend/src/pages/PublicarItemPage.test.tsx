@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useParams } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
@@ -55,6 +55,86 @@ describe('PublicarItemPage', () => {
       imagens: undefined,
     });
     expect(await screen.findByText('Detalhe do item item-novo')).toBeInTheDocument();
+  });
+
+  it('faz upload da foto antes de criar o item, quando uma é escolhida', async () => {
+    vi.spyOn(itensApi, 'uploadImagemItem').mockResolvedValue({
+      url: 'http://localhost:3000/uploads/itens/foto-gerada.jpg',
+    });
+    vi.spyOn(itensApi, 'criarItem').mockResolvedValue({
+      id: 'item-novo',
+      titulo: 'Furadeira Bosch',
+      descricao: 'Furadeira de impacto em ótimo estado',
+      categoria: 'Ferramentas',
+      valorDiaria: 20,
+      ativo: true,
+      ownerId: 'user-1',
+      condominioId: 'cond-1',
+      imagens: ['http://localhost:3000/uploads/itens/foto-gerada.jpg'],
+      createdAt: '2026-09-15T00:00:00.000Z',
+    });
+
+    renderPage();
+
+    const arquivo = new File(['conteudo'], 'furadeira.jpg', { type: 'image/jpeg' });
+    await userEvent.upload(screen.getByLabelText('Escolher foto'), arquivo);
+    expect(await screen.findByLabelText('Trocar foto')).toBeInTheDocument();
+
+    await userEvent.type(screen.getByLabelText('Título'), 'Furadeira Bosch');
+    await userEvent.type(screen.getByLabelText('Categoria'), 'Ferramentas');
+    await userEvent.type(
+      screen.getByLabelText('Descrição'),
+      'Furadeira de impacto em ótimo estado',
+    );
+    await userEvent.type(screen.getByLabelText('Valor por diária (R$)'), '20');
+    await userEvent.click(screen.getByRole('button', { name: 'Publicar' }));
+
+    expect(itensApi.uploadImagemItem).toHaveBeenCalledWith(arquivo);
+    expect(itensApi.criarItem).toHaveBeenCalledWith(
+      expect.objectContaining({ imagens: ['http://localhost:3000/uploads/itens/foto-gerada.jpg'] }),
+    );
+    expect(await screen.findByText('Detalhe do item item-novo')).toBeInTheDocument();
+  });
+
+  it('rejeita um arquivo de formato não suportado sem chamar o upload', async () => {
+    vi.spyOn(itensApi, 'uploadImagemItem');
+
+    renderPage();
+
+    // userEvent.upload respeita o atributo `accept` do input (como o seletor de arquivo do SO) e
+    // não dispara o evento pra um tipo incompatível — por isso o change é forçado via fireEvent
+    // aqui, exercitando a validação defensiva do componente (relevante pra drag-and-drop, por
+    // exemplo, que não respeita `accept`).
+    const arquivo = new File(['conteudo'], 'documento.pdf', { type: 'application/pdf' });
+    fireEvent.change(screen.getByLabelText('Escolher foto'), { target: { files: [arquivo] } });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Formato de imagem não suportado');
+    expect(itensApi.uploadImagemItem).not.toHaveBeenCalled();
+  });
+
+  it('exibe erro quando o upload da imagem falha e não chega a criar o item', async () => {
+    vi.spyOn(itensApi, 'uploadImagemItem').mockRejectedValue({
+      isAxiosError: true,
+      response: { data: { error: { message: 'Falha no upload da imagem' } } },
+    });
+    vi.spyOn(itensApi, 'criarItem');
+
+    renderPage();
+
+    const arquivo = new File(['conteudo'], 'furadeira.jpg', { type: 'image/jpeg' });
+    await userEvent.upload(screen.getByLabelText('Escolher foto'), arquivo);
+
+    await userEvent.type(screen.getByLabelText('Título'), 'Furadeira Bosch');
+    await userEvent.type(screen.getByLabelText('Categoria'), 'Ferramentas');
+    await userEvent.type(
+      screen.getByLabelText('Descrição'),
+      'Furadeira de impacto em ótimo estado',
+    );
+    await userEvent.type(screen.getByLabelText('Valor por diária (R$)'), '20');
+    await userEvent.click(screen.getByRole('button', { name: 'Publicar' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Falha no upload da imagem');
+    expect(itensApi.criarItem).not.toHaveBeenCalled();
   });
 
   it('exibe mensagem de erro quando a publicação falha', async () => {

@@ -30,3 +30,6 @@ prometheus-data/
 
 # Override local (ex.: remapear porta do MySQL quando 3306 já está em uso na máquina)
 docker-compose.override.yml
+
+# Uploads (arquivos enviados pelos usuários — armazenamento local em disco, não versionado)
+apps/backend/uploads/

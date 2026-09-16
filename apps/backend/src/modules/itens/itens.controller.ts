@@ -1,8 +1,9 @@
 import { Request, Response } from 'express';
 import { prisma } from '@/common/prisma';
-import { ForbiddenError } from '@/common/errors';
+import { AppError, ForbiddenError } from '@/common/errors';
 import { ItensService } from './itens.service';
 import { atualizarItemSchema, criarItemSchema, listarItensQuerySchema } from './itens.schemas';
+import { uploadImagemItem } from './upload.middleware';
 
 const itensService = new ItensService(prisma);
 
@@ -11,6 +12,13 @@ function condominioDoUsuario(req: Request): string {
     throw new ForbiddenError('Este perfil não está vinculado a um condomínio');
   }
   return req.auth.condominioId;
+}
+
+/** Promisifica o middleware do multer pra poder tratar o erro dele como um AppError normal. */
+function processarUpload(req: Request, res: Response): Promise<void> {
+  return new Promise((resolve, reject) => {
+    uploadImagemItem(req, res, (err: unknown) => (err ? reject(err) : resolve()));
+  });
 }
 
 export const itensController = {
@@ -43,5 +51,21 @@ export const itensController = {
   async remover(req: Request, res: Response) {
     await itensService.remover(req.params.id, req.auth!.userId);
     res.status(204).send();
+  },
+
+  async uploadImagem(req: Request, res: Response) {
+    try {
+      await processarUpload(req, res);
+    } catch (err) {
+      const mensagem = err instanceof Error ? err.message : 'Falha no upload da imagem';
+      throw new AppError(mensagem, 400, 'UPLOAD_INVALIDO');
+    }
+
+    if (!req.file) {
+      throw new AppError('Nenhuma imagem enviada', 400, 'UPLOAD_AUSENTE');
+    }
+
+    const url = `${req.protocol}://${req.get('host')}/uploads/itens/${req.file.filename}`;
+    res.status(201).json({ url });
   },
 };
