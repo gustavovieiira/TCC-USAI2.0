@@ -6,6 +6,35 @@
 
 ---
 
+## 2026-09-16 — Cobertura de testes: fechando a meta de 75% do backend
+
+**O que foi feito:** com o núcleo de engenharia e o frontend completos, faltava só a única meta
+numérica obrigatória do playbook (75% backend). A cobertura estava em ~72% porque os
+`*.controller.ts` de praticamente todo módulo só eram exercitados indiretamente pelos
+`*.service.test.ts` (que mockam o *service* inteiro, então nunca rodam o parsing do Zod, a leitura
+de `req.auth` nem o `res.status().json()` do controller de verdade) e pelos `*.routes.test.ts` já
+existentes (que só cobrem o caminho de rejeição do RBAC — `requireRole` — sem nunca chegar no corpo
+do controller).
+
+- **Abordagem:** um `<módulo>.controller.test.ts` por módulo, via `supertest` batendo na app real
+  (`createApp()` de `@/app`) com JWTs assinados na hora, mas com `jest.mock('@/common/prisma', ...)`
+  no topo do arquivo substituindo o banco por um objeto só com os métodos Prisma realmente usados
+  naquele módulo (`jest.fn()`). Isso exercita o fluxo inteiro request → `authGuard` →
+  Zod `.parse()` → controller → service (de verdade, não mockado) → `res.json()` → `errorHandler`,
+  sem precisar de banco real nem duplicar a lógica que os testes de service já cobrem.
+- **Módulos cobertos:** `auth`, `itens`, `locacoes`, `mensagens` (aninhado em
+  `/locacoes/:id/mensagens`), `mural`, `conversas`, `saques`, `sindico`, `admin` — sucesso, erro de
+  validação (400), não encontrado (404) e proibido (403) conforme o caso de cada módulo.
+- **Resultado:** cobertura total do backend saiu de **~72% para ~98,7%** (statements), muito acima
+  da meta de 75%. 213/213 testes passando (25 suítes) — eram 141 antes desta rodada.
+
+**Onde mexer a seguir:** meta de cobertura do playbook fechada. Combinado com o usuário
+(2026-09-16): deploy em nuvem e o banco em produção ficam pra depois da orientação da semana que
+vem — por ora, seguir só com polimento de usabilidade/layout no frontend. M3 (Asaas) segue pra fase
+final.
+
+---
+
 ## 2026-09-16 — Conversas privadas a partir do Mural (chat efêmero, 7 dias)
 
 **O que foi feito:** pedido direto de uso — "no mural tem que ter a opção de poder conversar com
