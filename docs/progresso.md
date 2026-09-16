@@ -67,6 +67,12 @@ pra abrir um chat 1:1 com o autor de um post **ou de um comentário**, direto do
 **Onde mexer a seguir:** nada pendente aqui. Segue faltando só o M3 (Asaas), o deploy em nuvem, e
 a UI do Admin USAI pra postar aviso no Mural escolhendo o condomínio.
 
+**Status:** commit `f78248b` (Mural + conversas privadas) — CI verde em `main` (jobs `backend`,
+`frontend` e `sonarcloud`, ver https://github.com/gustavovieiira/TCC-USAI2.0/actions/runs/35115435568)
+e **quality gate do SonarCloud em `OK`**: `new_coverage` 87.1% (limite ≥ 80%), 0 problemas de
+confiabilidade/segurança/manutenibilidade no código novo, duplicação 2.4% (limite < 3%), 100% dos
+security hotspots revisados.
+
 ---
 
 ## 2026-09-16 — Mural: feed único do condomínio (estilo rede social)
