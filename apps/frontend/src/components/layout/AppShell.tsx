@@ -41,10 +41,14 @@ export function AppShell() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 md:px-6">
-          <NavLink to={homeRouteFor(user?.papel)} className="text-xl font-extrabold text-brand-600">
+    <div className="min-h-screen bg-paper">
+      <header className="sticky top-0 z-20 bg-ink text-ink-inverse">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3 md:px-6">
+          <NavLink
+            to={homeRouteFor(user?.papel)}
+            className="flex items-center gap-2 font-display text-xl font-bold text-ink-inverse"
+          >
+            <span className="notch-sm h-5 w-5 bg-barro-400" aria-hidden="true" />
             USAI
           </NavLink>
 
@@ -54,8 +58,8 @@ export function AppShell() {
                 key={to}
                 to={to}
                 className={({ isActive }) =>
-                  `rounded-xl px-3 py-2 text-sm font-semibold transition ${
-                    isActive ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-100'
+                  `px-3 py-2 text-sm font-semibold transition ${
+                    isActive ? 'text-barro-400' : 'text-ink-inverse-soft hover:text-ink-inverse'
                   }`
                 }
               >
@@ -65,12 +69,12 @@ export function AppShell() {
           </nav>
 
           <div className="flex items-center gap-3">
-            <span className="hidden text-sm text-slate-500 sm:inline">
+            <span className="hidden font-meta text-xs tracking-wide text-ink-inverse-soft sm:inline">
               {user?.nome ?? 'Morador'}
             </span>
             <button
               onClick={handleLogout}
-              className="rounded-xl px-3 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100"
+              className="px-3 py-2 text-sm font-semibold text-ink-inverse-soft hover:text-ink-inverse"
             >
               Sair
             </button>
@@ -78,21 +82,21 @@ export function AppShell() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-4 pb-24 pt-6 md:px-6 md:pb-10 md:pt-8">
+      <main className="mx-auto max-w-5xl bg-cortica bg-cortica-grid px-4 pb-24 pt-6 md:px-6 md:pb-10 md:pt-8">
         <Outlet />
       </main>
 
       <nav
         className="fixed inset-x-0 bottom-0 z-20 flex items-stretch justify-around border-t
-          border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+          border-paper-line bg-paper-surface pb-[env(safe-area-inset-bottom)] md:hidden"
       >
         {navItems.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}
             className={({ isActive }) =>
-              `flex flex-1 flex-col items-center gap-0.5 py-2.5 text-xs font-medium transition ${
-                isActive ? 'text-brand-600' : 'text-slate-500'
+              `flex flex-1 flex-col items-center gap-0.5 py-2.5 text-xs font-semibold transition ${
+                isActive ? 'text-barro-700' : 'text-ink-faint'
               }`
             }
           >

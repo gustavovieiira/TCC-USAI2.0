@@ -73,7 +73,7 @@ describe('CatalogoPage', () => {
     );
 
     await screen.findByText('Furadeira Bosch');
-    await userEvent.type(screen.getByPlaceholderText('Buscar item...'), 'taças');
+    await userEvent.type(screen.getByPlaceholderText('Buscar item, categoria, vizinho…'), 'taças');
 
     await waitFor(() => expect(screen.queryByText('Furadeira Bosch')).not.toBeInTheDocument());
     expect(screen.getByText('Jogo de taças')).toBeInTheDocument();

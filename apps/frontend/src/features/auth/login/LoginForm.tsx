@@ -50,7 +50,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
         onChange={(e) => setSenha(e.target.value)}
       />
       {error && (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-carmim-700">
           {error}
         </p>
       )}

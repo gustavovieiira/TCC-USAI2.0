@@ -66,30 +66,30 @@ export function MinhasLocacoesPage() {
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Minhas locações</h1>
-        <p className="text-sm text-slate-500">Acompanhe o que você alugou e o que emprestou.</p>
+        <h1 className="font-display text-2xl font-bold text-ink">Minhas locações</h1>
+        <p className="text-sm text-ink-soft">Acompanhe o que você alugou e o que emprestou.</p>
       </div>
 
-      <div className="flex gap-1 rounded-xl bg-slate-100 p-1">
+      <div className="flex gap-1 border border-paper-line bg-paper-surface p-1">
         <button
           onClick={() => setAba('locatario')}
-          className={`flex-1 rounded-lg py-2 text-sm font-semibold transition ${
-            aba === 'locatario' ? 'bg-white text-slate-900 shadow-soft' : 'text-slate-500'
+          className={`flex-1 py-2 text-sm font-semibold transition ${
+            aba === 'locatario' ? 'notch-sm bg-ink text-ink-inverse' : 'text-ink-soft'
           }`}
         >
           Como locatário
         </button>
         <button
           onClick={() => setAba('proprietario')}
-          className={`flex-1 rounded-lg py-2 text-sm font-semibold transition ${
-            aba === 'proprietario' ? 'bg-white text-slate-900 shadow-soft' : 'text-slate-500'
+          className={`flex-1 py-2 text-sm font-semibold transition ${
+            aba === 'proprietario' ? 'notch-sm bg-ink text-ink-inverse' : 'text-ink-soft'
           }`}
         >
           Recebidas
         </button>
       </div>
 
-      {erro && <p className="text-sm text-red-600">{erro}</p>}
+      {erro && <p className="text-sm text-carmim-700">{erro}</p>}
 
       {!lista && !erro && (
         <div className="flex justify-center py-16">
@@ -116,13 +116,13 @@ export function MinhasLocacoesPage() {
             <Card key={locacao.id} className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <h3 className="font-semibold text-slate-900">{locacao.item.titulo}</h3>
+                  <h3 className="font-display font-semibold text-ink">{locacao.item.titulo}</h3>
                   <StatusBadge status={locacao.status} />
                 </div>
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-sm text-ink-soft">
                   {formatDate(locacao.dataInicio)} → {formatDate(locacao.dataFim)}
                 </p>
-                <p className="mt-1 font-mono text-sm font-semibold text-slate-900">
+                <p className="mt-1 font-display text-sm font-semibold text-ink">
                   {formatCurrency(locacao.valorTotal)}
                 </p>
               </div>
@@ -131,7 +131,7 @@ export function MinhasLocacoesPage() {
                 <Link
                   to={`/locacoes/${locacao.id}/mensagens`}
                   state={{ itemTitulo: locacao.item.titulo }}
-                  className="text-sm font-semibold text-brand-600 hover:underline"
+                  className="text-sm font-semibold text-barro-700 hover:underline"
                 >
                   Mensagens
                 </Link>

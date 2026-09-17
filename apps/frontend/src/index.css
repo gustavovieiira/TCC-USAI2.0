@@ -9,5 +9,10 @@ body,
 }
 
 body {
-  @apply font-sans text-slate-900;
+  @apply bg-paper font-sans text-ink;
+}
+
+/* Foco visível: anel duplo (tinta + offset no papel) — ver docs/design-system.md */
+:focus-visible {
+  @apply outline outline-2 outline-offset-2 outline-ink;
 }

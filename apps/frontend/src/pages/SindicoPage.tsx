@@ -57,7 +57,7 @@ export function SindicoPage() {
   }
 
   if (erro) {
-    return <p className="text-sm text-red-600">{erro}</p>;
+    return <p className="text-sm text-carmim-700">{erro}</p>;
   }
 
   if (!condominio) {
@@ -71,25 +71,21 @@ export function SindicoPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Painel do síndico</h1>
-        <p className="text-sm text-slate-500">{condominio.nome}</p>
+        <h1 className="font-display text-2xl font-bold text-ink">Painel do síndico</h1>
+        <p className="text-sm text-ink-soft">{condominio.nome}</p>
       </div>
 
       <Card className="flex flex-col gap-3">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-            Link de acesso
-          </p>
-          <p className="font-mono text-sm text-slate-900">
-            /cadastro?condominio={condominio.linkSlug}
-          </p>
+          <p className="font-meta text-xs uppercase tracking-wide text-ink-faint">Link de acesso</p>
+          <p className="font-meta text-sm text-ink">/cadastro?condominio={condominio.linkSlug}</p>
         </div>
 
         {!editandoPin ? (
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-400">PIN</p>
-              <p className="font-mono text-lg font-semibold text-slate-900">{condominio.pin}</p>
+              <p className="font-meta text-xs uppercase tracking-wide text-ink-faint">PIN</p>
+              <p className="font-display text-lg font-semibold text-ink">{condominio.pin}</p>
             </div>
             <Button variant="secondary" fullWidth={false} onClick={() => setEditandoPin(true)}>
               Alterar PIN
@@ -106,7 +102,7 @@ export function SindicoPage() {
               onChange={(e) => setNovoPin(e.target.value)}
             />
             {erroPin && (
-              <p role="alert" className="text-sm text-red-600">
+              <p role="alert" className="text-sm text-carmim-700">
                 {erroPin}
               </p>
             )}
@@ -130,19 +126,19 @@ export function SindicoPage() {
         )}
       </Card>
 
-      <div className="flex gap-1 rounded-xl bg-slate-100 p-1">
+      <div className="flex gap-1 border border-paper-line bg-paper-surface p-1">
         <button
           onClick={() => setAba('moradores')}
-          className={`flex-1 rounded-lg py-2 text-sm font-semibold transition ${
-            aba === 'moradores' ? 'bg-white text-slate-900 shadow-soft' : 'text-slate-500'
+          className={`flex-1 py-2 text-sm font-semibold transition ${
+            aba === 'moradores' ? 'notch-sm bg-ink text-ink-inverse' : 'text-ink-soft'
           }`}
         >
           Moradores
         </button>
         <button
           onClick={() => setAba('locacoes')}
-          className={`flex-1 rounded-lg py-2 text-sm font-semibold transition ${
-            aba === 'locacoes' ? 'bg-white text-slate-900 shadow-soft' : 'text-slate-500'
+          className={`flex-1 py-2 text-sm font-semibold transition ${
+            aba === 'locacoes' ? 'notch-sm bg-ink text-ink-inverse' : 'text-ink-soft'
           }`}
         >
           Locações ativas
@@ -155,11 +151,11 @@ export function SindicoPage() {
             {moradores.map((morador) => (
               <Card key={morador.id} className="flex items-center justify-between">
                 <div>
-                  <p className="font-semibold text-slate-900">{morador.nome}</p>
-                  <p className="text-sm text-slate-500">{morador.email}</p>
+                  <p className="font-display font-semibold text-ink">{morador.nome}</p>
+                  <p className="text-sm text-ink-soft">{morador.email}</p>
                 </div>
                 {morador.apartamento && (
-                  <span className="text-sm text-slate-500">Apto {morador.apartamento}</span>
+                  <span className="text-sm text-ink-soft">Apto {morador.apartamento}</span>
                 )}
               </Card>
             ))}
@@ -174,14 +170,14 @@ export function SindicoPage() {
             {locacoes.map((locacao) => (
               <Card key={locacao.id} className="flex flex-col gap-1">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="font-semibold text-slate-900">{locacao.item.titulo}</p>
+                  <p className="font-display font-semibold text-ink">{locacao.item.titulo}</p>
                   <StatusBadge status={locacao.status} />
                 </div>
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-ink-soft">
                   {formatDate(locacao.dataInicio)} → {formatDate(locacao.dataFim)} · locatário{' '}
                   {locacao.locatario.nome}
                 </p>
-                <p className="font-mono text-sm font-semibold text-slate-900">
+                <p className="font-mono text-sm font-display font-semibold text-ink">
                   {formatCurrency(locacao.valorTotal)}
                 </p>
               </Card>

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { Avatar } from '@/components/ui/Avatar';
 import { PapelTag, PostStatusBadge } from '@/components/ui/Badge';
 import { ConversarButton } from '@/features/conversas/ConversarButton';
 import { getStoredUser } from '@/lib/authStorage';
@@ -16,26 +17,30 @@ export function PostCard({ post, canDelete, onDelete }: PostCardProps) {
   const ehAutor = user?.id === post.autor.id;
 
   return (
-    <div className="flex gap-3 border-b border-slate-100 py-4 last:border-0">
+    <div className="notch flex gap-3 border border-paper-line bg-paper-surface p-4">
       <Avatar nome={post.autor.nome} />
 
       <div className="min-w-0 flex-1">
         <Link to={`/mural/${post.id}`} className="block">
           <div className="flex flex-wrap items-center gap-1.5 text-sm">
-            <span className="font-semibold text-slate-900">{post.autor.nome}</span>
+            <span className="font-semibold text-ink">{post.autor.nome}</span>
             <PapelTag papel={post.autor.papel} />
-            <span className="text-slate-400">· {formatRelativeTime(post.createdAt)}</span>
-            {post.categoria && <span className="text-slate-400">· {post.categoria}</span>}
+            <span className="font-meta text-xs text-ink-faint">
+              · {formatRelativeTime(post.createdAt)}
+            </span>
+            {post.categoria && <span className="text-xs text-ink-faint">· {post.categoria}</span>}
           </div>
-          <p className="mt-0.5 whitespace-pre-line text-sm text-slate-700">{post.conteudo}</p>
+          <p className="mt-2 whitespace-pre-line font-display text-base font-semibold leading-snug text-ink">
+            {post.conteudo}
+          </p>
         </Link>
 
-        <div className="mt-2 flex items-center gap-4">
+        <div className="mt-3 flex items-center gap-4 border-t border-dashed border-paper-line pt-2.5">
           {post.tipo === 'PEDIDO' && post.status && <PostStatusBadge status={post.status} />}
 
           <Link
             to={`/mural/${post.id}`}
-            className="flex items-center gap-1 text-xs text-slate-400 hover:text-brand-600"
+            className="flex items-center gap-1 text-xs font-semibold text-ink-soft hover:text-barro-700"
           >
             <IconComentario className="h-4 w-4" />
             {post.comentariosCount > 0 && post.comentariosCount}
@@ -54,25 +59,13 @@ export function PostCard({ post, canDelete, onDelete }: PostCardProps) {
               type="button"
               onClick={onDelete}
               aria-label="Excluir post"
-              className="ml-auto text-slate-400 hover:text-red-600"
+              className="ml-auto text-ink-faint hover:text-carmim-500"
             >
               <IconExcluir className="h-4 w-4" />
             </button>
           )}
         </div>
       </div>
-    </div>
-  );
-}
-
-export function Avatar({ nome }: { nome: string }) {
-  const inicial = nome.trim().charAt(0).toUpperCase() || '?';
-  return (
-    <div
-      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-100
-        font-semibold text-brand-700"
-    >
-      {inicial}
     </div>
   );
 }

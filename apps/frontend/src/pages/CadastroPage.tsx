@@ -28,12 +28,13 @@ export function CadastroPage() {
             name="linkSlug"
             placeholder="ex.: residencial-jardim-europa"
             required
-            className="rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-brand-500
-              focus:ring-2 focus:ring-brand-100"
+            className="min-h-[44px] border border-ink/40 bg-paper-surface px-3 py-2 text-ink
+              outline-none focus:border-ink"
           />
           <button
             type="submit"
-            className="rounded-lg bg-brand-600 px-4 py-2.5 font-medium text-white hover:bg-brand-700"
+            className="notch min-h-[44px] bg-barro-500 px-4 py-2.5 font-bold text-paper-surface
+              shadow-press hover:bg-barro-700"
           >
             Continuar
           </button>

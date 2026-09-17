@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Spinner } from '@/components/ui/Spinner';
 import { PapelTag } from '@/components/ui/Badge';
-import { Avatar } from '@/features/mural/PostCard';
+import { Avatar } from '@/components/ui/Avatar';
 import {
   abrirConversa,
   listarMinhasConversas,
@@ -55,14 +55,14 @@ export function MinhasConversasPage() {
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Conversas</h1>
-        <p className="text-sm text-slate-500">
+        <h1 className="font-display text-2xl font-bold text-ink">Conversas</h1>
+        <p className="text-sm text-ink-soft">
           Chats privados abertos a partir do Mural. Ficam disponíveis por até 7 dias.
         </p>
       </div>
 
-      <div className="rounded-2xl bg-white p-4 shadow-soft ring-1 ring-slate-100">
-        <label htmlFor="busca-morador" className="text-sm font-medium text-slate-700">
+      <div className="notch border border-paper-line bg-paper-surface p-4 shadow-paper">
+        <label htmlFor="busca-morador" className="text-sm font-medium text-ink">
           Buscar morador
         </label>
         <input
@@ -71,33 +71,33 @@ export function MinhasConversasPage() {
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
           placeholder="Nome do morador ou síndico..."
-          className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none
-            transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+          className="mt-2 min-h-[44px] w-full border border-ink/40 bg-paper-surface px-3 py-2
+            text-sm text-ink outline-none transition focus:border-ink"
         />
 
         {erroAbrir && (
-          <p role="alert" className="mt-2 text-sm text-red-600">
+          <p role="alert" className="mt-2 text-sm text-carmim-700">
             {erroAbrir}
           </p>
         )}
 
         {termo && resultados.length === 0 && (
-          <p className="mt-3 text-sm text-slate-400">Nenhum morador encontrado com esse nome.</p>
+          <p className="mt-3 text-sm text-ink-faint">Nenhum morador encontrado com esse nome.</p>
         )}
 
         {resultados.length > 0 && (
-          <div className="mt-3 flex flex-col divide-y divide-slate-100">
+          <div className="mt-3 flex flex-col divide-y divide-dashed divide-paper-line">
             {resultados.map((usuario) => (
               <button
                 key={usuario.id}
                 type="button"
                 onClick={() => handleIniciar(usuario.id)}
                 disabled={abrindoId === usuario.id}
-                className="flex items-center gap-3 py-2 text-left transition hover:bg-slate-50
+                className="flex items-center gap-3 py-2 text-left transition hover:bg-paper
                   disabled:opacity-60"
               >
                 <Avatar nome={usuario.nome} />
-                <span className="flex items-center gap-1.5 text-sm font-medium text-slate-900">
+                <span className="flex items-center gap-1.5 text-sm font-medium text-ink">
                   {usuario.nome}
                   <PapelTag papel={usuario.papel} />
                 </span>
@@ -108,7 +108,7 @@ export function MinhasConversasPage() {
         )}
       </div>
 
-      {erro && <p className="text-sm text-red-600">{erro}</p>}
+      {erro && <p className="text-sm text-carmim-700">{erro}</p>}
 
       {!conversas && !erro && (
         <div className="flex justify-center py-12">
@@ -124,30 +124,28 @@ export function MinhasConversasPage() {
       )}
 
       {conversas && conversas.length > 0 && (
-        <div className="rounded-2xl bg-white shadow-soft ring-1 ring-slate-100">
+        <div className="flex flex-col gap-3">
           {conversas.map((conversa) => (
             <Link
               key={conversa.id}
               to={`/conversas/${conversa.id}`}
-              className="flex gap-3 border-b border-slate-100 p-4 transition last:border-0
-                hover:bg-slate-50"
+              className="notch flex gap-3 border border-paper-line bg-paper-surface p-4
+                shadow-paper transition hover:bg-paper"
             >
               <Avatar nome={conversa.outroParticipante.nome} />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-semibold text-slate-900">
-                    {conversa.outroParticipante.nome}
-                  </span>
+                  <span className="font-semibold text-ink">{conversa.outroParticipante.nome}</span>
                   {conversa.ultimaMensagem && (
-                    <span className="shrink-0 text-xs text-slate-400">
+                    <span className="shrink-0 font-meta text-xs text-ink-faint">
                       {formatRelativeTime(conversa.ultimaMensagem.createdAt)}
                     </span>
                   )}
                 </div>
-                <p className="mt-0.5 truncate text-sm text-slate-500">
+                <p className="mt-0.5 truncate text-sm text-ink-soft">
                   {conversa.ultimaMensagem?.conteudo ?? 'Nenhuma mensagem ainda.'}
                 </p>
-                <p className="mt-1 text-xs text-slate-400">
+                <p className="mt-1 font-meta text-xs text-ink-faint">
                   {formatDiasRestantes(conversa.expiraEm)}
                 </p>
               </div>

@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import { PapelTag, PostStatusBadge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
-import { Avatar } from '@/features/mural/PostCard';
+import { Avatar } from '@/components/ui/Avatar';
 import { ConversarButton } from '@/features/conversas/ConversarButton';
 import { extractErrorMessage } from '@/lib/apiClient';
 import { getStoredUser } from '@/lib/authStorage';
@@ -84,7 +84,7 @@ export function PostDetalhePage() {
   }
 
   if (erroCarregamento) {
-    return <p className="text-sm text-red-600">{erroCarregamento}</p>;
+    return <p className="text-sm text-carmim-700">{erroCarregamento}</p>;
   }
 
   if (!post) {
@@ -102,22 +102,26 @@ export function PostDetalhePage() {
     <div className="mx-auto flex max-w-xl flex-col gap-5">
       <button
         onClick={() => navigate(-1)}
-        className="self-start text-sm font-medium text-slate-500 hover:text-slate-700"
+        className="self-start text-sm font-semibold text-ink-soft hover:text-ink"
       >
         ← Voltar
       </button>
 
-      <div className="rounded-2xl bg-white p-5 shadow-soft ring-1 ring-slate-100">
+      <div className="notch border border-paper-line bg-paper-surface p-5 shadow-paper">
         <div className="flex gap-3">
           <Avatar nome={post.autor.nome} />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-1.5 text-sm">
-              <span className="font-semibold text-slate-900">{post.autor.nome}</span>
+              <span className="font-semibold text-ink">{post.autor.nome}</span>
               <PapelTag papel={post.autor.papel} />
-              <span className="text-slate-400">· {formatRelativeTime(post.createdAt)}</span>
-              {post.categoria && <span className="text-slate-400">· {post.categoria}</span>}
+              <span className="font-meta text-xs text-ink-faint">
+                · {formatRelativeTime(post.createdAt)}
+              </span>
+              {post.categoria && <span className="text-xs text-ink-faint">· {post.categoria}</span>}
             </div>
-            <p className="mt-2 whitespace-pre-line text-sm text-slate-700">{post.conteudo}</p>
+            <p className="mt-2 whitespace-pre-line font-display text-lg font-semibold leading-snug text-ink">
+              {post.conteudo}
+            </p>
 
             <div className="mt-3 flex flex-wrap items-center gap-3">
               {post.tipo === 'PEDIDO' && post.status && <PostStatusBadge status={post.status} />}
@@ -146,37 +150,37 @@ export function PostDetalhePage() {
                 <button
                   type="button"
                   onClick={handleExcluir}
-                  className="text-sm font-medium text-red-600 hover:text-red-700"
+                  className="text-sm font-semibold text-carmim-500 hover:text-carmim-700"
                 >
                   Excluir
                 </button>
               )}
             </div>
 
-            {erroAtender && <p className="mt-2 text-sm text-red-600">{erroAtender}</p>}
-            {erroExcluir && <p className="mt-2 text-sm text-red-600">{erroExcluir}</p>}
+            {erroAtender && <p className="mt-2 text-sm text-carmim-700">{erroAtender}</p>}
+            {erroExcluir && <p className="mt-2 text-sm text-carmim-700">{erroExcluir}</p>}
           </div>
         </div>
       </div>
 
       <div>
-        <h2 className="mb-3 font-semibold text-slate-900">
+        <h2 className="mb-3 font-display text-lg font-semibold text-ink">
           Comentários{post.comentarios.length > 0 && ` (${post.comentarios.length})`}
         </h2>
 
         {post.comentarios.length === 0 && (
-          <p className="text-sm text-slate-400">Nenhum comentário ainda. Seja o primeiro!</p>
+          <p className="text-sm text-ink-faint">Nenhum comentário ainda. Seja o primeiro!</p>
         )}
 
         <div className="flex flex-col gap-3">
           {post.comentarios.map((comentario) => (
             <div key={comentario.id} className="flex gap-3">
               <Avatar nome={comentario.autor.nome} />
-              <div className="min-w-0 flex-1 rounded-2xl bg-slate-50 px-3 py-2">
+              <div className="notch min-w-0 flex-1 bg-paper px-3 py-2">
                 <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                  <span className="font-semibold text-slate-900">{comentario.autor.nome}</span>
+                  <span className="font-semibold text-ink">{comentario.autor.nome}</span>
                   <PapelTag papel={comentario.autor.papel} />
-                  <span className="text-slate-400">
+                  <span className="font-meta text-ink-faint">
                     · {formatRelativeTime(comentario.createdAt)}
                   </span>
                   {user?.id !== comentario.autor.id && (
@@ -187,18 +191,16 @@ export function PostDetalhePage() {
                     />
                   )}
                 </div>
-                <p className="mt-0.5 whitespace-pre-line text-sm text-slate-700">
-                  {comentario.conteudo}
-                </p>
+                <p className="mt-0.5 whitespace-pre-line text-sm text-ink">{comentario.conteudo}</p>
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      <div className="rounded-2xl bg-white p-4 shadow-soft ring-1 ring-slate-100">
+      <div className="notch border border-paper-line bg-paper-surface p-4 shadow-paper">
         <form onSubmit={handleResponder} className="flex flex-col gap-3">
-          <label htmlFor="resposta" className="text-sm font-medium text-slate-700">
+          <label htmlFor="resposta" className="text-sm font-medium text-ink">
             Comentar
           </label>
           <textarea
@@ -207,11 +209,11 @@ export function PostDetalhePage() {
             value={texto}
             onChange={(e) => setTexto(e.target.value)}
             placeholder="Escreva um comentário..."
-            className="rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none transition
-              focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+            className="border border-ink/40 bg-paper-surface px-3 py-2 text-sm text-ink
+              outline-none transition focus:border-ink"
           />
           {erroResposta && (
-            <p role="alert" className="text-sm text-red-600">
+            <p role="alert" className="text-sm text-carmim-700">
               {erroResposta}
             </p>
           )}

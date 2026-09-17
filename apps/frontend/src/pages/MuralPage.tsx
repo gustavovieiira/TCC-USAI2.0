@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { Avatar, PostCard } from '@/features/mural/PostCard';
+import { Avatar } from '@/components/ui/Avatar';
+import { PostCard } from '@/features/mural/PostCard';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Spinner } from '@/components/ui/Spinner';
 import { extractErrorMessage } from '@/lib/apiClient';
@@ -64,15 +65,15 @@ export function MuralPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-xl flex-col">
-      <div className="mb-2">
-        <h1 className="text-2xl font-bold text-slate-900">Mural</h1>
-        <p className="text-sm text-slate-500">
+    <div className="mx-auto flex max-w-xl flex-col gap-5">
+      <div>
+        <h1 className="font-display text-2xl font-bold text-ink">Mural</h1>
+        <p className="text-sm text-ink-soft">
           O que está rolando no condomínio? Poste um aviso ou peça ajuda pra vizinhança.
         </p>
       </div>
 
-      <div className="rounded-2xl bg-white p-4 shadow-soft ring-1 ring-slate-100">
+      <div className="notch border border-paper-line bg-paper-surface p-4 shadow-paper">
         <form onSubmit={handleSubmit} className="flex gap-3">
           <Avatar nome={user?.nome ?? '?'} />
 
@@ -85,8 +86,8 @@ export function MuralPage() {
               placeholder="O que está acontecendo no condomínio?"
               value={conteudo}
               onChange={(e) => setConteudo(e.target.value)}
-              className="w-full resize-none border-0 text-sm text-slate-800 outline-none
-                placeholder:text-slate-400"
+              className="w-full resize-none border-0 bg-transparent text-sm text-ink outline-none
+                placeholder:text-ink-faint"
             />
 
             <div className="flex flex-wrap items-center gap-2">
@@ -103,14 +104,14 @@ export function MuralPage() {
                   placeholder="Categoria (opcional)"
                   value={categoria}
                   onChange={(e) => setCategoria(e.target.value)}
-                  className="min-w-0 flex-1 rounded-full border border-slate-200 px-3 py-1 text-xs
-                    outline-none focus:border-brand-500"
+                  className="notch-sm min-w-0 flex-1 border border-paper-line px-3 py-1 text-xs
+                    text-ink outline-none focus:border-ink"
                 />
               )}
             </div>
 
             {erroForm && (
-              <p role="alert" className="text-sm text-red-600">
+              <p role="alert" className="text-sm text-carmim-700">
                 {erroForm}
               </p>
             )}
@@ -119,8 +120,10 @@ export function MuralPage() {
               <button
                 type="submit"
                 disabled={isLoading || conteudo.trim().length < 3}
-                className="rounded-full bg-brand-600 px-5 py-2 text-sm font-semibold text-white
-                  transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="notch min-h-[44px] bg-barro-500 px-5 py-2 text-sm font-bold
+                  text-paper-surface shadow-press transition hover:bg-barro-700
+                  disabled:cursor-not-allowed disabled:bg-paper-line disabled:text-ink-faint
+                  disabled:shadow-none"
               >
                 {isLoading ? 'Postando...' : 'Postar'}
               </button>
@@ -129,8 +132,8 @@ export function MuralPage() {
         </form>
       </div>
 
-      <div className="mt-2">
-        {erroLista && <p className="text-sm text-red-600">{erroLista}</p>}
+      <div>
+        {erroLista && <p className="text-sm text-carmim-700">{erroLista}</p>}
 
         {!posts && !erroLista && (
           <div className="flex justify-center py-12">
@@ -140,13 +143,13 @@ export function MuralPage() {
 
         {posts && posts.length === 0 && (
           <EmptyState
-            title="Nenhum post ainda"
-            description="Seja o primeiro a compartilhar algo com o condomínio."
+            title="O mural tá em branco hoje"
+            description="Silêncio no condomínio. Que tal ser você a pregar o primeiro aviso?"
           />
         )}
 
         {posts && posts.length > 0 && (
-          <div>
+          <div className="flex flex-col gap-3">
             {posts.map((post) => (
               <PostCard
                 key={post.id}
@@ -175,8 +178,8 @@ function SegmentButton({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-        active ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+      className={`notch-sm px-3 py-1 text-xs font-semibold transition ${
+        active ? 'bg-ink text-ink-inverse' : 'bg-paper text-ink-soft hover:bg-paper-line'
       }`}
     >
       {children}

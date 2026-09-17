@@ -47,14 +47,14 @@ export function SaquesPage() {
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Saques</h1>
-        <p className="text-sm text-slate-500">
+        <h1 className="font-display text-2xl font-bold text-ink">Saques</h1>
+        <p className="text-sm text-ink-soft">
           Solicite o saque do que você já recebeu em locações.
         </p>
       </div>
 
       <Card>
-        <h2 className="mb-4 font-semibold text-slate-900">Solicitar saque</h2>
+        <h2 className="mb-4 font-display font-semibold text-ink">Solicitar saque</h2>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
           <TextField
             label="Valor (R$)"
@@ -76,7 +76,7 @@ export function SaquesPage() {
             onChange={(e) => setChavePixUsada(e.target.value)}
           />
           {erroForm && (
-            <p role="alert" className="text-sm text-red-600">
+            <p role="alert" className="text-sm text-carmim-700">
               {erroForm}
             </p>
           )}
@@ -87,9 +87,9 @@ export function SaquesPage() {
       </Card>
 
       <div>
-        <h2 className="mb-3 font-semibold text-slate-900">Minhas solicitações</h2>
+        <h2 className="mb-3 font-display font-semibold text-ink">Minhas solicitações</h2>
 
-        {erroLista && <p className="text-sm text-red-600">{erroLista}</p>}
+        {erroLista && <p className="text-sm text-carmim-700">{erroLista}</p>}
 
         {!saques && !erroLista && (
           <div className="flex justify-center py-12">
@@ -109,16 +109,16 @@ export function SaquesPage() {
             {saques.map((saque) => (
               <Card key={saque.id} className="flex flex-col gap-1">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-mono font-semibold text-slate-900">
+                  <span className="font-display font-semibold text-ink">
                     {formatCurrency(saque.valor)}
                   </span>
                   <SaqueStatusBadge status={saque.status} />
                 </div>
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-ink-soft">
                   Chave PIX: {saque.chavePixUsada} · {formatDateTime(saque.createdAt)}
                 </p>
                 {saque.status === 'REJEITADO' && saque.motivoRejeicao && (
-                  <p className="text-sm text-red-600">Motivo: {saque.motivoRejeicao}</p>
+                  <p className="text-sm text-carmim-700">Motivo: {saque.motivoRejeicao}</p>
                 )}
               </Card>
             ))}

@@ -10,18 +10,19 @@ export function Select({ label, error, id, className = '', children, ...props }:
 
   return (
     <div className="flex flex-col gap-1">
-      <label htmlFor={selectId} className="text-sm font-medium text-slate-700">
+      <label htmlFor={selectId} className="text-sm font-medium text-ink">
         {label}
       </label>
       <select
         id={selectId}
-        className={`rounded-xl border bg-white px-3 py-2 text-sm outline-none transition
-          focus:border-brand-500 focus:ring-2 focus:ring-brand-100 ${error ? 'border-red-400' : 'border-slate-300'} ${className}`}
+        className={`min-h-[44px] border bg-paper-surface px-3 py-2 text-sm text-ink outline-none
+          transition focus-visible:outline-2 focus-visible:outline-offset-2
+          ${error ? 'border-carmim-500' : 'border-ink/40 focus:border-ink'} ${className}`}
         {...props}
       >
         {children}
       </select>
-      {error && <span className="text-sm text-red-600">{error}</span>}
+      {error && <span className="text-sm text-carmim-700">{error}</span>}
     </div>
   );
 }

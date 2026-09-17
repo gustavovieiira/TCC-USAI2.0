@@ -6,6 +6,63 @@
 
 ---
 
+## 2026-09-17 — Identidade visual v2.0: "o mural da portaria, não o dashboard"
+
+**O que foi feito:** com a meta de cobertura fechada e deploy/banco combinados de deixar pra depois
+da orientação da semana que vem, o pedido direto foi outro: "está tudo muito simples... preciso que
+você inove nesses layout, mude tudo". O visual anterior (paleta `slate`/`brand` genérica, cantos
+todos arredondados, spinner circular) era o "SaaS corporativo padrão de IA" que o usuário queria
+evitar. Em vez de eu mesmo desenhar, o processo foi: escrevi um briefing de design detalhado
+(personalidade da marca, paleta, tipografia, motivo visual assinatura, estados vazios com
+personalidade) pra colar no Claude Design, e implementei fielmente o sistema que veio de volta.
+
+- **Conceito:** um mural físico de avisos de condomínio — acolhedor e confiável — em vez de um
+  dashboard corporativo. Cores terracota/jade sobre papel, não azul/cinza de SaaS.
+- **Tokens** (`apps/frontend/tailwind.config.ts`, reescrito): paleta nomeada por analogia física —
+  `paper` (fundo/superfície), `ink` (texto), `barro` (primária, terracota), `jade` (secundária,
+  sucesso), `mostarda` (aviso), `carmim` (erro), `roxo` (papel extra de avatar). Tipografia: Zilla
+  Slab (`font-display`, títulos/preços), Public Sans (`font-sans`, corpo), Space Mono (`font-meta`,
+  metadados/timestamps/labels em uppercase tracked) — trocadas no `index.html`.
+- **Motivo visual assinatura — "canto recortado":** um plugin Tailwind próprio (`matchUtilities`)
+  gera a utility `notch`, que corta o canto inferior direito a 45° via `clip-path`. Aplicado a
+  quase tudo que "segura conteúdo": cards, botões, avatares, badges, inputs, fotos — é o que dá
+  identidade ao produto em vez de mais um `rounded-xl` genérico.
+- **Sem spinner circular no produto:** todo carregamento agora usa 3 pontos pulsando
+  (`Spinner.tsx`, `animate-usaiPulse`), o mesmo estilo do indicador "digitando" que já existia no
+  chat.
+- **Avatares quadrados** (`components/ui/Avatar.tsx`, novo — extraído do `PostCard` porque passou a
+  ser reusado em 4 lugares): iniciais em Zilla Slab, cor de fundo escolhida por hash do nome entre
+  4 papéis de cor fixos (barro/jade/mostarda/roxo) — mesma pessoa sempre com a mesma cor.
+  Card virou um "sanduíche de duas camadas" (`Card.tsx`): moldura fina em `paper-line` por baixo,
+  conteúdo em `paper-surface` por cima, cada uma com seu próprio recorte — dá o efeito de moldura
+  sem usar `border` (que não combina bem com `clip-path`).
+  Reescrito nos ~35 arquivos: reescrevi ou fizeram parte da leva `tailwind.config.ts`, `index.css`,
+  todo `components/ui/*`, e toda página/feature do frontend — Mural, Conversas, Catálogo, Locações,
+  Saques, painéis do Síndico e do Admin, Auth/Landing. Estados vazios ganharam texto de primeira
+  pessoa ("O mural tá em branco hoje" em vez de "Nenhum post ainda").
+
+**Por que essas decisões:** o playbook não exige nada visual além de "usabilidade" — a decisão de
+ir além do mínimo foi puramente do usuário, que queria um produto que parecesse pensado e não
+gerado. Optar por um motivo geométrico único (o recorte) em vez de só trocar cores é o que separa
+"reskin de paleta" de "sistema de design com identidade" — foi literalmente o pedido ("inove...
+mude tudo"). A landing page também teve a lista de recursos ajustada: tirei a menção a "pagamento
+integrado/PIX" (M3/Asaas ainda não existe) e coloquei "conversa privada" no lugar, que é recurso
+real já no ar — evita prometer o que o produto ainda não entrega pra quem visita o link.
+
+**Verificação:** `npm run build:frontend`, ESLint e os 104 testes de frontend (19 suítes) passando
+— 2 testes precisaram de ajuste porque a cópia dos estados vazios mudou de propósito
+(`MuralPage.test.tsx`, `CatalogoPage.test.tsx`). QA visual manual no navegador (desktop e mobile
+375px), logado como morador, síndico e admin (promovido/revertido via Prisma direto pra checar os 3
+painéis) — Mural, Conversas + chat, Catálogo + item + publicar, Locações, Saques, Síndico, Admin,
+Login/Cadastro/Landing.
+
+**Onde mexer a seguir:** deploy em nuvem, banco de produção e M3 (Asaas) seguem parados até a
+orientação da semana que vem, como já combinado. Sistema de design documentado só no código por
+ora — se sobrar tempo depois da orientação, vale um `docs/design-system.md` resumindo os tokens
+pra não precisar reler o `tailwind.config.ts` pra lembrar os nomes.
+
+---
+
 ## 2026-09-16 — Cobertura de testes: fechando a meta de 75% do backend
 
 **O que foi feito:** com o núcleo de engenharia e o frontend completos, faltava só a única meta

@@ -9,10 +9,11 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
-  primary: 'bg-brand-600 text-white hover:bg-brand-700',
-  secondary: 'bg-white text-slate-700 ring-1 ring-inset ring-slate-300 hover:bg-slate-50',
-  danger: 'bg-white text-red-600 ring-1 ring-inset ring-red-200 hover:bg-red-50',
-  ghost: 'bg-transparent text-slate-600 hover:bg-slate-100',
+  primary:
+    'notch bg-barro-500 text-paper-surface shadow-press hover:bg-barro-700 disabled:shadow-none',
+  secondary: 'bg-paper-surface text-ink border-[1.5px] border-ink hover:bg-paper',
+  danger: 'bg-paper-surface text-carmim-700 border border-carmim-500 hover:bg-carmim-100',
+  ghost: 'bg-transparent text-ink-soft hover:bg-paper-line/50',
 };
 
 export function Button({
@@ -27,9 +28,9 @@ export function Button({
   return (
     <button
       disabled={disabled || isLoading}
-      className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm
-        font-semibold transition disabled:cursor-not-allowed disabled:opacity-60
-        ${fullWidth ? 'w-full' : ''} ${VARIANT_CLASSES[variant]} ${className}`}
+      className={`inline-flex min-h-[44px] items-center justify-center gap-2 px-4 py-2.5 text-sm
+        font-semibold font-sans transition disabled:cursor-not-allowed disabled:bg-paper-line
+        disabled:text-ink-faint ${fullWidth ? 'w-full' : ''} ${VARIANT_CLASSES[variant]} ${className}`}
       {...props}
     >
       {isLoading ? 'Enviando...' : children}

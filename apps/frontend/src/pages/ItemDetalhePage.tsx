@@ -36,7 +36,7 @@ export function ItemDetalhePage() {
   }, [id]);
 
   if (erroCarregamento) {
-    return <p className="text-sm text-red-600">{erroCarregamento}</p>;
+    return <p className="text-sm text-carmim-700">{erroCarregamento}</p>;
   }
 
   if (!item) {
@@ -69,61 +69,64 @@ export function ItemDetalhePage() {
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-5">
-      <div className="aspect-[16/9] w-full overflow-hidden rounded-2xl bg-slate-100">
+      <div className="notch aspect-[16/9] w-full overflow-hidden bg-[repeating-linear-gradient(135deg,#E4D3BC_0_8px,#DAC6AB_8px_16px)]">
         {item.imagens[0] ? (
           <img src={item.imagens[0]} alt={item.titulo} className="h-full w-full object-cover" />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-slate-300">
-            Sem foto
+          <div
+            className="flex h-full w-full items-center justify-center font-meta text-xs
+            tracking-wide text-ink/50"
+          >
+            SEM FOTO
           </div>
         )}
       </div>
 
       <div>
-        <span className="text-xs font-semibold uppercase tracking-wide text-brand-600">
+        <span className="font-meta text-xs uppercase tracking-wider text-ink-faint">
           {item.categoria}
         </span>
-        <h1 className="text-2xl font-bold text-slate-900">{item.titulo}</h1>
-        <p className="mt-1 font-mono text-lg font-semibold text-slate-900">
+        <h1 className="font-display text-2xl font-bold text-ink">{item.titulo}</h1>
+        <p className="mt-1 font-display text-xl font-bold text-barro-700">
           {formatCurrency(item.valorDiaria)}
-          <span className="ml-1 font-sans text-sm font-normal text-slate-500">/ dia</span>
+          <span className="ml-1 font-sans text-sm font-normal text-ink-soft">/ dia</span>
         </p>
       </div>
 
       <Card>
-        <h2 className="mb-2 font-semibold text-slate-900">Descrição</h2>
-        <p className="whitespace-pre-line text-sm text-slate-600">{item.descricao}</p>
+        <h2 className="mb-2 font-display font-semibold text-ink">Descrição</h2>
+        <p className="whitespace-pre-line text-sm text-ink-soft">{item.descricao}</p>
       </Card>
 
       {ehDono ? (
-        <Card className="bg-slate-50 text-sm text-slate-500 ring-0">
+        <Card className="bg-paper text-sm text-ink-soft">
           Este item é seu — acompanhe as solicitações em{' '}
-          <Link to="/locacoes" className="font-semibold text-brand-600 hover:underline">
+          <Link to="/locacoes" className="font-semibold text-barro-700 hover:underline">
             Minhas locações
           </Link>
           .
         </Card>
       ) : sucesso ? (
         <Card className="flex flex-col items-center gap-3 text-center">
-          <p className="font-semibold text-slate-900">Solicitação enviada!</p>
-          <p className="text-sm text-slate-500">
+          <p className="font-display font-semibold text-ink">Solicitação enviada!</p>
+          <p className="text-sm text-ink-soft">
             O dono do item vai aprovar ou rejeitar o pedido em breve.
           </p>
           <Link
             to="/locacoes"
-            className="rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white
-              hover:bg-brand-700"
+            className="notch bg-barro-500 px-4 py-2 text-sm font-bold text-paper-surface
+              shadow-press hover:bg-barro-700"
           >
             Ver minhas locações
           </Link>
         </Card>
       ) : (
         <Card>
-          <h2 className="mb-4 font-semibold text-slate-900">Solicitar locação</h2>
+          <h2 className="mb-4 font-display font-semibold text-ink">Solicitar locação</h2>
           <form onSubmit={handleSolicitar} className="flex flex-col gap-4" noValidate>
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1">
-                <label htmlFor="dataInicio" className="text-sm font-medium text-slate-700">
+                <label htmlFor="dataInicio" className="text-sm font-medium text-ink">
                   De
                 </label>
                 <input
@@ -133,12 +136,12 @@ export function ItemDetalhePage() {
                   min={hoje()}
                   value={dataInicio}
                   onChange={(e) => setDataInicio(e.target.value)}
-                  className="rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none
-                    transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                  className="min-h-[44px] border border-ink/40 bg-paper-surface px-3 py-2 text-sm
+                    text-ink outline-none transition focus:border-ink"
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label htmlFor="dataFim" className="text-sm font-medium text-slate-700">
+                <label htmlFor="dataFim" className="text-sm font-medium text-ink">
                   Até
                 </label>
                 <input
@@ -148,23 +151,23 @@ export function ItemDetalhePage() {
                   min={dataInicio || hoje()}
                   value={dataFim}
                   onChange={(e) => setDataFim(e.target.value)}
-                  className="rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none
-                    transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                  className="min-h-[44px] border border-ink/40 bg-paper-surface px-3 py-2 text-sm
+                    text-ink outline-none transition focus:border-ink"
                 />
               </div>
             </div>
 
             {dias > 0 && (
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-ink-soft">
                 {dias} {dias === 1 ? 'diária' : 'diárias'} ·{' '}
-                <span className="font-mono font-semibold text-slate-900">
+                <span className="font-display font-semibold text-ink">
                   {formatCurrency(valorEstimado)}
                 </span>
               </p>
             )}
 
             {erroSolicitacao && (
-              <p role="alert" className="text-sm text-red-600">
+              <p role="alert" className="text-sm text-carmim-700">
                 {erroSolicitacao}
               </p>
             )}
@@ -178,7 +181,7 @@ export function ItemDetalhePage() {
 
       <button
         onClick={() => navigate(-1)}
-        className="text-sm font-medium text-slate-500 hover:text-slate-700"
+        className="text-sm font-semibold text-ink-soft hover:text-ink"
       >
         ← Voltar
       </button>

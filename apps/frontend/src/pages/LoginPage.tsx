@@ -17,9 +17,9 @@ export function LoginPage() {
           navigate(homeRouteFor(result.user.papel));
         }}
       />
-      <p className="mt-6 text-center text-sm text-slate-500">
+      <p className="mt-6 text-center text-sm text-ink-soft">
         Recebeu um link de convite do seu condomínio?{' '}
-        <Link to="/cadastro" className="font-medium text-brand-600 hover:underline">
+        <Link to="/cadastro" className="font-semibold text-barro-700 hover:underline">
           Cadastre-se por aqui
         </Link>
       </p>

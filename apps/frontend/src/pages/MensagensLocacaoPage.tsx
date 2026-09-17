@@ -91,18 +91,22 @@ export function MensagensLocacaoPage() {
         <button
           onClick={() => navigate(-1)}
           aria-label="Voltar"
-          className="rounded-xl p-2 text-slate-500 hover:bg-slate-100"
+          className="notch-sm flex h-11 w-11 items-center justify-center bg-ink text-lg text-ink-inverse"
         >
           ←
         </button>
         <div>
-          <h1 className="font-semibold text-slate-900">{itemTitulo ?? 'Conversa da locação'}</h1>
-          <p className="text-xs text-slate-400">{conectado ? 'Conectado' : 'Conectando...'}</p>
+          <h1 className="font-display font-semibold text-ink">
+            {itemTitulo ?? 'Conversa da locação'}
+          </h1>
+          <p className="font-meta text-xs text-ink-faint">
+            {conectado ? 'Conectado' : 'Conectando...'}
+          </p>
         </div>
       </div>
 
       <Card className="flex h-[65vh] flex-col p-0">
-        <div className="flex-1 space-y-3 overflow-y-auto p-4">
+        <div className="flex-1 space-y-3 overflow-y-auto bg-cortica bg-cortica-grid p-4">
           {!mensagens && !erro && (
             <div className="flex h-full items-center justify-center">
               <Spinner />
@@ -110,7 +114,7 @@ export function MensagensLocacaoPage() {
           )}
 
           {mensagens && mensagens.length === 0 && (
-            <p className="py-8 text-center text-sm text-slate-400">
+            <p className="py-8 text-center text-sm text-ink-faint">
               Nenhuma mensagem ainda. Diga oi 👋
             </p>
           )}
@@ -123,13 +127,15 @@ export function MensagensLocacaoPage() {
                 className={`flex ${ehMinha ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[75%] rounded-2xl px-4 py-2 text-sm ${
-                    ehMinha ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-900'
+                  className={`notch max-w-[75%] px-4 py-2 text-sm ${
+                    ehMinha
+                      ? 'bg-barro-500 text-paper-surface'
+                      : 'border border-paper-line bg-paper-surface text-ink'
                   }`}
                 >
                   <p className="whitespace-pre-line">{mensagem.conteudo}</p>
                   <p
-                    className={`mt-1 text-[10px] ${ehMinha ? 'text-brand-100' : 'text-slate-400'}`}
+                    className={`mt-1 font-meta text-[10px] ${ehMinha ? 'text-barro-100' : 'text-ink-faint'}`}
                   >
                     {formatTime(mensagem.createdAt)}
                   </p>
@@ -141,20 +147,20 @@ export function MensagensLocacaoPage() {
         </div>
 
         {erro && (
-          <p role="alert" className="px-4 pb-2 text-sm text-red-600">
+          <p role="alert" className="px-4 pb-2 text-sm text-carmim-700">
             {erro}
           </p>
         )}
 
-        <form onSubmit={handleEnviar} className="flex gap-2 border-t border-slate-100 p-3">
+        <form onSubmit={handleEnviar} className="flex gap-2 border-t border-paper-line p-3">
           <input
             type="text"
             value={texto}
             onChange={(e) => setTexto(e.target.value)}
             placeholder="Escreva uma mensagem..."
             disabled={!conectado}
-            className="flex-1 rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none
-              transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:bg-slate-50"
+            className="notch-sm min-h-[44px] flex-1 border border-paper-line bg-paper px-3 py-2
+              text-sm text-ink outline-none transition focus:border-ink disabled:bg-paper-line"
           />
           <Button
             type="submit"

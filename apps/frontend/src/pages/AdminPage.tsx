@@ -43,11 +43,11 @@ export function AdminPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Painel do Admin USAI</h1>
-        <p className="text-sm text-slate-500">Condomínios, síndicos e financeiro da plataforma.</p>
+        <h1 className="font-display text-2xl font-bold text-ink">Painel do Admin USAI</h1>
+        <p className="text-sm text-ink-soft">Condomínios, síndicos e financeiro da plataforma.</p>
       </div>
 
-      <div className="flex gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1">
+      <div className="flex gap-1 overflow-x-auto border border-paper-line bg-paper-surface p-1">
         {(
           [
             ['financeiro', 'Financeiro'],
@@ -58,8 +58,8 @@ export function AdminPage() {
           <button
             key={valor}
             onClick={() => setAba(valor)}
-            className={`flex-1 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold transition ${
-              aba === valor ? 'bg-white text-slate-900 shadow-soft' : 'text-slate-500'
+            className={`flex-1 whitespace-nowrap px-3 py-2 text-sm font-semibold transition ${
+              aba === valor ? 'notch-sm bg-ink text-ink-inverse' : 'text-ink-soft'
             }`}
           >
             {rotulo}
@@ -67,7 +67,7 @@ export function AdminPage() {
         ))}
       </div>
 
-      {erro && <p className="text-sm text-red-600">{erro}</p>}
+      {erro && <p className="text-sm text-carmim-700">{erro}</p>}
 
       {aba === 'financeiro' && (
         <AbaFinanceiro
@@ -159,42 +159,40 @@ function AbaFinanceiro({ resumo, saques, erro, onMudou, onErro }: AbaFinanceiroP
     <div className="flex flex-col gap-5">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Card>
-          <p className="text-xs text-slate-500">Condomínios ativos</p>
-          <p className="mt-1 font-mono text-xl font-bold text-slate-900">
-            {resumo.condominiosAtivos}
-          </p>
+          <p className="font-meta text-xs text-ink-faint">Condomínios ativos</p>
+          <p className="mt-1 font-display text-xl font-bold text-ink">{resumo.condominiosAtivos}</p>
         </Card>
         <Card>
-          <p className="text-xs text-slate-500">Saques pendentes</p>
-          <p className="mt-1 font-mono text-xl font-bold text-amber-600">
+          <p className="font-meta text-xs text-ink-faint">Saques pendentes</p>
+          <p className="mt-1 font-display text-xl font-bold text-mostarda-500">
             {resumo.saques.pendente.quantidade}
           </p>
-          <p className="font-mono text-xs text-slate-500">
+          <p className="font-mono font-meta text-xs text-ink-faint">
             {formatCurrency(resumo.saques.pendente.valorTotal)}
           </p>
         </Card>
         <Card>
-          <p className="text-xs text-slate-500">Saques aprovados</p>
-          <p className="mt-1 font-mono text-xl font-bold text-emerald-600">
+          <p className="font-meta text-xs text-ink-faint">Saques aprovados</p>
+          <p className="mt-1 font-display text-xl font-bold text-jade-500">
             {resumo.saques.aprovado.quantidade}
           </p>
-          <p className="font-mono text-xs text-slate-500">
+          <p className="font-mono font-meta text-xs text-ink-faint">
             {formatCurrency(resumo.saques.aprovado.valorTotal)}
           </p>
         </Card>
         <Card>
-          <p className="text-xs text-slate-500">Saques rejeitados</p>
-          <p className="mt-1 font-mono text-xl font-bold text-red-600">
+          <p className="font-meta text-xs text-ink-faint">Saques rejeitados</p>
+          <p className="mt-1 font-display text-xl font-bold text-carmim-500">
             {resumo.saques.rejeitado.quantidade}
           </p>
-          <p className="font-mono text-xs text-slate-500">
+          <p className="font-mono font-meta text-xs text-ink-faint">
             {formatCurrency(resumo.saques.rejeitado.valorTotal)}
           </p>
         </Card>
       </div>
 
       <div>
-        <h2 className="mb-3 font-semibold text-slate-900">Saques pendentes de avaliação</h2>
+        <h2 className="mb-3 font-display font-semibold text-ink">Saques pendentes de avaliação</h2>
 
         {saques && saques.length === 0 && <EmptyState title="Nenhum saque pendente" />}
 
@@ -203,12 +201,12 @@ function AbaFinanceiro({ resumo, saques, erro, onMudou, onErro }: AbaFinanceiroP
             {saques.map((saque) => (
               <Card key={saque.id} className="flex flex-col gap-2">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-mono font-semibold text-slate-900">
+                  <span className="font-display font-semibold text-ink">
                     {formatCurrency(saque.valor)}
                   </span>
                   <SaqueStatusBadge status={saque.status} />
                 </div>
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-ink-soft">
                   Chave PIX: {saque.chavePixUsada} · {formatDateTime(saque.createdAt)}
                 </p>
 
@@ -321,7 +319,7 @@ function AbaCondominios({ condominios, onCriado, onAtualizado, onErro }: AbaCond
   return (
     <div className="flex flex-col gap-5">
       <Card>
-        <h2 className="mb-4 font-semibold text-slate-900">Cadastrar condomínio</h2>
+        <h2 className="mb-4 font-display font-semibold text-ink">Cadastrar condomínio</h2>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
           <TextField
             label="Nome"
@@ -349,7 +347,7 @@ function AbaCondominios({ condominios, onCriado, onAtualizado, onErro }: AbaCond
             onChange={(e) => setPin(e.target.value)}
           />
           {erroForm && (
-            <p role="alert" className="text-sm text-red-600">
+            <p role="alert" className="text-sm text-carmim-700">
               {erroForm}
             </p>
           )}
@@ -360,7 +358,7 @@ function AbaCondominios({ condominios, onCriado, onAtualizado, onErro }: AbaCond
       </Card>
 
       <div>
-        <h2 className="mb-3 font-semibold text-slate-900">Condomínios cadastrados</h2>
+        <h2 className="mb-3 font-display font-semibold text-ink">Condomínios cadastrados</h2>
 
         {!condominios && (
           <div className="flex justify-center py-12">
@@ -377,8 +375,8 @@ function AbaCondominios({ condominios, onCriado, onAtualizado, onErro }: AbaCond
             {condominios.map((condominio) => (
               <Card key={condominio.id} className="flex items-center justify-between gap-2">
                 <div>
-                  <p className="font-semibold text-slate-900">{condominio.nome}</p>
-                  <p className="text-sm text-slate-500">/{condominio.linkSlug}</p>
+                  <p className="font-display font-semibold text-ink">{condominio.nome}</p>
+                  <p className="text-sm text-ink-soft">/{condominio.linkSlug}</p>
                 </div>
                 <Button
                   variant={condominio.ativo ? 'danger' : 'secondary'}
@@ -433,7 +431,7 @@ function AbaSindicos({ condominios }: AbaSindicosProps) {
 
   return (
     <Card>
-      <h2 className="mb-4 font-semibold text-slate-900">Criar conta de síndico</h2>
+      <h2 className="mb-4 font-display font-semibold text-ink">Criar conta de síndico</h2>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
         <TextField
           label="Nome"
@@ -477,11 +475,11 @@ function AbaSindicos({ condominios }: AbaSindicosProps) {
           ))}
         </Select>
         {erro && (
-          <p role="alert" className="text-sm text-red-600">
+          <p role="alert" className="text-sm text-carmim-700">
             {erro}
           </p>
         )}
-        {sucesso && <p className="text-sm text-emerald-600">{sucesso}</p>}
+        {sucesso && <p className="text-sm text-jade-500">{sucesso}</p>}
         <Button type="submit" isLoading={isLoading}>
           Criar síndico
         </Button>

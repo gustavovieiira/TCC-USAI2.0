@@ -48,7 +48,7 @@ describe('MuralPage', () => {
 
     renderPage();
 
-    expect(await screen.findByText('Nenhum post ainda')).toBeInTheDocument();
+    expect(await screen.findByText('O mural tá em branco hoje')).toBeInTheDocument();
   });
 
   it('publica um post do tipo Post (aviso) por padrão e adiciona na lista sem precisar recarregar', async () => {
@@ -65,7 +65,7 @@ describe('MuralPage', () => {
     );
 
     renderPage();
-    await screen.findByText('Nenhum post ainda');
+    await screen.findByText('O mural tá em branco hoje');
 
     await userEvent.type(
       screen.getByPlaceholderText('O que está acontecendo no condomínio?'),
@@ -101,7 +101,7 @@ describe('MuralPage', () => {
     );
 
     renderPage();
-    await screen.findByText('Nenhum post ainda');
+    await screen.findByText('O mural tá em branco hoje');
 
     await userEvent.click(screen.getByRole('button', { name: 'Preciso de ajuda' }));
     await userEvent.type(
@@ -134,7 +134,7 @@ describe('MuralPage', () => {
     });
 
     renderPage();
-    await screen.findByText('Nenhum post ainda');
+    await screen.findByText('O mural tá em branco hoje');
 
     await userEvent.type(
       screen.getByPlaceholderText('O que está acontecendo no condomínio?'),

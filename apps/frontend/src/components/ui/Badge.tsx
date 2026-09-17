@@ -6,8 +6,7 @@ import { Papel } from '@/lib/authStorage';
 function Pill({ className, children }: { className: string; children: string }) {
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1
-        ring-inset ${className}`}
+      className={`notch-sm inline-flex items-center px-2.5 py-1 text-xs font-bold ${className}`}
     >
       {children}
     </span>
@@ -24,12 +23,12 @@ const STATUS_LABEL: Record<StatusLocacao, string> = {
 };
 
 const STATUS_CLASSES: Record<StatusLocacao, string> = {
-  PENDENTE: 'bg-amber-50 text-amber-700 ring-amber-200',
-  APROVADA: 'bg-brand-50 text-brand-700 ring-brand-200',
-  PAGA: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-  EM_ANDAMENTO: 'bg-violet-50 text-violet-700 ring-violet-200',
-  CONCLUIDA: 'bg-slate-100 text-slate-600 ring-slate-200',
-  CANCELADA: 'bg-red-50 text-red-700 ring-red-200',
+  PENDENTE: 'bg-mostarda-100 text-mostarda-700',
+  APROVADA: 'bg-jade-100 text-jade-700',
+  PAGA: 'bg-jade-100 text-jade-700',
+  EM_ANDAMENTO: 'bg-roxo-100 text-roxo-500',
+  CONCLUIDA: 'bg-paper-line text-ink-soft',
+  CANCELADA: 'bg-carmim-100 text-carmim-700',
 };
 
 export function StatusBadge({ status }: { status: StatusLocacao }) {
@@ -43,9 +42,9 @@ const SAQUE_STATUS_LABEL: Record<StatusSaque, string> = {
 };
 
 const SAQUE_STATUS_CLASSES: Record<StatusSaque, string> = {
-  PENDENTE: 'bg-amber-50 text-amber-700 ring-amber-200',
-  APROVADO: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-  REJEITADO: 'bg-red-50 text-red-700 ring-red-200',
+  PENDENTE: 'bg-mostarda-100 text-mostarda-700',
+  APROVADO: 'bg-jade-100 text-jade-700',
+  REJEITADO: 'bg-carmim-100 text-carmim-700',
 };
 
 export function SaqueStatusBadge({ status }: { status: StatusSaque }) {
@@ -58,8 +57,8 @@ const POST_STATUS_LABEL: Record<StatusPost, string> = {
 };
 
 const POST_STATUS_CLASSES: Record<StatusPost, string> = {
-  ABERTO: 'bg-brand-50 text-brand-700 ring-brand-200',
-  ATENDIDO: 'bg-slate-100 text-slate-600 ring-slate-200',
+  ABERTO: 'bg-barro-100 text-barro-700',
+  ATENDIDO: 'bg-jade-100 text-jade-700',
 };
 
 export function PostStatusBadge({ status }: { status: StatusPost }) {
@@ -71,6 +70,11 @@ const PAPEL_LABEL: Partial<Record<Papel, string>> = {
   ADMIN: 'Admin USAI',
 };
 
+const PAPEL_CLASSES: Partial<Record<Papel, string>> = {
+  SINDICO: 'bg-jade-500 text-jade-100',
+  ADMIN: 'bg-ink text-ink-inverse',
+};
+
 /** Selo pequeno ao lado do nome do autor no feed — só aparece pra papéis "oficiais". */
 export function PapelTag({ papel }: { papel: Papel }) {
   const label = PAPEL_LABEL[papel];
@@ -78,8 +82,8 @@ export function PapelTag({ papel }: { papel: Papel }) {
 
   return (
     <span
-      className="inline-flex items-center rounded-full bg-brand-50 px-1.5 py-0.5 text-[10px]
-        font-semibold uppercase tracking-wide text-brand-700"
+      className={`notch-sm inline-flex items-center px-1.5 py-0.5 text-[10px] font-bold
+        ${PAPEL_CLASSES[papel]}`}
     >
       {label}
     </span>

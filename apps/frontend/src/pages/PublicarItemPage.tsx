@@ -74,8 +74,8 @@ export function PublicarItemPage() {
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-5">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Publicar item</h1>
-        <p className="text-sm text-slate-500">Anuncie um item ocioso pros vizinhos alugarem.</p>
+        <h1 className="font-display text-2xl font-bold text-ink">Publicar item</h1>
+        <p className="text-sm text-ink-soft">Anuncie um item ocioso pros vizinhos alugarem.</p>
       </div>
 
       <Card>
@@ -120,23 +120,26 @@ export function PublicarItemPage() {
           />
 
           <div className="flex flex-col gap-1">
-            <span className="text-sm font-medium text-slate-700">Foto (opcional)</span>
+            <span className="text-sm font-medium text-ink">Foto (opcional)</span>
             <div className="flex items-center gap-3">
               {imagemPreview ? (
                 <img
                   src={imagemPreview}
                   alt="Pré-visualização"
-                  className="h-16 w-16 rounded-xl object-cover"
+                  className="notch-sm h-16 w-16 object-cover"
                 />
               ) : (
-                <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-slate-100 text-xs text-slate-400">
-                  Sem foto
+                <div
+                  className="notch-sm flex h-16 w-16 items-center justify-center bg-paper
+                  font-meta text-[10px] text-ink-faint"
+                >
+                  SEM FOTO
                 </div>
               )}
               <label
                 htmlFor="imagem"
-                className="cursor-pointer rounded-xl border border-slate-300 px-4 py-2 text-sm
-                  font-medium text-slate-700 hover:bg-slate-50"
+                className="notch-sm min-h-[44px] cursor-pointer border border-ink/40 px-4 py-2
+                  text-sm font-semibold text-ink hover:bg-paper"
               >
                 {imagemArquivo ? 'Trocar foto' : 'Escolher foto'}
               </label>
@@ -151,7 +154,7 @@ export function PublicarItemPage() {
           </div>
 
           {erro && (
-            <p role="alert" className="text-sm text-red-600">
+            <p role="alert" className="text-sm text-carmim-700">
               {erro}
             </p>
           )}

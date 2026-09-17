@@ -44,15 +44,15 @@ export function ConversarButton({
         aria-label={`Conversar com ${nomeDoOutro}`}
         className={
           variant === 'icon'
-            ? 'flex items-center gap-1 text-slate-400 transition hover:text-brand-600 disabled:opacity-50'
-            : 'flex items-center gap-1.5 text-sm font-medium text-brand-600 transition hover:text-brand-700 disabled:opacity-50'
+            ? 'flex items-center gap-1 text-ink-faint transition hover:text-barro-700 disabled:opacity-50'
+            : 'flex items-center gap-1.5 text-sm font-semibold text-barro-700 transition hover:text-barro-500 disabled:opacity-50'
         }
       >
         <IconConversar className="h-4 w-4" />
         {variant === 'text' && 'Conversar'}
       </button>
       {erro && (
-        <p role="alert" className="mt-1 text-xs text-red-600">
+        <p role="alert" className="mt-1 text-xs text-carmim-700">
           {erro}
         </p>
       )}

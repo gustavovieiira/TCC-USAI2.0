@@ -38,39 +38,39 @@ export function CatalogoPage() {
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold text-slate-900">Catálogo</h1>
-        <p className="text-sm text-slate-500">Itens disponíveis pra locação no seu condomínio.</p>
+        <h1 className="font-display text-2xl font-bold text-ink">Catálogo</h1>
+        <p className="text-sm text-ink-soft">Itens disponíveis pra locação no seu condomínio.</p>
       </div>
 
       <input
         type="search"
         value={busca}
         onChange={(e) => setBusca(e.target.value)}
-        placeholder="Buscar item..."
-        className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none
-          transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+        placeholder="Buscar item, categoria, vizinho…"
+        className="notch-sm min-h-[44px] w-full border border-ink/40 bg-paper-surface px-4 py-2.5
+          text-sm text-ink outline-none transition focus:border-ink"
       />
 
       {categorias.length > 1 && (
         <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:px-0">
           <button
             onClick={() => setCategoriaAtiva(null)}
-            className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium transition ${
+            className={`notch-sm shrink-0 px-3.5 py-1.5 text-sm font-semibold transition ${
               categoriaAtiva === null
-                ? 'bg-brand-600 text-white'
-                : 'bg-white text-slate-600 ring-1 ring-slate-200'
+                ? 'bg-ink text-ink-inverse'
+                : 'border border-paper-line bg-paper-surface text-ink-soft'
             }`}
           >
-            Todas
+            Tudo
           </button>
           {categorias.map((categoria) => (
             <button
               key={categoria}
               onClick={() => setCategoriaAtiva(categoria)}
-              className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium transition ${
+              className={`notch-sm shrink-0 px-3.5 py-1.5 text-sm font-semibold transition ${
                 categoriaAtiva === categoria
-                  ? 'bg-brand-600 text-white'
-                  : 'bg-white text-slate-600 ring-1 ring-slate-200'
+                  ? 'bg-jade-500 text-jade-100'
+                  : 'border border-paper-line bg-paper-surface text-ink-soft'
               }`}
             >
               {categoria}
@@ -79,7 +79,7 @@ export function CatalogoPage() {
         </div>
       )}
 
-      {erro && <p className="text-sm text-red-600">{erro}</p>}
+      {erro && <p className="text-sm text-carmim-700">{erro}</p>}
 
       {!itens && !erro && (
         <div className="flex justify-center py-16">
@@ -89,18 +89,22 @@ export function CatalogoPage() {
 
       {itens && itensFiltrados.length === 0 && (
         <EmptyState
-          title={itens.length === 0 ? 'Ainda não há itens no catálogo' : 'Nenhum item encontrado'}
+          title={
+            itens.length === 0
+              ? 'Ainda não há itens no catálogo'
+              : `Nada por "${busca || categoriaAtiva}"`
+          }
           description={
             itens.length === 0
               ? 'Seja o primeiro morador a anunciar um item pros vizinhos.'
-              : 'Tente outra busca ou categoria.'
+              : 'Ninguém cadastrou isso ainda — mas alguém no condomínio provavelmente tem. Pergunta no mural?'
           }
           action={
             itens.length === 0 && (
               <Link
                 to="/itens/novo"
-                className="rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white
-                  hover:bg-brand-700"
+                className="notch inline-flex min-h-[44px] items-center bg-barro-500 px-4 py-2
+                  text-sm font-bold text-paper-surface shadow-press hover:bg-barro-700"
               >
                 Publicar item
               </Link>
