@@ -50,6 +50,7 @@ describe('ItemDetalhePage', () => {
       email: 'ana@example.com',
       papel: 'MORADOR',
       condominioId: 'cond-1',
+      apartamento: null,
     });
 
     renderPage();
@@ -67,6 +68,7 @@ describe('ItemDetalhePage', () => {
       email: 'bruno@example.com',
       papel: 'MORADOR',
       condominioId: 'cond-1',
+      apartamento: null,
     });
     const solicitar = vi
       .spyOn(locacoesApi, 'solicitarLocacao')

@@ -10,6 +10,7 @@ export interface StoredUser {
   email: string;
   papel: Papel;
   condominioId: string | null;
+  apartamento: string | null;
 }
 
 export function saveSession(accessToken: string, refreshToken: string, user: StoredUser) {

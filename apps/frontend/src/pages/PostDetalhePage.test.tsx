@@ -72,6 +72,7 @@ describe('PostDetalhePage', () => {
       email: 'carlos@example.com',
       papel: 'MORADOR',
       condominioId: 'cond-1',
+      apartamento: null,
     });
 
     renderPage();
@@ -89,6 +90,7 @@ describe('PostDetalhePage', () => {
       email: 'ana@example.com',
       papel: 'MORADOR',
       condominioId: 'cond-1',
+      apartamento: null,
     });
     vi.spyOn(muralApi, 'marcarAtendido').mockResolvedValue(
       buildPost({ status: 'ATENDIDO' }) as never,
@@ -113,6 +115,7 @@ describe('PostDetalhePage', () => {
       email: 'carla@example.com',
       papel: 'SINDICO',
       condominioId: 'cond-1',
+      apartamento: null,
     });
     vi.spyOn(muralApi, 'excluirPost').mockResolvedValue(undefined);
 
@@ -132,6 +135,7 @@ describe('PostDetalhePage', () => {
       email: 'carlos@example.com',
       papel: 'MORADOR',
       condominioId: 'cond-1',
+      apartamento: null,
     });
     vi.spyOn(muralApi, 'responderPost').mockResolvedValue({
       id: 'comentario-nova',
@@ -171,6 +175,7 @@ describe('PostDetalhePage', () => {
       email: 'carlos@example.com',
       papel: 'MORADOR',
       condominioId: 'cond-1',
+      apartamento: null,
     });
 
     renderPage();
@@ -190,6 +195,7 @@ describe('PostDetalhePage', () => {
       email: 'ana@example.com',
       papel: 'MORADOR',
       condominioId: 'cond-1',
+      apartamento: null,
     });
 
     renderPage();

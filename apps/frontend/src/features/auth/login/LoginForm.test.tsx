@@ -15,6 +15,7 @@ describe('LoginForm', () => {
         email: 'ana@example.com',
         papel: 'MORADOR' as const,
         condominioId: 'c1',
+        apartamento: null,
       },
     };
     vi.spyOn(authApi, 'login').mockResolvedValue(authResult);

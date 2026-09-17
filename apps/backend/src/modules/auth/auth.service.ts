@@ -21,6 +21,7 @@ function toAuthenticatedUser(user: {
   email: string;
   papel: AuthenticatedUser['papel'];
   condominioId: string | null;
+  apartamento?: string | null;
 }): AuthenticatedUser {
   return {
     id: user.id,
@@ -28,6 +29,7 @@ function toAuthenticatedUser(user: {
     email: user.email,
     papel: user.papel,
     condominioId: user.condominioId,
+    apartamento: user.apartamento ?? null,
   };
 }
 

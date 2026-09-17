@@ -25,6 +25,7 @@ export interface AuthenticatedUser {
   email: string;
   papel: Papel;
   condominioId: string | null;
+  apartamento: string | null;
 }
 
 export interface AuthResult extends AuthTokens {

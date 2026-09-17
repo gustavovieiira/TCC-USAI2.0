@@ -58,6 +58,7 @@ describe('MuralPage', () => {
       email: 'ana@example.com',
       papel: 'MORADOR',
       condominioId: 'cond-1',
+      apartamento: null,
     });
     vi.spyOn(muralApi, 'listarPosts').mockResolvedValue([]);
     vi.spyOn(muralApi, 'criarPost').mockResolvedValue(
@@ -88,6 +89,7 @@ describe('MuralPage', () => {
       email: 'ana@example.com',
       papel: 'MORADOR',
       condominioId: 'cond-1',
+      apartamento: null,
     });
     vi.spyOn(muralApi, 'listarPosts').mockResolvedValue([]);
     vi.spyOn(muralApi, 'criarPost').mockResolvedValue(
@@ -126,6 +128,7 @@ describe('MuralPage', () => {
       email: 'ana@example.com',
       papel: 'MORADOR',
       condominioId: 'cond-1',
+      apartamento: null,
     });
     vi.spyOn(muralApi, 'listarPosts').mockResolvedValue([]);
     vi.spyOn(muralApi, 'criarPost').mockRejectedValue({
@@ -153,6 +156,7 @@ describe('MuralPage', () => {
       email: 'carla@example.com',
       papel: 'SINDICO',
       condominioId: 'cond-1',
+      apartamento: null,
     });
     vi.spyOn(muralApi, 'listarPosts').mockResolvedValue([buildPost()]);
     vi.spyOn(muralApi, 'excluirPost').mockResolvedValue(undefined);
@@ -175,6 +179,7 @@ describe('MuralPage', () => {
       email: 'bruno@example.com',
       papel: 'MORADOR',
       condominioId: 'cond-1',
+      apartamento: null,
     });
     vi.spyOn(muralApi, 'listarPosts').mockResolvedValue([buildPost()]);
 
@@ -191,6 +196,7 @@ describe('MuralPage', () => {
       email: 'bruno@example.com',
       papel: 'MORADOR',
       condominioId: 'cond-1',
+      apartamento: null,
     });
     vi.spyOn(muralApi, 'listarPosts').mockResolvedValue([buildPost()]);
 
@@ -207,6 +213,7 @@ describe('MuralPage', () => {
       email: 'carla@example.com',
       papel: 'SINDICO',
       condominioId: 'cond-1',
+      apartamento: null,
     });
     vi.spyOn(muralApi, 'listarPosts').mockResolvedValue([buildPost()]);
 

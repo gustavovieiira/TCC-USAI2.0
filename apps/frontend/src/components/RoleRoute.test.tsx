@@ -25,6 +25,7 @@ describe('RoleRoute', () => {
       email: 'admin@example.com',
       papel: 'ADMIN',
       condominioId: null,
+      apartamento: null,
     });
 
     renderComPapel(['ADMIN']);
@@ -39,6 +40,7 @@ describe('RoleRoute', () => {
       email: 'bruno@example.com',
       papel: 'MORADOR',
       condominioId: 'cond-1',
+      apartamento: null,
     });
 
     renderComPapel(['ADMIN']);

@@ -54,6 +54,7 @@ function renderPage(fakeSocket: ReturnType<typeof buildFakeSocket>) {
     email: 'bruno@example.com',
     papel: 'MORADOR',
     condominioId: 'cond-1',
+    apartamento: null,
   });
 
   return render(

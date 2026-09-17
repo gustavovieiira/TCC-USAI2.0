@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { clearSession, getStoredUser, homeRouteFor, Papel } from '@/lib/authStorage';
+import { ProfileMenu } from './ProfileMenu';
 
 interface NavItem {
   to: string;
@@ -68,17 +69,7 @@ export function AppShell() {
             ))}
           </nav>
 
-          <div className="flex items-center gap-3">
-            <span className="hidden font-meta text-xs tracking-wide text-ink-inverse-soft sm:inline">
-              {user?.nome ?? 'Morador'}
-            </span>
-            <button
-              onClick={handleLogout}
-              className="px-3 py-2 text-sm font-semibold text-ink-inverse-soft hover:text-ink-inverse"
-            >
-              Sair
-            </button>
-          </div>
+          <ProfileMenu user={user} onLogout={handleLogout} />
         </div>
       </header>
 
