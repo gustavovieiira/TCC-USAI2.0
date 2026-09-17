@@ -2,16 +2,30 @@ import { SaquesService } from '@/modules/saques/saques.service';
 import { AppError, NotFoundError } from '@/common/errors';
 
 function buildPrismaMock() {
-  return {
+  const prisma = {
     solicitacaoSaque: {
       create: jest.fn(),
       findMany: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
+      aggregate: jest.fn().mockResolvedValue({ _sum: { valor: null } }),
+    },
+    locacao: {
+      aggregate: jest.fn().mockResolvedValue({ _sum: { valorTotal: null } }),
     },
     logAuditoria: { create: jest.fn() },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
+  // Nos testes, a transação roda contra o mesmo mock — equivalente o bastante ao Prisma real pra
+  // verificar a lógica de saldo sem precisar simular um client de transação à parte.
+  prisma.$transaction = jest.fn((callback: (tx: unknown) => unknown) => callback(prisma));
+
+  return prisma;
+}
+
+/** Ajuda os testes de `solicitar` a simular quanto a pessoa já recebeu em locações pagas. */
+function comSaldoRecebido(prisma: ReturnType<typeof buildPrismaMock>, valorTotal: number) {
+  prisma.locacao.aggregate.mockResolvedValue({ _sum: { valorTotal } });
 }
 
 const USER_ID = 'user-1';
@@ -27,11 +41,50 @@ const saquePendente = {
   motivoRejeicao: null,
   createdAt: new Date('2026-09-15'),
   processadoEm: null,
+  user: { nome: 'Bruno Locatario' },
 };
 
-describe('SaquesService.solicitar', () => {
-  it('morador solicita saque informando valor e chave PIX', async () => {
+describe('SaquesService.calcularSaldo', () => {
+  it('é a soma das locações pagas menos o que já foi sacado e o que está pendente', async () => {
     const prisma = buildPrismaMock();
+    comSaldoRecebido(prisma, 500);
+    prisma.solicitacaoSaque.aggregate
+      .mockResolvedValueOnce({ _sum: { valor: 120 } }) // APROVADO
+      .mockResolvedValueOnce({ _sum: { valor: 80 } }); // PENDENTE
+
+    const service = new SaquesService(prisma);
+    const saldo = await service.calcularSaldo(USER_ID);
+
+    expect(saldo).toBe(300);
+  });
+
+  it('nunca fica negativo mesmo se sacado+pendente superar o recebido', async () => {
+    const prisma = buildPrismaMock();
+    comSaldoRecebido(prisma, 100);
+    prisma.solicitacaoSaque.aggregate
+      .mockResolvedValueOnce({ _sum: { valor: 90 } })
+      .mockResolvedValueOnce({ _sum: { valor: 50 } });
+
+    const service = new SaquesService(prisma);
+    const saldo = await service.calcularSaldo(USER_ID);
+
+    expect(saldo).toBe(0);
+  });
+
+  it('é zero quando a pessoa nunca recebeu nenhuma locação paga', async () => {
+    const prisma = buildPrismaMock();
+
+    const service = new SaquesService(prisma);
+    const saldo = await service.calcularSaldo(USER_ID);
+
+    expect(saldo).toBe(0);
+  });
+});
+
+describe('SaquesService.solicitar', () => {
+  it('morador solicita saque dentro do saldo disponível', async () => {
+    const prisma = buildPrismaMock();
+    comSaldoRecebido(prisma, 500);
     prisma.solicitacaoSaque.create.mockResolvedValue(saquePendente);
 
     const service = new SaquesService(prisma);
@@ -42,6 +95,28 @@ describe('SaquesService.solicitar', () => {
     });
     expect(result.status).toBe('PENDENTE');
     expect(result.valor).toBe(100);
+  });
+
+  it('rejeita quando o valor pedido é maior que o saldo disponível', async () => {
+    const prisma = buildPrismaMock();
+    comSaldoRecebido(prisma, 50);
+
+    const service = new SaquesService(prisma);
+
+    await expect(
+      service.solicitar(USER_ID, { valor: 100, chavePixUsada: 'user@pix.com' }),
+    ).rejects.toBeInstanceOf(AppError);
+    expect(prisma.solicitacaoSaque.create).not.toHaveBeenCalled();
+  });
+
+  it('rejeita quando a pessoa nunca recebeu nenhuma locação paga (saldo zero)', async () => {
+    const prisma = buildPrismaMock();
+
+    const service = new SaquesService(prisma);
+
+    await expect(
+      service.solicitar(USER_ID, { valor: 1, chavePixUsada: 'user@pix.com' }),
+    ).rejects.toBeInstanceOf(AppError);
   });
 });
 
@@ -128,15 +203,16 @@ describe('SaquesService.rejeitar', () => {
 });
 
 describe('SaquesService.listarTodas', () => {
-  it('filtra por status quando informado', async () => {
+  it('filtra por status quando informado e traz o nome de quem solicitou', async () => {
     const prisma = buildPrismaMock();
     prisma.solicitacaoSaque.findMany.mockResolvedValue([saquePendente]);
 
     const service = new SaquesService(prisma);
-    await service.listarTodas({ status: 'PENDENTE' });
+    const [resultado] = await service.listarTodas({ status: 'PENDENTE' });
 
     expect(prisma.solicitacaoSaque.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { status: 'PENDENTE' } }),
+      expect.objectContaining({ where: { status: 'PENDENTE' }, include: { user: true } }),
     );
+    expect(resultado.solicitanteNome).toBe('Bruno Locatario');
   });
 });

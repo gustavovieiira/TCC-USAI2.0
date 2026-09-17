@@ -1,5 +1,5 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { clearSession, getStoredUser, homeRouteFor, Papel } from '@/lib/authStorage';
+import { NavLink, Outlet } from 'react-router-dom';
+import { getStoredUser, homeRouteFor, Papel } from '@/lib/authStorage';
 import { ProfileMenu } from './ProfileMenu';
 
 interface NavItem {
@@ -32,14 +32,8 @@ function navItemsPara(papel?: Papel): NavItem[] {
 }
 
 export function AppShell() {
-  const navigate = useNavigate();
   const user = getStoredUser();
   const navItems = navItemsPara(user?.papel);
-
-  function handleLogout() {
-    clearSession();
-    navigate('/login');
-  }
 
   return (
     <div className="min-h-screen bg-paper">
@@ -69,7 +63,7 @@ export function AppShell() {
             ))}
           </nav>
 
-          <ProfileMenu user={user} onLogout={handleLogout} />
+          <ProfileMenu user={user} />
         </div>
       </header>
 

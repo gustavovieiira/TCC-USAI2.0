@@ -21,6 +21,11 @@ export const saquesController = {
     res.status(200).json(saques);
   },
 
+  async saldo(req: Request, res: Response) {
+    const saldo = await saquesService.calcularSaldo(req.auth!.userId);
+    res.status(200).json({ saldo });
+  },
+
   async listarTodas(req: Request, res: Response) {
     const filtro = listarSaquesQuerySchema.parse(req.query);
     const saques = await saquesService.listarTodas(filtro);

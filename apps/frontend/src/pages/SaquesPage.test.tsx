@@ -22,6 +22,7 @@ function buildSaque(overrides: Partial<SaqueDTO> = {}): SaqueDTO {
 describe('SaquesPage', () => {
   it('lista as solicitações existentes', async () => {
     vi.spyOn(saquesApi, 'listarMeusSaques').mockResolvedValue([buildSaque()]);
+    vi.spyOn(saquesApi, 'buscarSaldo').mockResolvedValue(0);
 
     render(<SaquesPage />);
 
@@ -29,8 +30,18 @@ describe('SaquesPage', () => {
     expect(screen.getByText('Pendente')).toBeInTheDocument();
   });
 
+  it('mostra o saldo líquido disponível', async () => {
+    vi.spyOn(saquesApi, 'listarMeusSaques').mockResolvedValue([]);
+    vi.spyOn(saquesApi, 'buscarSaldo').mockResolvedValue(250.5);
+
+    render(<SaquesPage />);
+
+    expect(await screen.findByText(/250,50/)).toBeInTheDocument();
+  });
+
   it('mostra estado vazio quando não há solicitações', async () => {
     vi.spyOn(saquesApi, 'listarMeusSaques').mockResolvedValue([]);
+    vi.spyOn(saquesApi, 'buscarSaldo').mockResolvedValue(0);
 
     render(<SaquesPage />);
 
@@ -41,6 +52,7 @@ describe('SaquesPage', () => {
     vi.spyOn(saquesApi, 'listarMeusSaques').mockResolvedValue([
       buildSaque({ status: 'REJEITADO', motivoRejeicao: 'Chave PIX divergente do cadastro' }),
     ]);
+    vi.spyOn(saquesApi, 'buscarSaldo').mockResolvedValue(0);
 
     render(<SaquesPage />);
 
@@ -49,6 +61,7 @@ describe('SaquesPage', () => {
 
   it('solicita um novo saque e adiciona na lista sem precisar recarregar', async () => {
     vi.spyOn(saquesApi, 'listarMeusSaques').mockResolvedValue([]);
+    vi.spyOn(saquesApi, 'buscarSaldo').mockResolvedValue(100);
     vi.spyOn(saquesApi, 'solicitarSaque').mockResolvedValue(
       buildSaque({ id: 'saque-novo', valor: 50, chavePixUsada: 'novo@pix.com' }),
     );
@@ -67,11 +80,12 @@ describe('SaquesPage', () => {
     expect(await screen.findByText('novo@pix.com', { exact: false })).toBeInTheDocument();
   });
 
-  it('exibe erro quando a solicitação falha', async () => {
+  it('exibe erro quando a solicitação falha (ex: saldo insuficiente)', async () => {
     vi.spyOn(saquesApi, 'listarMeusSaques').mockResolvedValue([]);
+    vi.spyOn(saquesApi, 'buscarSaldo').mockResolvedValue(0);
     vi.spyOn(saquesApi, 'solicitarSaque').mockRejectedValue({
       isAxiosError: true,
-      response: { data: { error: { message: 'Dados inválidos' } } },
+      response: { data: { error: { message: 'Valor solicitado maior que o saldo disponível' } } },
     });
 
     render(<SaquesPage />);
@@ -81,6 +95,8 @@ describe('SaquesPage', () => {
     await userEvent.type(screen.getByLabelText('Chave PIX'), 'novo@pix.com');
     await userEvent.click(screen.getByRole('button', { name: 'Solicitar' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Dados inválidos');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Valor solicitado maior que o saldo disponível',
+    );
   });
 });

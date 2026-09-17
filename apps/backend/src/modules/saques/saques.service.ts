@@ -1,5 +1,6 @@
 import { Prisma, PrismaClient, SolicitacaoSaque } from '@prisma/client';
 import { AppError, NotFoundError } from '@/common/errors';
+import { STATUS_QUE_GERAM_SALDO } from '@/modules/locacoes/locacoes.service';
 import {
   ListarSaquesFiltro,
   RejeitarSaqueInput,
@@ -7,10 +8,11 @@ import {
   SolicitarSaqueInput,
 } from './saques.types';
 
-function toSaqueDTO(saque: SolicitacaoSaque): SaqueDTO {
+function toSaqueDTO(saque: SolicitacaoSaque, solicitanteNome?: string): SaqueDTO {
   return {
     id: saque.id,
     userId: saque.userId,
+    solicitanteNome,
     valor: Number(saque.valor),
     chavePixUsada: saque.chavePixUsada,
     status: saque.status,
@@ -24,22 +26,72 @@ export class SaquesService {
   constructor(private readonly prisma: PrismaClient) {}
 
   /**
-   * Morador solicita o saque do saldo acumulado com locações pagas.
-   * Nota: ainda não valida contra o saldo real disponível — isso depende do M3 (Asaas) popular
-   * `Pagamento` com locações efetivamente pagas. Por ora só registra a solicitação como PENDENTE
-   * para o Admin USAI avaliar; a validação de saldo entra quando o M3 for implementado.
+   * Saldo líquido disponível pra saque: soma do valor das locações já pagas ao dono (RN — ver
+   * `STATUS_QUE_GERAM_SALDO`), menos o que já foi sacado (APROVADO) e menos o que já está em
+   * análise (PENDENTE) — assim, duas solicitações pendentes ao mesmo tempo não conseguem, juntas,
+   * sacar mais do que a pessoa realmente recebeu. REJEITADO não desconta (o valor volta a ficar
+   * disponível). Hoje sempre dá 0 pra todo mundo, porque nada no sistema ainda move uma locação
+   * pra PAGA (falta o M3/Asaas) — o cálculo já está pronto pra quando isso existir.
+   */
+  async calcularSaldo(userId: string): Promise<number> {
+    return this.calcularSaldoComCliente(this.prisma, userId);
+  }
+
+  private async calcularSaldoComCliente(
+    cliente: Prisma.TransactionClient | PrismaClient,
+    userId: string,
+  ): Promise<number> {
+    const [recebido, aprovado, pendente] = await Promise.all([
+      cliente.locacao.aggregate({
+        where: { item: { ownerId: userId }, status: { in: STATUS_QUE_GERAM_SALDO } },
+        _sum: { valorTotal: true },
+      }),
+      cliente.solicitacaoSaque.aggregate({
+        where: { userId, status: 'APROVADO' },
+        _sum: { valor: true },
+      }),
+      cliente.solicitacaoSaque.aggregate({
+        where: { userId, status: 'PENDENTE' },
+        _sum: { valor: true },
+      }),
+    ]);
+
+    const total = Number(recebido._sum.valorTotal ?? 0);
+    const jaSacado = Number(aprovado._sum.valor ?? 0);
+    const emAnalise = Number(pendente._sum.valor ?? 0);
+
+    return Math.max(0, total - jaSacado - emAnalise);
+  }
+
+  /**
+   * Morador solicita o saque do saldo acumulado com locações pagas. Recalcula o saldo dentro da
+   * mesma transação que cria a solicitação, pra duas requisições simultâneas não conseguirem
+   * aprovar juntas mais do que o saldo real (a segunda vê o PENDENTE que a primeira acabou de
+   * criar antes de decidir se ainda cabe).
    */
   async solicitar(userId: string, input: SolicitarSaqueInput): Promise<SaqueDTO> {
-    const saque = await this.prisma.solicitacaoSaque.create({
-      data: {
-        userId,
-        valor: input.valor,
-        chavePixUsada: input.chavePixUsada,
-        status: 'PENDENTE',
-      },
-    });
+    return this.prisma.$transaction(async (tx) => {
+      const saldo = await this.calcularSaldoComCliente(tx, userId);
 
-    return toSaqueDTO(saque);
+      if (input.valor > saldo) {
+        throw new AppError(
+          'Valor solicitado maior que o saldo disponível',
+          400,
+          'SALDO_INSUFICIENTE',
+        );
+      }
+
+      const saque = await tx.solicitacaoSaque.create({
+        data: {
+          userId,
+          valor: input.valor,
+          chavePixUsada: input.chavePixUsada,
+          status: 'PENDENTE',
+        },
+      });
+
+      return toSaqueDTO(saque);
+    });
   }
 
   async listarPorUsuario(userId: string): Promise<SaqueDTO[]> {
@@ -48,17 +100,18 @@ export class SaquesService {
       orderBy: { createdAt: 'desc' },
     });
 
-    return saques.map(toSaqueDTO);
+    return saques.map((saque) => toSaqueDTO(saque));
   }
 
-  /** Admin USAI — visão global das solicitações, opcionalmente filtrada por status. */
+  /** Admin USAI — visão global das solicitações, com o nome de quem pediu, opcionalmente filtrada por status. */
   async listarTodas(filtro: ListarSaquesFiltro = {}): Promise<SaqueDTO[]> {
     const saques = await this.prisma.solicitacaoSaque.findMany({
       where: filtro.status ? { status: filtro.status } : undefined,
+      include: { user: true },
       orderBy: { createdAt: 'desc' },
     });
 
-    return saques.map(toSaqueDTO);
+    return saques.map((saque) => toSaqueDTO(saque, saque.user.nome));
   }
 
   /** Admin USAI aprova — grava em LogAuditoria para rastreabilidade financeira. */

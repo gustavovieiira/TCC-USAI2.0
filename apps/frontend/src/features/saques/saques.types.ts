@@ -3,6 +3,8 @@ export type StatusSaque = 'PENDENTE' | 'APROVADO' | 'REJEITADO';
 export interface SaqueDTO {
   id: string;
   userId: string;
+  /** Nome de quem solicitou — só vem preenchido na listagem do Admin USAI. */
+  solicitanteNome?: string;
   valor: number;
   chavePixUsada: string;
   status: StatusSaque;

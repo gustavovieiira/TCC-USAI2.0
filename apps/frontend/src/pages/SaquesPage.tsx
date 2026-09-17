@@ -7,12 +7,15 @@ import { TextField } from '@/components/ui/TextField';
 import { Spinner } from '@/components/ui/Spinner';
 import { extractErrorMessage } from '@/lib/apiClient';
 import { formatCurrency, formatDateTime } from '@/lib/format';
-import { listarMeusSaques, solicitarSaque } from '@/features/saques/saques.api';
+import { buscarSaldo, listarMeusSaques, solicitarSaque } from '@/features/saques/saques.api';
 import { SaqueDTO } from '@/features/saques/saques.types';
 
 export function SaquesPage() {
   const [saques, setSaques] = useState<SaqueDTO[] | null>(null);
   const [erroLista, setErroLista] = useState<string | null>(null);
+
+  const [saldo, setSaldo] = useState<number | null>(null);
+  const [erroSaldo, setErroSaldo] = useState<string | null>(null);
 
   const [valor, setValor] = useState('');
   const [chavePixUsada, setChavePixUsada] = useState('');
@@ -23,6 +26,10 @@ export function SaquesPage() {
     listarMeusSaques()
       .then(setSaques)
       .catch((err) => setErroLista(extractErrorMessage(err)));
+
+    buscarSaldo()
+      .then(setSaldo)
+      .catch((err) => setErroSaldo(extractErrorMessage(err)));
   }
 
   useEffect(carregar, []);
@@ -37,6 +44,9 @@ export function SaquesPage() {
       setSaques((atual) => (atual ? [novo, ...atual] : [novo]));
       setValor('');
       setChavePixUsada('');
+      buscarSaldo()
+        .then(setSaldo)
+        .catch(() => undefined);
     } catch (err) {
       setErroForm(extractErrorMessage(err));
     } finally {
@@ -52,6 +62,16 @@ export function SaquesPage() {
           Solicite o saque do que você já recebeu em locações.
         </p>
       </div>
+
+      <Card>
+        <p className="font-meta text-xs uppercase tracking-wide text-ink-faint">
+          Saldo líquido disponível
+        </p>
+        <p className="mt-1 font-display text-3xl font-bold text-jade-500">
+          {saldo === null ? '···' : formatCurrency(saldo)}
+        </p>
+        {erroSaldo && <p className="mt-1 text-sm text-carmim-700">{erroSaldo}</p>}
+      </Card>
 
       <Card>
         <h2 className="mb-4 font-display font-semibold text-ink">Solicitar saque</h2>

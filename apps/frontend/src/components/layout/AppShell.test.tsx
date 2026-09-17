@@ -12,6 +12,7 @@ function renderShell(initialEntry: string) {
         <Route element={<AppShell />}>
           <Route path="/catalogo" element={<p>Página do catálogo</p>} />
           <Route path="/locacoes" element={<p>Página de locações</p>} />
+          <Route path="/perfil" element={<p>Página de perfil</p>} />
         </Route>
         <Route path="/login" element={<p>Página de login</p>} />
       </Routes>
@@ -38,35 +39,20 @@ describe('AppShell', () => {
     expect(screen.getAllByRole('link', { name: 'Catálogo' })).toHaveLength(2);
   });
 
-  it('desloga e redireciona pro login ao clicar em Sair, dentro do menu da conta', async () => {
-    vi.spyOn(authStorage, 'getStoredUser').mockReturnValue(null);
-    const clearSession = vi.spyOn(authStorage, 'clearSession');
-
-    renderShell('/catalogo');
-
-    expect(screen.queryByRole('button', { name: 'Sair' })).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Menu da conta de Conta' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Sair' }));
-
-    expect(clearSession).toHaveBeenCalled();
-    expect(await screen.findByText('Página de login')).toBeInTheDocument();
-  });
-
-  it('mostra apartamento e papel do morador ao abrir o menu da conta', async () => {
+  it('leva pra página de perfil ao clicar no chip da conta no header', async () => {
     vi.spyOn(authStorage, 'getStoredUser').mockReturnValue({
       id: 'user-sindico',
       nome: 'Carla Síndica',
       email: 'carla@example.com',
       papel: 'SINDICO',
       condominioId: 'cond-1',
-      apartamento: '101',
+      apartamento: null,
     });
 
     renderShell('/catalogo');
 
-    await userEvent.click(screen.getByRole('button', { name: 'Menu da conta de Carla Síndica' }));
+    await userEvent.click(screen.getByRole('link', { name: /Carla Síndica/ }));
 
-    expect(screen.getByText('carla@example.com')).toBeInTheDocument();
-    expect(screen.getByText('101')).toBeInTheDocument();
+    expect(await screen.findByText('Página de perfil')).toBeInTheDocument();
   });
 });

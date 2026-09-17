@@ -1,17 +1,25 @@
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
 
-jest.mock('@/common/prisma', () => ({
-  prisma: {
+jest.mock('@/common/prisma', () => {
+  const mockPrisma = {
     solicitacaoSaque: {
       create: jest.fn(),
       findMany: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
+      aggregate: jest.fn().mockResolvedValue({ _sum: { valor: null } }),
+    },
+    locacao: {
+      aggregate: jest.fn().mockResolvedValue({ _sum: { valorTotal: null } }),
     },
     logAuditoria: { create: jest.fn() },
-  },
-}));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any;
+  mockPrisma.$transaction = jest.fn((callback: (tx: unknown) => unknown) => callback(mockPrisma));
+
+  return { prisma: mockPrisma };
+});
 
 import { createApp } from '@/app';
 import { prisma } from '@/common/prisma';
@@ -45,10 +53,12 @@ const saqueBase = {
   motivoRejeicao: null,
   createdAt: new Date('2026-09-16'),
   processadoEm: null,
+  user: { nome: 'Ana Proprietaria' },
 };
 
 describe('POST /api/saques', () => {
-  it('solicita o saque e retorna 201', async () => {
+  it('solicita o saque e retorna 201 quando cabe no saldo disponível', async () => {
+    (prisma.locacao.aggregate as jest.Mock).mockResolvedValue({ _sum: { valorTotal: 100 } });
     (prisma.solicitacaoSaque.create as jest.Mock).mockResolvedValue(saqueBase);
     const app = createApp();
 
@@ -70,6 +80,36 @@ describe('POST /api/saques', () => {
       .send({ valor: -10, chavePixUsada: 'user@pix.com' });
 
     expect(response.status).toBe(400);
+  });
+
+  it('rejeita com 400 quando o valor pedido é maior que o saldo disponível', async () => {
+    (prisma.locacao.aggregate as jest.Mock).mockResolvedValue({ _sum: { valorTotal: 50 } });
+    const app = createApp();
+
+    const response = await request(app)
+      .post('/api/saques')
+      .set('Authorization', `Bearer ${token(USER_ID)}`)
+      .send({ valor: 100, chavePixUsada: 'user@pix.com' });
+
+    expect(response.status).toBe(400);
+    expect(prisma.solicitacaoSaque.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('GET /api/saques/saldo', () => {
+  it('retorna o saldo líquido disponível pro usuário autenticado', async () => {
+    (prisma.locacao.aggregate as jest.Mock).mockResolvedValue({ _sum: { valorTotal: 300 } });
+    (prisma.solicitacaoSaque.aggregate as jest.Mock)
+      .mockResolvedValueOnce({ _sum: { valor: 100 } })
+      .mockResolvedValueOnce({ _sum: { valor: 0 } });
+    const app = createApp();
+
+    const response = await request(app)
+      .get('/api/saques/saldo')
+      .set('Authorization', `Bearer ${token(USER_ID)}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ saldo: 200 });
   });
 });
 
@@ -98,8 +138,9 @@ describe('GET /api/saques (Admin)', () => {
 
     expect(response.status).toBe(200);
     expect(prisma.solicitacaoSaque.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { status: 'PENDENTE' } }),
+      expect.objectContaining({ where: { status: 'PENDENTE' }, include: { user: true } }),
     );
+    expect(response.body[0].solicitanteNome).toBe('Ana Proprietaria');
   });
 });
 

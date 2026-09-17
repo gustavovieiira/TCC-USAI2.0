@@ -15,6 +15,16 @@ export const STATUS_QUE_OCUPAM_PERIODO: StatusLocacao[] = [
   'EM_ANDAMENTO',
 ];
 
+/**
+ * Status em que o pagamento já foi recebido pelo dono do item — usado por `saques.service.ts` pra
+ * calcular o saldo sacável. Uma vez que a locação chega em PAGA, o valor conta pro saldo mesmo que
+ * ela avance pro ciclo seguinte (EM_ANDAMENTO/CONCLUIDA); só não conta enquanto ainda é
+ * PENDENTE/APROVADA (aprovada pelo dono, mas o inquilino ainda não pagou) nem se foi CANCELADA.
+ * Hoje nada no sistema move uma locação pra PAGA — isso é responsabilidade do M3 (webhook do
+ * Asaas confirmando o pagamento), ainda não implementado.
+ */
+export const STATUS_QUE_GERAM_SALDO: StatusLocacao[] = ['PAGA', 'EM_ANDAMENTO', 'CONCLUIDA'];
+
 type LocacaoComItem = Locacao & { item: Item };
 
 function toLocacaoDTO(locacao: LocacaoComItem): LocacaoDTO {

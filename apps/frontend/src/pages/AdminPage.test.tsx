@@ -19,6 +19,7 @@ const resumo: ResumoFinanceiroDTO = {
 const saquePendente: SaqueDTO = {
   id: 'saque-1',
   userId: 'user-1',
+  solicitanteNome: 'Bruno Locatario',
   valor: 100,
   chavePixUsada: 'user@pix.com',
   status: 'PENDENTE',
@@ -51,6 +52,7 @@ describe('AdminPage — aba Financeiro', () => {
     render(<AdminPage />);
 
     expect(await screen.findByText('user@pix.com', { exact: false })).toBeInTheDocument();
+    expect(screen.getByText('Bruno Locatario')).toBeInTheDocument();
     expect(screen.getByText('Condomínios ativos').nextSibling).toHaveTextContent('2');
   });
 

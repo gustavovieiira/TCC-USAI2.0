@@ -201,9 +201,14 @@ function AbaFinanceiro({ resumo, saques, erro, onMudou, onErro }: AbaFinanceiroP
             {saques.map((saque) => (
               <Card key={saque.id} className="flex flex-col gap-2">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-display font-semibold text-ink">
-                    {formatCurrency(saque.valor)}
-                  </span>
+                  <div>
+                    <span className="font-display font-semibold text-ink">
+                      {formatCurrency(saque.valor)}
+                    </span>
+                    {saque.solicitanteNome && (
+                      <p className="text-sm text-ink-soft">{saque.solicitanteNome}</p>
+                    )}
+                  </div>
                   <SaqueStatusBadge status={saque.status} />
                 </div>
                 <p className="text-sm text-ink-soft">

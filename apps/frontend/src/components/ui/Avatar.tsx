@@ -13,6 +13,7 @@ function papelPorNome(nome: string): string {
 const SIZE_CLASSES = {
   sm: 'h-8 w-8 text-sm',
   md: 'h-10 w-10 text-base',
+  lg: 'h-14 w-14 text-xl',
 };
 
 /** Avatar de papel: quadrado recortado com iniciais em tinta — nunca círculo genérico. */

@@ -13,6 +13,7 @@ import { MensagensLocacaoPage } from '@/pages/MensagensLocacaoPage';
 import { MinhasConversasPage } from '@/pages/MinhasConversasPage';
 import { MinhasLocacoesPage } from '@/pages/MinhasLocacoesPage';
 import { MuralPage } from '@/pages/MuralPage';
+import { PerfilPage } from '@/pages/PerfilPage';
 import { PostDetalhePage } from '@/pages/PostDetalhePage';
 import { PublicarItemPage } from '@/pages/PublicarItemPage';
 import { SaquesPage } from '@/pages/SaquesPage';
@@ -27,6 +28,8 @@ export default function App() {
 
       <Route element={<ProtectedRoute />}>
         <Route element={<AppShell />}>
+          <Route path="/perfil" element={<PerfilPage />} />
+
           <Route element={<RoleRoute allow={['MORADOR']} />}>
             <Route path="/catalogo" element={<CatalogoPage />} />
             <Route path="/itens/novo" element={<PublicarItemPage />} />
