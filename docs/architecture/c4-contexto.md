@@ -20,5 +20,4 @@ C4Context
     Rel(usai, asaas, "Gera cobranças e recebe confirmação de pagamento", "REST/Webhook")
 ```
 
-Diagramas de containers (Nível 2) e componentes (Nível 3) serão adicionados conforme os módulos de
-locação e pagamento forem implementados (M2/M3 — ver [progresso.md](../progresso.md)).
+Ver também [Nível 2 — Containers](c4-containers.md) e [Nível 3 — Componentes](c4-componentes.md).
