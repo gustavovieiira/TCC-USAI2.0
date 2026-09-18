@@ -34,6 +34,11 @@ export function getStoredUser(): StoredUser | null {
   return raw ? (JSON.parse(raw) as StoredUser) : null;
 }
 
+/** Atualiza só os dados do usuário guardados (ex.: depois de editar o perfil), sem tocar nos tokens. */
+export function updateStoredUser(user: StoredUser) {
+  localStorage.setItem(USER_KEY, JSON.stringify(user));
+}
+
 /**
  * Página inicial de cada papel — pra onde vai o login/cadastro, o clique no logo "USAI" e o
  * fallback do `RoleRoute` quando o papel não bate com a rota. Admin ainda não tem acesso ao Mural

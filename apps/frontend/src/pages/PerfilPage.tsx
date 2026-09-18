@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Avatar } from '@/components/ui/Avatar';
 import { PapelTag } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Spinner } from '@/components/ui/Spinner';
+import { TextField } from '@/components/ui/TextField';
 import { resumoFinanceiro, listarCondominios } from '@/features/admin/admin.api';
+import { atualizarPerfil } from '@/features/auth/auth.api';
 import { listarItens } from '@/features/itens/itens.api';
 import { listarComoLocatario, listarComoProprietario } from '@/features/locacoes/locacoes.api';
 import { buscarSaldo } from '@/features/saques/saques.api';
@@ -15,7 +17,7 @@ import {
   listarMoradores,
 } from '@/features/sindico/sindico.api';
 import { extractErrorMessage } from '@/lib/apiClient';
-import { clearSession, getStoredUser } from '@/lib/authStorage';
+import { clearSession, getStoredUser, updateStoredUser } from '@/lib/authStorage';
 import { formatCurrency } from '@/lib/format';
 
 const LOCACAO_STATUS_ATIVOS = ['PENDENTE', 'APROVADA', 'PAGA', 'EM_ANDAMENTO'];
@@ -76,9 +78,15 @@ function QuickLink({ to, label }: { to: string; label: string }) {
 
 export function PerfilPage() {
   const navigate = useNavigate();
-  const user = getStoredUser();
+  const [user, setUser] = useState(getStoredUser());
   const [dados, setDados] = useState<Dados | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+
+  const [editando, setEditando] = useState(false);
+  const [nomeForm, setNomeForm] = useState('');
+  const [apartamentoForm, setApartamentoForm] = useState('');
+  const [erroEdicao, setErroEdicao] = useState<string | null>(null);
+  const [salvando, setSalvando] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -139,20 +147,83 @@ export function PerfilPage() {
     navigate('/login');
   }
 
+  function iniciarEdicao() {
+    setNomeForm(user!.nome);
+    setApartamentoForm(user!.apartamento ?? '');
+    setErroEdicao(null);
+    setEditando(true);
+  }
+
+  async function handleSalvarPerfil(event: FormEvent) {
+    event.preventDefault();
+    setErroEdicao(null);
+    setSalvando(true);
+
+    try {
+      const atualizado = await atualizarPerfil({
+        nome: nomeForm,
+        apartamento: apartamentoForm || undefined,
+      });
+      updateStoredUser(atualizado);
+      setUser(atualizado);
+      setEditando(false);
+    } catch (err) {
+      setErroEdicao(extractErrorMessage(err));
+    } finally {
+      setSalvando(false);
+    }
+  }
+
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6">
-      <Card className="flex items-center gap-4">
-        <Avatar nome={user.nome} size="lg" />
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="truncate font-display text-xl font-bold text-ink">{user.nome}</h1>
-            <PapelTag papel={user.papel} />
+      <Card>
+        {editando ? (
+          <form onSubmit={handleSalvarPerfil} className="flex flex-col gap-4">
+            <TextField
+              label="Nome"
+              name="nome"
+              required
+              value={nomeForm}
+              onChange={(e) => setNomeForm(e.target.value)}
+            />
+            <TextField
+              label="Apartamento"
+              name="apartamento"
+              value={apartamentoForm}
+              onChange={(e) => setApartamentoForm(e.target.value)}
+            />
+            {erroEdicao && (
+              <p role="alert" className="text-sm text-carmim-700">
+                {erroEdicao}
+              </p>
+            )}
+            <div className="flex gap-3">
+              <Button type="submit" isLoading={salvando}>
+                Salvar
+              </Button>
+              <Button type="button" variant="ghost" onClick={() => setEditando(false)}>
+                Cancelar
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <div className="flex items-center gap-4">
+            <Avatar nome={user.nome} size="lg" />
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="truncate font-display text-xl font-bold text-ink">{user.nome}</h1>
+                <PapelTag papel={user.papel} />
+              </div>
+              <p className="mt-1 truncate text-sm text-ink-soft">{user.email}</p>
+              {user.apartamento && (
+                <p className="text-sm text-ink-soft">Apartamento {user.apartamento}</p>
+              )}
+            </div>
+            <Button variant="secondary" fullWidth={false} onClick={iniciarEdicao}>
+              Editar
+            </Button>
           </div>
-          <p className="mt-1 truncate text-sm text-ink-soft">{user.email}</p>
-          {user.apartamento && (
-            <p className="text-sm text-ink-soft">Apartamento {user.apartamento}</p>
-          )}
-        </div>
+        )}
       </Card>
 
       {erro && <p className="text-sm text-carmim-700">{erro}</p>}

@@ -14,6 +14,11 @@ export interface LoginInput {
   senha: string;
 }
 
+export interface AtualizarPerfilInput {
+  nome: string;
+  apartamento?: string;
+}
+
 export interface AuthTokens {
   accessToken: string;
   refreshToken: string;

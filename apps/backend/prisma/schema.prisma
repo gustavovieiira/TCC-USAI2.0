@@ -65,6 +65,7 @@ model User {
   apartamento  String?
   chavePix     String?
   condominioId String?
+  ativo        Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

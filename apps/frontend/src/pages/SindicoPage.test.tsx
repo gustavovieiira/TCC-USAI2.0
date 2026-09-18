@@ -83,4 +83,32 @@ describe('SindicoPage', () => {
 
     expect(await screen.findByText('Nenhum morador cadastrado ainda')).toBeInTheDocument();
   });
+
+  it('remove um morador após confirmação', async () => {
+    mockApis();
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    vi.spyOn(sindicoApi, 'removerMorador').mockResolvedValue(undefined);
+
+    render(<SindicoPage />);
+    await screen.findByText('Ana Proprietária');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Remover' }));
+
+    expect(sindicoApi.removerMorador).toHaveBeenCalledWith('user-1');
+    expect(screen.queryByText('Ana Proprietária')).not.toBeInTheDocument();
+  });
+
+  it('não remove o morador se a confirmação for cancelada', async () => {
+    mockApis();
+    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    vi.spyOn(sindicoApi, 'removerMorador').mockResolvedValue(undefined);
+
+    render(<SindicoPage />);
+    await screen.findByText('Ana Proprietária');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Remover' }));
+
+    expect(sindicoApi.removerMorador).not.toHaveBeenCalled();
+    expect(screen.getByText('Ana Proprietária')).toBeInTheDocument();
+  });
 });

@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
 import { AppError, ConflictError, NotFoundError, UnauthorizedError } from '@/common/errors';
 import {
+  AtualizarPerfilInput,
   AuthResult,
   AuthTokens,
   AuthenticatedUser,
@@ -104,8 +105,22 @@ export class AuthService {
       throw new UnauthorizedError('Credenciais inválidas');
     }
 
+    if (!user.ativo) {
+      throw new UnauthorizedError('Esta conta foi desativada pelo síndico do condomínio');
+    }
+
     const authenticatedUser = toAuthenticatedUser(user);
     return { ...this.issueTokens(authenticatedUser), user: authenticatedUser };
+  }
+
+  /** Morador/síndico/admin edita os próprios dados — hoje só nome e apartamento. */
+  async atualizarPerfil(userId: string, input: AtualizarPerfilInput): Promise<AuthenticatedUser> {
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { nome: input.nome, apartamento: input.apartamento },
+    });
+
+    return toAuthenticatedUser(user);
   }
 
   /** Renova o access token a partir de um refresh token válido. */
@@ -120,7 +135,7 @@ export class AuthService {
     }
 
     const user = await this.prisma.user.findUnique({ where: { id: payload.userId } });
-    if (!user) {
+    if (!user || !user.ativo) {
       throw new UnauthorizedError('Usuário não encontrado');
     }
 

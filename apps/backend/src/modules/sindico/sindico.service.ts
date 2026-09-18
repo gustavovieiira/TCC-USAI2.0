@@ -1,5 +1,5 @@
 import { Condominio, Item, Locacao, PrismaClient, User } from '@prisma/client';
-import { NotFoundError } from '@/common/errors';
+import { ForbiddenError, NotFoundError } from '@/common/errors';
 import { STATUS_QUE_OCUPAM_PERIODO } from '@/modules/locacoes/locacoes.service';
 import { AtualizarPinInput, CondominioDTO, LocacaoAtivaDTO, MoradorDTO } from './sindico.types';
 
@@ -40,14 +40,33 @@ function toCondominioDTO(condominio: Condominio): CondominioDTO {
 export class SindicoService {
   constructor(private readonly prisma: PrismaClient) {}
 
-  /** Moradores vinculados ao condomínio do síndico autenticado. */
+  /** Moradores ativos vinculados ao condomínio do síndico autenticado. */
   async listarMoradores(condominioId: string): Promise<MoradorDTO[]> {
     const moradores = await this.prisma.user.findMany({
-      where: { condominioId, papel: 'MORADOR' },
+      where: { condominioId, papel: 'MORADOR', ativo: true },
       orderBy: { nome: 'asc' },
     });
 
     return moradores.map(toMoradorDTO);
+  }
+
+  /**
+   * Remoção lógica (ativo=false): o morador deixa de conseguir logar e some da lista de moradores,
+   * mas o histórico (itens, locações, posts, mensagens) permanece intacto para auditoria — mesmo
+   * padrão de soft delete já usado em Item/Condominio.
+   */
+  async removerMorador(condominioId: string, moradorId: string): Promise<void> {
+    const morador = await this.prisma.user.findUnique({ where: { id: moradorId } });
+
+    if (!morador || morador.condominioId !== condominioId) {
+      throw new NotFoundError('Morador não encontrado neste condomínio');
+    }
+
+    if (morador.papel !== 'MORADOR') {
+      throw new ForbiddenError('Só é possível remover contas de morador');
+    }
+
+    await this.prisma.user.update({ where: { id: moradorId }, data: { ativo: false } });
   }
 
   /** Locações que ainda ocupam algum item do condomínio (mesmo critério de bloqueio de sobreposição). */

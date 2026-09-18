@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
+import { useConversaNotifications } from '@/features/conversas/useConversaNotifications';
 import { getStoredUser, homeRouteFor, Papel } from '@/lib/authStorage';
 import { ProfileMenu } from './ProfileMenu';
 
@@ -34,6 +35,9 @@ function navItemsPara(papel?: Papel): NavItem[] {
 export function AppShell() {
   const user = getStoredUser();
   const navItems = navItemsPara(user?.papel);
+  const notificacoesAtivas = user?.papel === 'MORADOR' || user?.papel === 'SINDICO';
+  const { hasUnread, toast, abrirToast, fecharToast } =
+    useConversaNotifications(notificacoesAtivas);
 
   return (
     <div className="min-h-screen bg-paper">
@@ -53,12 +57,18 @@ export function AppShell() {
                 key={to}
                 to={to}
                 className={({ isActive }) =>
-                  `px-3 py-2 text-sm font-semibold transition ${
+                  `relative px-3 py-2 text-sm font-semibold transition ${
                     isActive ? 'text-barro-400' : 'text-ink-inverse-soft hover:text-ink-inverse'
                   }`
                 }
               >
                 {label}
+                {to === '/conversas' && hasUnread && (
+                  <span
+                    className="absolute right-1 top-1.5 h-2 w-2 rounded-full bg-carmim-500"
+                    aria-label="Mensagens não lidas"
+                  />
+                )}
               </NavLink>
             ))}
           </nav>
@@ -80,16 +90,55 @@ export function AppShell() {
             key={to}
             to={to}
             className={({ isActive }) =>
-              `flex flex-1 flex-col items-center gap-0.5 py-2.5 text-xs font-semibold transition ${
-                isActive ? 'text-barro-700' : 'text-ink-faint'
-              }`
+              `relative flex flex-1 flex-col items-center gap-0.5 py-2.5 text-xs font-semibold
+                transition ${isActive ? 'text-barro-700' : 'text-ink-faint'}`
             }
           >
-            <Icon className="h-6 w-6" />
+            <span className="relative">
+              <Icon className="h-6 w-6" />
+              {to === '/conversas' && hasUnread && (
+                <span
+                  className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-carmim-500"
+                  aria-label="Mensagens não lidas"
+                />
+              )}
+            </span>
             {label}
           </NavLink>
         ))}
       </nav>
+
+      {toast && (
+        <button
+          type="button"
+          onClick={abrirToast}
+          className="notch fixed bottom-20 right-4 z-30 max-w-xs border border-paper-line
+            bg-paper-surface p-4 text-left shadow-paper-2 transition hover:bg-paper md:bottom-6"
+        >
+          <p className="font-meta text-[10px] uppercase tracking-wide text-ink-faint">
+            Nova mensagem
+          </p>
+          <p className="mt-1 text-sm font-semibold text-ink">{toast.nome}</p>
+          <span
+            role="button"
+            tabIndex={0}
+            onClick={(e) => {
+              e.stopPropagation();
+              fecharToast();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.stopPropagation();
+                fecharToast();
+              }
+            }}
+            className="absolute right-2 top-2 text-ink-faint hover:text-ink"
+            aria-label="Fechar notificação"
+          >
+            ✕
+          </span>
+        </button>
+      )}
     </div>
   );
 }

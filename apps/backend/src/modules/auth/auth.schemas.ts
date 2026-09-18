@@ -17,3 +17,8 @@ export const loginSchema = z.object({
 export const refreshTokenSchema = z.object({
   refreshToken: z.string().min(1, 'Refresh token é obrigatório'),
 });
+
+export const atualizarPerfilSchema = z.object({
+  nome: z.string().min(2, 'Nome é obrigatório'),
+  apartamento: z.string().optional(),
+});

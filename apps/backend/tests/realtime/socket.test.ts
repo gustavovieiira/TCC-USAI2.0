@@ -32,11 +32,12 @@ function buildMensagensServiceMock(): jest.Mocked<
 }
 
 function buildConversasServiceMock(): jest.Mocked<
-  Pick<ConversasService, 'verificarParticipante' | 'enviarMensagem'>
+  Pick<ConversasService, 'verificarParticipante' | 'enviarMensagem' | 'buscarOutroParticipanteId'>
 > {
   return {
     verificarParticipante: jest.fn().mockResolvedValue(undefined),
     enviarMensagem: jest.fn(),
+    buscarOutroParticipanteId: jest.fn().mockResolvedValue(null),
   };
 }
 
@@ -237,6 +238,46 @@ describe('WebSocket de mensagens em tempo real (M4)', () => {
     await expect(recebida).resolves.toMatchObject({
       id: 'mensagem-1',
       conteudo: 'Ainda precisa da furadeira?',
+    });
+  });
+
+  it('avisa o destinatário mesmo sem ele ter entrado na sala (conversa recém-criada)', async () => {
+    const remetente = await connect('user-ana');
+    const destinatario = await connect('user-bruno');
+
+    const mensagemPersistida: MensagemPrivadaDTO = {
+      id: 'mensagem-2',
+      conversaId: 'conversa-nova',
+      remetenteId: 'user-ana',
+      conteudo: 'Oi, vi seu anúncio da furadeira',
+      createdAt: new Date('2026-09-18T12:00:00.000Z'),
+    };
+    conversasService.enviarMensagem.mockResolvedValue(mensagemPersistida);
+    conversasService.buscarOutroParticipanteId.mockResolvedValue('user-bruno');
+
+    // Só o remetente entra na sala da conversa — o destinatário nunca chamou 'conversa:entrar'.
+    await new Promise((resolve) => remetente.emit('conversa:entrar', 'conversa-nova', resolve));
+
+    const recebida = new Promise((resolve) => {
+      destinatario.on('conversa:mensagem:nova', resolve);
+    });
+
+    const ack = await new Promise((resolve) => {
+      remetente.emit(
+        'conversa:mensagem:enviar',
+        { conversaId: 'conversa-nova', conteudo: 'Oi, vi seu anúncio da furadeira' },
+        resolve,
+      );
+    });
+
+    expect(conversasService.buscarOutroParticipanteId).toHaveBeenCalledWith(
+      'conversa-nova',
+      'user-ana',
+    );
+    expect(ack).toMatchObject({ ok: true });
+    await expect(recebida).resolves.toMatchObject({
+      id: 'mensagem-2',
+      conteudo: 'Oi, vi seu anúncio da furadeira',
     });
   });
 

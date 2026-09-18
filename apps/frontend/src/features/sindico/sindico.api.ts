@@ -20,3 +20,7 @@ export async function listarLocacoesAtivas(): Promise<LocacaoAtivaDTO[]> {
   const { data } = await apiClient.get<LocacaoAtivaDTO[]>('/sindico/locacoes');
   return data;
 }
+
+export async function removerMorador(id: string): Promise<void> {
+  await apiClient.delete(`/sindico/moradores/${id}`);
+}

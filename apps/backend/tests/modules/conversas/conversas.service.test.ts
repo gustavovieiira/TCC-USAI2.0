@@ -7,6 +7,7 @@ function buildPrismaMock() {
     conversaPrivada: {
       findFirst: jest.fn(),
       findMany: jest.fn(),
+      findUnique: jest.fn(),
       create: jest.fn(),
       deleteMany: jest.fn(),
     },
@@ -218,6 +219,44 @@ describe('ConversasService.buscarPorId / listarMensagens / enviarMensagem', () =
       service.enviarMensagem('conversa-1', CONDOMINIO_ID, ESTRANHO_ID, { conteudo: 'Oi' }),
     ).rejects.toBeInstanceOf(ForbiddenError);
     expect(prisma.mensagemPrivada.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('ConversasService.buscarOutroParticipanteId', () => {
+  it('retorna o participante B quando quem pergunta é o participante A', async () => {
+    const prisma = buildPrismaMock();
+    prisma.conversaPrivada.findUnique.mockResolvedValue({
+      participanteAId: ANA_ID,
+      participanteBId: BRUNO_ID,
+    });
+
+    const service = new ConversasService(prisma);
+    const result = await service.buscarOutroParticipanteId('conversa-1', ANA_ID);
+
+    expect(result).toBe(BRUNO_ID);
+  });
+
+  it('retorna o participante A quando quem pergunta é o participante B', async () => {
+    const prisma = buildPrismaMock();
+    prisma.conversaPrivada.findUnique.mockResolvedValue({
+      participanteAId: ANA_ID,
+      participanteBId: BRUNO_ID,
+    });
+
+    const service = new ConversasService(prisma);
+    const result = await service.buscarOutroParticipanteId('conversa-1', BRUNO_ID);
+
+    expect(result).toBe(ANA_ID);
+  });
+
+  it('retorna null para conversa inexistente', async () => {
+    const prisma = buildPrismaMock();
+    prisma.conversaPrivada.findUnique.mockResolvedValue(null);
+
+    const service = new ConversasService(prisma);
+    const result = await service.buscarOutroParticipanteId('inexistente', ANA_ID);
+
+    expect(result).toBeNull();
   });
 });
 

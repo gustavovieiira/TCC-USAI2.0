@@ -12,6 +12,7 @@ import {
   buscarCondominio,
   listarLocacoesAtivas,
   listarMoradores,
+  removerMorador,
 } from '@/features/sindico/sindico.api';
 import { CondominioDTO, LocacaoAtivaDTO, MoradorDTO } from '@/features/sindico/sindico.types';
 
@@ -28,6 +29,9 @@ export function SindicoPage() {
   const [novoPin, setNovoPin] = useState('');
   const [salvandoPin, setSalvandoPin] = useState(false);
   const [erroPin, setErroPin] = useState<string | null>(null);
+
+  const [removendoId, setRemovendoId] = useState<string | null>(null);
+  const [erroRemocao, setErroRemocao] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([buscarCondominio(), listarMoradores(), listarLocacoesAtivas()])
@@ -53,6 +57,24 @@ export function SindicoPage() {
       setErroPin(extractErrorMessage(err));
     } finally {
       setSalvandoPin(false);
+    }
+  }
+
+  async function handleRemoverMorador(id: string, nome: string) {
+    if (!window.confirm(`Remover ${nome} do condomínio? A pessoa não vai mais conseguir entrar.`)) {
+      return;
+    }
+
+    setErroRemocao(null);
+    setRemovendoId(id);
+
+    try {
+      await removerMorador(id);
+      setMoradores((atual) => atual?.filter((m) => m.id !== id) ?? atual);
+    } catch (err) {
+      setErroRemocao(extractErrorMessage(err));
+    } finally {
+      setRemovendoId(null);
     }
   }
 
@@ -145,24 +167,38 @@ export function SindicoPage() {
         </button>
       </div>
 
-      {aba === 'moradores' &&
-        (moradores && moradores.length > 0 ? (
-          <div className="flex flex-col gap-2">
-            {moradores.map((morador) => (
-              <Card key={morador.id} className="flex items-center justify-between">
-                <div>
-                  <p className="font-display font-semibold text-ink">{morador.nome}</p>
-                  <p className="text-sm text-ink-soft">{morador.email}</p>
-                </div>
-                {morador.apartamento && (
-                  <span className="text-sm text-ink-soft">Apto {morador.apartamento}</span>
-                )}
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <EmptyState title="Nenhum morador cadastrado ainda" />
-        ))}
+      {aba === 'moradores' && (
+        <>
+          {erroRemocao && <p className="text-sm text-carmim-700">{erroRemocao}</p>}
+          {moradores && moradores.length > 0 ? (
+            <div className="flex flex-col gap-2">
+              {moradores.map((morador) => (
+                <Card key={morador.id} className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-display font-semibold text-ink">{morador.nome}</p>
+                    <p className="truncate text-sm text-ink-soft">{morador.email}</p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-3">
+                    {morador.apartamento && (
+                      <span className="text-sm text-ink-soft">Apto {morador.apartamento}</span>
+                    )}
+                    <Button
+                      variant="danger"
+                      fullWidth={false}
+                      isLoading={removendoId === morador.id}
+                      onClick={() => handleRemoverMorador(morador.id, morador.nome)}
+                    >
+                      Remover
+                    </Button>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <EmptyState title="Nenhum morador cadastrado ainda" />
+          )}
+        </>
+      )}
 
       {aba === 'locacoes' &&
         (locacoes && locacoes.length > 0 ? (

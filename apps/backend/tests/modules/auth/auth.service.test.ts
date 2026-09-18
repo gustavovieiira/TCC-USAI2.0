@@ -15,7 +15,7 @@ beforeAll(() => {
 function buildPrismaMock() {
   return {
     condominio: { findUnique: jest.fn() },
-    user: { findUnique: jest.fn(), create: jest.fn() },
+    user: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
   } as any;
 }
 
@@ -123,6 +123,7 @@ describe('AuthService.login', () => {
     senhaHash,
     papel: 'MORADOR' as const,
     condominioId: 'cond-1',
+    ativo: true,
   };
 
   it('autentica com credenciais válidas (RF03)', async () => {
@@ -157,6 +158,44 @@ describe('AuthService.login', () => {
       service.login({ email: usuario.email, senha: 'senha-errada' }),
     ).rejects.toBeInstanceOf(UnauthorizedError);
   });
+
+  it('rejeita login de conta desativada pelo síndico, mesmo com senha correta', async () => {
+    const prisma = buildPrismaMock();
+    prisma.user.findUnique.mockResolvedValue({ ...usuario, ativo: false });
+
+    const service = new AuthService(prisma);
+
+    await expect(
+      service.login({ email: usuario.email, senha: 'senha-correta' }),
+    ).rejects.toBeInstanceOf(UnauthorizedError);
+  });
+});
+
+describe('AuthService.atualizarPerfil', () => {
+  it('atualiza nome e apartamento do próprio usuário', async () => {
+    const prisma = buildPrismaMock();
+    prisma.user.update.mockResolvedValue({
+      id: 'user-1',
+      nome: 'Ana Paula Ribeiro',
+      email: 'ana@example.com',
+      papel: 'MORADOR',
+      condominioId: 'cond-1',
+      apartamento: '202',
+    });
+
+    const service = new AuthService(prisma);
+    const result = await service.atualizarPerfil('user-1', {
+      nome: 'Ana Paula Ribeiro',
+      apartamento: '202',
+    });
+
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 'user-1' },
+      data: { nome: 'Ana Paula Ribeiro', apartamento: '202' },
+    });
+    expect(result.nome).toBe('Ana Paula Ribeiro');
+    expect(result.apartamento).toBe('202');
+  });
 });
 
 describe('AuthService.refresh', () => {
@@ -168,6 +207,7 @@ describe('AuthService.refresh', () => {
       email: 'ana@example.com',
       papel: 'MORADOR' as const,
       condominioId: 'cond-1',
+      ativo: true,
     };
     const refreshToken = jwt.sign({ userId: usuario.id }, TEST_REFRESH_SECRET, {
       expiresIn: '7d',

@@ -179,6 +179,20 @@ export class ConversasService {
     await this.buscarEVerificarOuFalhar(conversaId, condominioId, userId);
   }
 
+  /**
+   * Usado pelo WebSocket pra avisar o destinatário mesmo que ele ainda não tenha entrado na sala
+   * da conversa (ex.: é a primeira mensagem de uma conversa recém-criada).
+   */
+  async buscarOutroParticipanteId(conversaId: string, meuId: string): Promise<string | null> {
+    const conversa = await this.prisma.conversaPrivada.findUnique({
+      where: { id: conversaId },
+      select: { participanteAId: true, participanteBId: true },
+    });
+    if (!conversa) return null;
+
+    return conversa.participanteAId === meuId ? conversa.participanteBId : conversa.participanteAId;
+  }
+
   private async buscarEVerificarOuFalhar(
     conversaId: string,
     condominioId: string,

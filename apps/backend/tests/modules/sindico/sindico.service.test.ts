@@ -1,9 +1,9 @@
 import { SindicoService } from '@/modules/sindico/sindico.service';
-import { NotFoundError } from '@/common/errors';
+import { ForbiddenError, NotFoundError } from '@/common/errors';
 
 function buildPrismaMock() {
   return {
-    user: { findMany: jest.fn() },
+    user: { findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
     locacao: { findMany: jest.fn() },
     condominio: { findUnique: jest.fn(), update: jest.fn() },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -51,7 +51,7 @@ const locacaoAtivaBase = {
 };
 
 describe('SindicoService.listarMoradores', () => {
-  it('lista apenas moradores do condomínio do síndico', async () => {
+  it('lista apenas moradores ativos do condomínio do síndico', async () => {
     const prisma = buildPrismaMock();
     prisma.user.findMany.mockResolvedValue([moradorBase]);
 
@@ -59,10 +59,63 @@ describe('SindicoService.listarMoradores', () => {
     const result = await service.listarMoradores(CONDOMINIO_ID);
 
     expect(prisma.user.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { condominioId: CONDOMINIO_ID, papel: 'MORADOR' } }),
+      expect.objectContaining({
+        where: { condominioId: CONDOMINIO_ID, papel: 'MORADOR', ativo: true },
+      }),
     );
     expect(result).toHaveLength(1);
     expect(result[0]).not.toHaveProperty('senhaHash');
+  });
+});
+
+describe('SindicoService.removerMorador', () => {
+  it('desativa (soft delete) um morador do próprio condomínio', async () => {
+    const prisma = buildPrismaMock();
+    prisma.user.findUnique.mockResolvedValue(moradorBase);
+
+    const service = new SindicoService(prisma);
+    await service.removerMorador(CONDOMINIO_ID, moradorBase.id);
+
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: moradorBase.id },
+      data: { ativo: false },
+    });
+  });
+
+  it('rejeita remover morador inexistente', async () => {
+    const prisma = buildPrismaMock();
+    prisma.user.findUnique.mockResolvedValue(null);
+
+    const service = new SindicoService(prisma);
+
+    await expect(service.removerMorador(CONDOMINIO_ID, 'inexistente')).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it('rejeita remover morador de outro condomínio', async () => {
+    const prisma = buildPrismaMock();
+    prisma.user.findUnique.mockResolvedValue({ ...moradorBase, condominioId: 'outro-cond' });
+
+    const service = new SindicoService(prisma);
+
+    await expect(service.removerMorador(CONDOMINIO_ID, moradorBase.id)).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it('rejeita remover uma conta que não é de morador (ex.: síndico)', async () => {
+    const prisma = buildPrismaMock();
+    prisma.user.findUnique.mockResolvedValue({ ...moradorBase, papel: 'SINDICO' });
+
+    const service = new SindicoService(prisma);
+
+    await expect(service.removerMorador(CONDOMINIO_ID, moradorBase.id)).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+    expect(prisma.user.update).not.toHaveBeenCalled();
   });
 });
 

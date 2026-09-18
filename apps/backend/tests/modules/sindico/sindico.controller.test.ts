@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 jest.mock('@/common/prisma', () => ({
   prisma: {
     condominio: { findUnique: jest.fn(), update: jest.fn() },
-    user: { findMany: jest.fn() },
+    user: { findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
     locacao: { findMany: jest.fn() },
   },
 }));
@@ -112,6 +112,42 @@ describe('GET /api/sindico/moradores', () => {
 
     expect(response.status).toBe(200);
     expect(response.body).toHaveLength(1);
+  });
+});
+
+describe('DELETE /api/sindico/moradores/:id', () => {
+  it('remove (desativa) um morador do próprio condomínio', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+      id: 'user-1',
+      papel: 'MORADOR',
+      condominioId: CONDOMINIO_ID,
+    });
+    const app = createApp();
+
+    const response = await request(app)
+      .delete('/api/sindico/moradores/user-1')
+      .set('Authorization', `Bearer ${token()}`);
+
+    expect(response.status).toBe(204);
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 'user-1' },
+      data: { ativo: false },
+    });
+  });
+
+  it('retorna 404 pra morador de outro condomínio', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+      id: 'user-1',
+      papel: 'MORADOR',
+      condominioId: 'outro-cond',
+    });
+    const app = createApp();
+
+    const response = await request(app)
+      .delete('/api/sindico/moradores/user-1')
+      .set('Authorization', `Bearer ${token()}`);
+
+    expect(response.status).toBe(404);
   });
 });
 

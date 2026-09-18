@@ -31,6 +31,10 @@ function nomeSalaConversa(conversaId: string): string {
   return `conversa:${conversaId}`;
 }
 
+function nomeSalaUsuario(userId: string): string {
+  return `usuario:${userId}`;
+}
+
 /**
  * Dois chats em tempo real no mesmo servidor de WebSocket — histórico de ambos continua via REST,
  * só o envio/recebimento ao vivo acontece aqui:
@@ -68,6 +72,10 @@ export function createSocketServer(
   io.on('connection', (socket: Socket) => {
     const userId = socket.data.auth.userId as string;
     const condominioId = socket.data.auth.condominioId as string | null;
+
+    // Sala pessoal: garante que o destinatário receba o aviso de mensagem nova mesmo antes de
+    // entrar na sala específica da conversa (ex.: é a primeira mensagem de uma conversa nova).
+    socket.join(nomeSalaUsuario(userId));
 
     socket.on('locacao:entrar', async (locacaoId: string, callback?: EntrarLocacaoAck) => {
       try {
@@ -123,7 +131,14 @@ export function createSocketServer(
             { conteudo: payload.conteudo },
           );
 
-          io.to(nomeSalaConversa(payload.conversaId)).emit('conversa:mensagem:nova', mensagem);
+          const destinatarioId = await conversasService.buscarOutroParticipanteId(
+            payload.conversaId,
+            userId,
+          );
+          const salas = [nomeSalaConversa(payload.conversaId)];
+          if (destinatarioId) salas.push(nomeSalaUsuario(destinatarioId));
+
+          io.to(salas).emit('conversa:mensagem:nova', mensagem);
           callback?.({ ok: true, mensagem });
         } catch (error) {
           const erro = error instanceof Error ? error.message : 'Erro ao enviar mensagem';

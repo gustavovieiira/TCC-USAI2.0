@@ -1,7 +1,12 @@
 import { Request, Response } from 'express';
 import { prisma } from '@/common/prisma';
 import { AuthService } from './auth.service';
-import { cadastroMoradorSchema, loginSchema, refreshTokenSchema } from './auth.schemas';
+import {
+  atualizarPerfilSchema,
+  cadastroMoradorSchema,
+  loginSchema,
+  refreshTokenSchema,
+} from './auth.schemas';
 
 const authService = new AuthService(prisma);
 
@@ -22,5 +27,11 @@ export const authController = {
     const { refreshToken } = refreshTokenSchema.parse(req.body);
     const tokens = await authService.refresh(refreshToken);
     res.status(200).json(tokens);
+  },
+
+  async atualizarPerfil(req: Request, res: Response) {
+    const input = atualizarPerfilSchema.parse(req.body);
+    const user = await authService.atualizarPerfil(req.auth!.userId, input);
+    res.status(200).json(user);
   },
 };

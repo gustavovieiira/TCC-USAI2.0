@@ -5,7 +5,7 @@ import jwt from 'jsonwebtoken';
 jest.mock('@/common/prisma', () => ({
   prisma: {
     condominio: { findUnique: jest.fn() },
-    user: { findUnique: jest.fn(), create: jest.fn() },
+    user: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
   },
 }));
 
@@ -99,6 +99,7 @@ describe('POST /api/auth/login', () => {
       senhaHash,
       papel: 'MORADOR',
       condominioId: 'cond-1',
+      ativo: true,
     });
     const app = createApp();
 
@@ -119,12 +120,69 @@ describe('POST /api/auth/login', () => {
       senhaHash,
       papel: 'MORADOR',
       condominioId: 'cond-1',
+      ativo: true,
     });
     const app = createApp();
 
     const response = await request(app)
       .post('/api/auth/login')
       .send({ email: 'ana@example.com', senha: 'senha-errada' });
+
+    expect(response.status).toBe(401);
+  });
+
+  it('rejeita conta desativada pelo síndico com 401, mesmo com senha correta', async () => {
+    const senhaHash = await bcrypt.hash('senha-forte-123', 4);
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+      id: 'user-1',
+      nome: 'Ana Proprietaria',
+      email: 'ana@example.com',
+      senhaHash,
+      papel: 'MORADOR',
+      condominioId: 'cond-1',
+      ativo: false,
+    });
+    const app = createApp();
+
+    const response = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'ana@example.com', senha: 'senha-forte-123' });
+
+    expect(response.status).toBe(401);
+  });
+});
+
+describe('PATCH /api/auth/perfil', () => {
+  it('atualiza nome e apartamento do usuário autenticado', async () => {
+    (prisma.user.update as jest.Mock).mockResolvedValue({
+      id: 'user-1',
+      nome: 'Ana Paula Ribeiro',
+      email: 'ana@example.com',
+      papel: 'MORADOR',
+      condominioId: 'cond-1',
+      apartamento: '303',
+    });
+    const app = createApp();
+    const token = jwt.sign(
+      { userId: 'user-1', papel: 'MORADOR', condominioId: 'cond-1' },
+      ACCESS_SECRET,
+      { expiresIn: '1h' },
+    );
+
+    const response = await request(app)
+      .patch('/api/auth/perfil')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ nome: 'Ana Paula Ribeiro', apartamento: '303' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.nome).toBe('Ana Paula Ribeiro');
+    expect(response.body.apartamento).toBe('303');
+  });
+
+  it('rejeita sem autenticação com 401', async () => {
+    const app = createApp();
+
+    const response = await request(app).patch('/api/auth/perfil').send({ nome: 'Qualquer Nome' });
 
     expect(response.status).toBe(401);
   });
@@ -143,6 +201,7 @@ describe('POST /api/auth/refresh', () => {
       email: 'ana@example.com',
       papel: 'MORADOR',
       condominioId: 'cond-1',
+      ativo: true,
     });
     const app = createApp();
 

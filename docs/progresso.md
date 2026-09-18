@@ -6,6 +6,69 @@
 
 ---
 
+## 2026-09-18 — Editar perfil, síndico remove morador, notificação em tempo real nas conversas
+
+**O que foi feito:** três pedidos do usuário depois de revisar o produto: dar pro morador uma forma de
+editar nome/apartamento, dar pro síndico o poder de remover um morador quando precisar, e fazer chegar
+uma notificação quando alguém manda mensagem numa conversa privada — hoje o morador só via mensagem
+nova se estivesse com a tela da conversa aberta.
+
+- **Editar perfil** (`apps/backend/src/modules/auth/`): novo `PATCH /api/auth/perfil` (`auth.routes.ts`,
+  `auth.controller.ts`, `AuthService.atualizarPerfil` em `auth.service.ts`, schema Zod em
+  `auth.schemas.ts`). No frontend, `PerfilPage.tsx` ganhou um modo de edição inline no card de
+  identidade (nome + apartamento), e `authStorage.ts` ganhou `updateStoredUser()` pra sincronizar o
+  `localStorage` sem precisar de novo login.
+- **Síndico remove morador** (soft delete, seguindo o mesmo padrão já usado em `Item.ativo` e
+  `Condominio.ativo`): campo novo `User.ativo` no `schema.prisma` (migration
+  `20260918172339_adiciona_ativo_ao_usuario`). `AuthService.login`/`refresh` agora rejeitam conta
+  desativada com 401 ("Esta conta foi desativada pelo síndico do condomínio"). Novo
+  `DELETE /api/sindico/moradores/:id` (`SindicoService.removerMorador`) valida que o alvo é morador do
+  mesmo condomínio antes de desativar — histórico (itens, locações, mensagens) fica intacto, só bloqueia
+  login futuro e some de `listarMoradores`. `SindicoPage.tsx` ganhou botão "Remover" com confirmação
+  (`window.confirm`, mesmo padrão já usado no Mural pra apagar post).
+- **Notificação em tempo real nas conversas**: reaproveitei o socket já existente do chat
+  (`lib/socket.ts`) em vez de criar polling — hook novo `useConversaNotifications.ts`, chamado uma vez
+  no `AppShell.tsx` (não mais só dentro da página de conversa), então o socket fica vivo em toda a
+  sessão autenticada. Mostra um badge vermelho no menu "Conversas" e um toast temporário (5s) com o
+  nome de quem mandou, sem precisar estar com o chat aberto.
+  - **Bug pego na hora do teste manual, não hipotético:** o design inicial só entrava na sala
+    socket.io de cada conversa que já existia no momento em que o hook montava
+    (`socket.emit('conversa:entrar', ...)` pra cada conversa de `listarMinhasConversas()`). Testei
+    simulando um segundo morador abrindo uma conversa **nova** com alguém que já estava logado e
+    navegando pelo site — a notificação não chegava, porque quem recebe nunca tinha entrado na sala
+    daquela conversa (ela não existia ainda quando o hook rodou). Corrigido no backend
+    (`apps/backend/src/realtime/socket.ts`): todo socket entra automaticamente numa sala pessoal
+    (`usuario:<id>`) ao conectar, e o envio de mensagem privada agora transmite tanto pra sala da
+    conversa quanto pra sala pessoal do destinatário (`ConversasService.buscarOutroParticipanteId`,
+    novo). Sem isso, a primeira mensagem de uma conversa nova nunca notificava ninguém em tempo real —
+    só depois de um F5. Testado com um script Node usando `socket.io-client` simulando o segundo
+    usuário mandando mensagem sem nunca ter entrado na sala, e confirmado que o badge aparece mesmo
+    assim.
+
+**Bug de layout mobile pego no QA manual:** o botão "Editar" novo no card de identidade do
+`PerfilPage.tsx` esqueceu o `fullWidth={false}` (o `Button.tsx` é `width: 100%` por padrão) — em
+telas de 375px isso espremia a coluna de nome/e-mail (`min-w-0 flex-1`) até `width: 0`, sumindo com o
+texto por completo (o card ficava só com avatar + badge + botão). Só apareceu testando em viewport
+mobile de verdade, não no desktop. Corrigido adicionando `fullWidth={false}`, igual já era feito no
+botão "Remover" do síndico e nos botões Salvar/Cancelar do próprio formulário de edição.
+
+**Verificação:** `npm run build:backend`/`build:frontend`, ESLint (backend e frontend, zero warnings),
+235 testes de backend (25 suítes, 98.78% de cobertura de statements) e 113 de frontend (20 suítes)
+passando — inclui teste novo em `tests/realtime/socket.test.ts` cobrindo exatamente o cenário do bug
+acima (destinatário recebe aviso mesmo sem ter entrado na sala). QA manual no navegador: cadastrei
+3 moradores de teste novos, publiquei itens por 2 deles e confirmei no catálogo que aparecem
+misturados (RF de isolamento por condomínio continua OK — item de outro condomínio não vazou). Editei
+perfil e confirmei persistência direto no MySQL. Removi um morador de teste pelo painel do síndico e
+confirmei que o login dele passou a ser rejeitado. Simulei uma conversa nova entre dois moradores só
+por API/socket (sem UI) e confirmei o badge chegando ao vivo no outro morador, que estava no Mural, não
+na tela de Conversas.
+
+**Pendente:** trocar o logo pequeno do header (`AppShell.tsx`, hoje um quadrado `notch-sm` laranja) pela
+logo de verdade que o usuário mandou colada no chat — não foi possível localizar o arquivo de imagem no
+disco (procurado em `AppData\Local\Temp` e `Downloads`), preciso que ele reenvie como anexo de arquivo.
+
+---
+
 ## 2026-09-17 — Identidade visual v2.0: "o mural da portaria, não o dashboard"
 
 **O que foi feito:** com a meta de cobertura fechada e deploy/banco combinados de deixar pra depois

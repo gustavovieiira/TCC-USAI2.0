@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import { PerfilPage } from './PerfilPage';
 import * as adminApi from '@/features/admin/admin.api';
+import * as authApi from '@/features/auth/auth.api';
 import * as itensApi from '@/features/itens/itens.api';
 import * as locacoesApi from '@/features/locacoes/locacoes.api';
 import * as saquesApi from '@/features/saques/saques.api';
@@ -180,5 +181,74 @@ describe('PerfilPage', () => {
 
     expect(clearSession).toHaveBeenCalled();
     expect(await screen.findByText('Página de login')).toBeInTheDocument();
+  });
+
+  it('edita nome e apartamento do próprio perfil', async () => {
+    vi.spyOn(authStorage, 'getStoredUser').mockReturnValue({
+      id: 'user-1',
+      nome: 'Ana Proprietaria',
+      email: 'ana@example.com',
+      papel: 'MORADOR',
+      condominioId: 'cond-1',
+      apartamento: '101',
+    });
+    const updateStoredUser = vi.spyOn(authStorage, 'updateStoredUser').mockImplementation(() => {});
+    vi.spyOn(saquesApi, 'buscarSaldo').mockResolvedValue(0);
+    vi.spyOn(itensApi, 'listarItens').mockResolvedValue([]);
+    vi.spyOn(locacoesApi, 'listarComoLocatario').mockResolvedValue([]);
+    vi.spyOn(locacoesApi, 'listarComoProprietario').mockResolvedValue([]);
+    vi.spyOn(authApi, 'atualizarPerfil').mockResolvedValue({
+      id: 'user-1',
+      nome: 'Ana Paula Ribeiro',
+      email: 'ana@example.com',
+      papel: 'MORADOR',
+      condominioId: 'cond-1',
+      apartamento: '202',
+    });
+
+    renderPage();
+    await userEvent.click(screen.getByRole('button', { name: 'Editar' }));
+
+    const nomeInput = screen.getByLabelText('Nome');
+    await userEvent.clear(nomeInput);
+    await userEvent.type(nomeInput, 'Ana Paula Ribeiro');
+    const apartamentoInput = screen.getByLabelText('Apartamento');
+    await userEvent.clear(apartamentoInput);
+    await userEvent.type(apartamentoInput, '202');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+
+    expect(authApi.atualizarPerfil).toHaveBeenCalledWith({
+      nome: 'Ana Paula Ribeiro',
+      apartamento: '202',
+    });
+    expect(updateStoredUser).toHaveBeenCalledWith(
+      expect.objectContaining({ nome: 'Ana Paula Ribeiro', apartamento: '202' }),
+    );
+    expect(await screen.findByText('Ana Paula Ribeiro')).toBeInTheDocument();
+    expect(screen.getByText('Apartamento 202')).toBeInTheDocument();
+  });
+
+  it('cancela a edição sem salvar', async () => {
+    vi.spyOn(authStorage, 'getStoredUser').mockReturnValue({
+      id: 'user-1',
+      nome: 'Ana Proprietaria',
+      email: 'ana@example.com',
+      papel: 'MORADOR',
+      condominioId: 'cond-1',
+      apartamento: '101',
+    });
+    vi.spyOn(saquesApi, 'buscarSaldo').mockResolvedValue(0);
+    vi.spyOn(itensApi, 'listarItens').mockResolvedValue([]);
+    vi.spyOn(locacoesApi, 'listarComoLocatario').mockResolvedValue([]);
+    vi.spyOn(locacoesApi, 'listarComoProprietario').mockResolvedValue([]);
+    const atualizarPerfil = vi.spyOn(authApi, 'atualizarPerfil');
+
+    renderPage();
+    await userEvent.click(screen.getByRole('button', { name: 'Editar' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+
+    expect(atualizarPerfil).not.toHaveBeenCalled();
+    expect(screen.getByText('Ana Proprietaria')).toBeInTheDocument();
   });
 });

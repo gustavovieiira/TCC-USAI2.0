@@ -34,4 +34,9 @@ export const sindicoController = {
     const locacoes = await sindicoService.listarLocacoesAtivas(condominioDoSindico(req));
     res.status(200).json(locacoes);
   },
+
+  async removerMorador(req: Request, res: Response) {
+    await sindicoService.removerMorador(condominioDoSindico(req), req.params.id);
+    res.status(204).send();
+  },
 };
