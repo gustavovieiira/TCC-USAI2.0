@@ -1,5 +1,6 @@
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
+import type { Express } from 'express';
 
 jest.mock('@/common/prisma', () => ({
   prisma: {
@@ -37,11 +38,16 @@ function token(userId: string): string {
   });
 }
 
-/** Admin não está vinculado a nenhum condomínio — token sem `condominioId`. */
+/** Admin não está vinculado a nenhum condomínio — token com `condominioId` nulo. */
 function tokenSemCondominio(userId: string): string {
   return jwt.sign({ userId, papel: 'ADMIN', condominioId: null }, ACCESS_SECRET, {
     expiresIn: '1h',
   });
+}
+
+/** Caso real de um token de Admin: a claim nem existe, em vez de vir nula. */
+function tokenComClaimAusente(userId: string): string {
+  return jwt.sign({ userId, papel: 'ADMIN' }, ACCESS_SECRET, { expiresIn: '1h' });
 }
 
 const ana = { id: ANA_ID, nome: 'Ana Proprietaria', papel: 'MORADOR' };
@@ -108,6 +114,17 @@ describe('POST /api/conversas', () => {
 
     expect(response.status).toBe(403);
     expect(prisma.user.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('rejeita com 403, não 400, quando o corpo é inválido e falta condomínio (autorização antes de validação)', async () => {
+    const app = createApp();
+
+    const response = await request(app)
+      .post('/api/conversas')
+      .set('Authorization', `Bearer ${tokenSemCondominio('admin-1')}`)
+      .send({ usuarioId: 'não-é-um-uuid' });
+
+    expect(response.status).toBe(403);
   });
 });
 
@@ -217,5 +234,65 @@ describe('GET e POST /api/conversas/:id/mensagens', () => {
 
     expect(response.status).toBe(201);
     expect(response.body.conteudo).toBe('Consigo te ajudar!');
+  });
+});
+
+describe('condominioDoUsuario: bloqueia com 403 em toda rota que depende de condomínio', () => {
+  const ROTAS: Array<[string, (app: Express, tok: string) => request.Test]> = [
+    [
+      'POST /api/conversas',
+      (app, tok) =>
+        request(app)
+          .post('/api/conversas')
+          .set('Authorization', `Bearer ${tok}`)
+          .send({ usuarioId: BRUNO_ID }),
+    ],
+    [
+      'GET /api/conversas',
+      (app, tok) => request(app).get('/api/conversas').set('Authorization', `Bearer ${tok}`),
+    ],
+    [
+      'GET /api/conversas/usuarios',
+      (app, tok) =>
+        request(app).get('/api/conversas/usuarios').set('Authorization', `Bearer ${tok}`),
+    ],
+    [
+      'GET /api/conversas/:id',
+      (app, tok) =>
+        request(app).get('/api/conversas/conversa-1').set('Authorization', `Bearer ${tok}`),
+    ],
+    [
+      'GET /api/conversas/:id/mensagens',
+      (app, tok) =>
+        request(app)
+          .get('/api/conversas/conversa-1/mensagens')
+          .set('Authorization', `Bearer ${tok}`),
+    ],
+    [
+      'POST /api/conversas/:id/mensagens',
+      (app, tok) =>
+        request(app)
+          .post('/api/conversas/conversa-1/mensagens')
+          .set('Authorization', `Bearer ${tok}`)
+          .send({ conteudo: 'oi' }),
+    ],
+  ];
+
+  it.each(ROTAS)('%s rejeita com 403 quando falta condomínio', async (_nome, montarRequisicao) => {
+    const app = createApp();
+
+    const response = await montarRequisicao(app, tokenSemCondominio('admin-1'));
+
+    expect(response.status).toBe(403);
+  });
+
+  it('rejeita também quando a claim condominioId nem existe no token (caso real do Admin)', async () => {
+    const app = createApp();
+
+    const response = await request(app)
+      .get('/api/conversas')
+      .set('Authorization', `Bearer ${tokenComClaimAusente('admin-1')}`);
+
+    expect(response.status).toBe(403);
   });
 });
