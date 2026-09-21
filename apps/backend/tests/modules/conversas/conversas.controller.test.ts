@@ -37,6 +37,13 @@ function token(userId: string): string {
   });
 }
 
+/** Admin não está vinculado a nenhum condomínio — token sem `condominioId`. */
+function tokenSemCondominio(userId: string): string {
+  return jwt.sign({ userId, papel: 'ADMIN', condominioId: null }, ACCESS_SECRET, {
+    expiresIn: '1h',
+  });
+}
+
 const ana = { id: ANA_ID, nome: 'Ana Proprietaria', papel: 'MORADOR' };
 const bruno = { id: BRUNO_ID, nome: 'Bruno Locatario', papel: 'MORADOR' };
 
@@ -89,6 +96,18 @@ describe('POST /api/conversas', () => {
       .send({ usuarioId: 'não-é-um-uuid' });
 
     expect(response.status).toBe(400);
+  });
+
+  it('rejeita quem não está vinculado a um condomínio (ex.: Admin USAI) com 403', async () => {
+    const app = createApp();
+
+    const response = await request(app)
+      .post('/api/conversas')
+      .set('Authorization', `Bearer ${tokenSemCondominio('admin-1')}`)
+      .send({ usuarioId: BRUNO_ID });
+
+    expect(response.status).toBe(403);
+    expect(prisma.user.findFirst).not.toHaveBeenCalled();
   });
 });
 
