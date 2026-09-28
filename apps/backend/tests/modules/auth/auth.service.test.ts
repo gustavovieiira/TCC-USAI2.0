@@ -15,7 +15,7 @@ beforeAll(() => {
 function buildPrismaMock() {
   return {
     condominio: { findUnique: jest.fn() },
-    user: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
+    user: { findUnique: jest.fn(), findFirst: jest.fn(), create: jest.fn(), update: jest.fn() },
   } as any;
 }
 
@@ -191,10 +191,60 @@ describe('AuthService.atualizarPerfil', () => {
 
     expect(prisma.user.update).toHaveBeenCalledWith({
       where: { id: 'user-1' },
-      data: { nome: 'Ana Paula Ribeiro', apartamento: '202' },
+      data: { nome: 'Ana Paula Ribeiro', apartamento: '202', cpf: undefined },
     });
     expect(result.nome).toBe('Ana Paula Ribeiro');
     expect(result.apartamento).toBe('202');
+  });
+
+  it('normaliza e salva o CPF (aceita com pontuação)', async () => {
+    const prisma = buildPrismaMock();
+    prisma.user.findFirst.mockResolvedValue(null);
+    prisma.user.update.mockResolvedValue({
+      id: 'user-1',
+      nome: 'Ana Paula',
+      email: 'ana@example.com',
+      papel: 'MORADOR',
+      condominioId: 'cond-1',
+      apartamento: '202',
+      cpf: '12345678901',
+    });
+
+    const service = new AuthService(prisma);
+    const result = await service.atualizarPerfil('user-1', {
+      nome: 'Ana Paula',
+      apartamento: '202',
+      cpf: '123.456.789-01',
+    });
+
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 'user-1' },
+      data: { nome: 'Ana Paula', apartamento: '202', cpf: '12345678901' },
+    });
+    expect(result.cpf).toBe('12345678901');
+  });
+
+  it('rejeita CPF com menos de 11 dígitos', async () => {
+    const prisma = buildPrismaMock();
+
+    const service = new AuthService(prisma);
+
+    await expect(
+      service.atualizarPerfil('user-1', { nome: 'Ana Paula', cpf: '123' }),
+    ).rejects.toBeInstanceOf(AppError);
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it('rejeita CPF já cadastrado por outro usuário', async () => {
+    const prisma = buildPrismaMock();
+    prisma.user.findFirst.mockResolvedValue({ id: 'outro-user' });
+
+    const service = new AuthService(prisma);
+
+    await expect(
+      service.atualizarPerfil('user-1', { nome: 'Ana Paula', cpf: '12345678901' }),
+    ).rejects.toBeInstanceOf(ConflictError);
+    expect(prisma.user.update).not.toHaveBeenCalled();
   });
 });
 

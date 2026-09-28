@@ -23,6 +23,7 @@ function toAuthenticatedUser(user: {
   papel: AuthenticatedUser['papel'];
   condominioId: string | null;
   apartamento?: string | null;
+  cpf?: string | null;
 }): AuthenticatedUser {
   return {
     id: user.id,
@@ -31,7 +32,13 @@ function toAuthenticatedUser(user: {
     papel: user.papel,
     condominioId: user.condominioId,
     apartamento: user.apartamento ?? null,
+    cpf: user.cpf ?? null,
   };
+}
+
+/** Mantém só os dígitos — aceita o CPF com ou sem pontuação (Asaas exige só números). */
+function normalizarCpf(cpf: string): string {
+  return cpf.replace(/\D/g, '');
 }
 
 export class AuthService {
@@ -113,11 +120,32 @@ export class AuthService {
     return { ...this.issueTokens(authenticatedUser), user: authenticatedUser };
   }
 
-  /** Morador/síndico/admin edita os próprios dados — hoje só nome e apartamento. */
+  /**
+   * Morador/síndico/admin edita os próprios dados: nome, apartamento e CPF (necessário pro
+   * locatário pagar uma locação via Asaas — M3). CPF fica de fora do update quando não enviado,
+   * pra não apagar um valor já cadastrado.
+   */
   async atualizarPerfil(userId: string, input: AtualizarPerfilInput): Promise<AuthenticatedUser> {
+    let cpf: string | undefined;
+
+    if (input.cpf !== undefined) {
+      cpf = normalizarCpf(input.cpf);
+
+      if (cpf.length !== 11) {
+        throw new AppError('CPF inválido — deve ter 11 dígitos', 400, 'CPF_INVALIDO');
+      }
+
+      const existente = await this.prisma.user.findFirst({
+        where: { cpf, id: { not: userId } },
+      });
+      if (existente) {
+        throw new ConflictError('Já existe uma conta cadastrada com este CPF');
+      }
+    }
+
     const user = await this.prisma.user.update({
       where: { id: userId },
-      data: { nome: input.nome, apartamento: input.apartamento },
+      data: { nome: input.nome, apartamento: input.apartamento, cpf },
     });
 
     return toAuthenticatedUser(user);

@@ -45,7 +45,7 @@ const saquePendente = {
 };
 
 describe('SaquesService.calcularSaldo', () => {
-  it('é a soma das locações pagas menos o que já foi sacado e o que está pendente', async () => {
+  it('é a soma das locações pagas (já com a taxa da plataforma descontada) menos o que já foi sacado e o que está pendente', async () => {
     const prisma = buildPrismaMock();
     comSaldoRecebido(prisma, 500);
     prisma.solicitacaoSaque.aggregate
@@ -55,7 +55,18 @@ describe('SaquesService.calcularSaldo', () => {
     const service = new SaquesService(prisma);
     const saldo = await service.calcularSaldo(USER_ID);
 
-    expect(saldo).toBe(300);
+    // 500 brutos * 90% (taxa da plataforma de 10%) = 450 líquidos; 450 - 120 - 80 = 250.
+    expect(saldo).toBe(250);
+  });
+
+  it('desconta a taxa da plataforma (10%) mesmo sem nenhum saque em aberto', async () => {
+    const prisma = buildPrismaMock();
+    comSaldoRecebido(prisma, 100);
+
+    const service = new SaquesService(prisma);
+    const saldo = await service.calcularSaldo(USER_ID);
+
+    expect(saldo).toBe(90);
   });
 
   it('nunca fica negativo mesmo se sacado+pendente superar o recebido', async () => {

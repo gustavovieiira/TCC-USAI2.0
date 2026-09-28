@@ -1,12 +1,16 @@
 import { Prisma, PrismaClient, SolicitacaoSaque } from '@prisma/client';
 import { AppError, NotFoundError } from '@/common/errors';
-import { STATUS_QUE_GERAM_SALDO } from '@/modules/locacoes/locacoes.service';
+import { STATUS_QUE_GERAM_SALDO, TAXA_PLATAFORMA } from '@/modules/locacoes/locacoes.service';
 import {
   ListarSaquesFiltro,
   RejeitarSaqueInput,
   SaqueDTO,
   SolicitarSaqueInput,
 } from './saques.types';
+
+function arredondarCentavos(valor: number): number {
+  return Math.round(valor * 100) / 100;
+}
 
 function toSaqueDTO(saque: SolicitacaoSaque, solicitanteNome?: string): SaqueDTO {
   return {
@@ -27,11 +31,12 @@ export class SaquesService {
 
   /**
    * Saldo líquido disponível pra saque: soma do valor das locações já pagas ao dono (RN — ver
-   * `STATUS_QUE_GERAM_SALDO`), menos o que já foi sacado (APROVADO) e menos o que já está em
-   * análise (PENDENTE) — assim, duas solicitações pendentes ao mesmo tempo não conseguem, juntas,
-   * sacar mais do que a pessoa realmente recebeu. REJEITADO não desconta (o valor volta a ficar
-   * disponível). Hoje sempre dá 0 pra todo mundo, porque nada no sistema ainda move uma locação
-   * pra PAGA (falta o M3/Asaas) — o cálculo já está pronto pra quando isso existir.
+   * `STATUS_QUE_GERAM_SALDO`), já descontada a taxa da plataforma (`TAXA_PLATAFORMA`, 10% — o
+   * dono recebe 90% do valor da locação), menos o que já foi sacado (APROVADO) e menos o que já
+   * está em análise (PENDENTE) — assim, duas solicitações pendentes ao mesmo tempo não conseguem,
+   * juntas, sacar mais do que a pessoa realmente recebeu. REJEITADO não desconta (o valor volta a
+   * ficar disponível). A transição pra PAGA é feita pelo M3 (`pagamentos.service.ts`), disparada
+   * pelo webhook do Asaas confirmando o pagamento do locatário.
    */
   async calcularSaldo(userId: string): Promise<number> {
     return this.calcularSaldoComCliente(this.prisma, userId);
@@ -56,11 +61,12 @@ export class SaquesService {
       }),
     ]);
 
-    const total = Number(recebido._sum.valorTotal ?? 0);
+    const totalBruto = Number(recebido._sum.valorTotal ?? 0);
+    const totalLiquido = arredondarCentavos(totalBruto * (1 - TAXA_PLATAFORMA));
     const jaSacado = Number(aprovado._sum.valor ?? 0);
     const emAnalise = Number(pendente._sum.valor ?? 0);
 
-    return Math.max(0, total - jaSacado - emAnalise);
+    return Math.max(0, totalLiquido - jaSacado - emAnalise);
   }
 
   /**

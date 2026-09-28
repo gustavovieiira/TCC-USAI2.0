@@ -24,6 +24,7 @@ export interface LoginPayload {
 export interface AtualizarPerfilPayload {
   nome: string;
   apartamento?: string;
+  cpf?: string;
 }
 
 export async function cadastrarMorador(payload: CadastroMoradorPayload): Promise<AuthResponse> {

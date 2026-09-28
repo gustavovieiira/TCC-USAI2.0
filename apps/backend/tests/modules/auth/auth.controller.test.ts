@@ -5,7 +5,7 @@ import jwt from 'jsonwebtoken';
 jest.mock('@/common/prisma', () => ({
   prisma: {
     condominio: { findUnique: jest.fn() },
-    user: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
+    user: { findUnique: jest.fn(), findFirst: jest.fn(), create: jest.fn(), update: jest.fn() },
   },
 }));
 
@@ -185,6 +185,50 @@ describe('PATCH /api/auth/perfil', () => {
     const response = await request(app).patch('/api/auth/perfil').send({ nome: 'Qualquer Nome' });
 
     expect(response.status).toBe(401);
+  });
+
+  it('salva o CPF normalizado quando enviado', async () => {
+    (prisma.user.findFirst as jest.Mock).mockResolvedValue(null);
+    (prisma.user.update as jest.Mock).mockResolvedValue({
+      id: 'user-1',
+      nome: 'Ana Paula Ribeiro',
+      email: 'ana@example.com',
+      papel: 'MORADOR',
+      condominioId: 'cond-1',
+      apartamento: '303',
+      cpf: '12345678901',
+    });
+    const app = createApp();
+    const token = jwt.sign(
+      { userId: 'user-1', papel: 'MORADOR', condominioId: 'cond-1' },
+      ACCESS_SECRET,
+      { expiresIn: '1h' },
+    );
+
+    const response = await request(app)
+      .patch('/api/auth/perfil')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ nome: 'Ana Paula Ribeiro', apartamento: '303', cpf: '123.456.789-01' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.cpf).toBe('12345678901');
+  });
+
+  it('rejeita CPF já cadastrado por outro usuário com 409', async () => {
+    (prisma.user.findFirst as jest.Mock).mockResolvedValue({ id: 'outro-user' });
+    const app = createApp();
+    const token = jwt.sign(
+      { userId: 'user-1', papel: 'MORADOR', condominioId: 'cond-1' },
+      ACCESS_SECRET,
+      { expiresIn: '1h' },
+    );
+
+    const response = await request(app)
+      .patch('/api/auth/perfil')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ nome: 'Ana Paula Ribeiro', cpf: '12345678901' });
+
+    expect(response.status).toBe(409);
   });
 });
 

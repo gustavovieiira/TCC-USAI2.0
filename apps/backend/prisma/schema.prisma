@@ -60,12 +60,13 @@ model User {
   nome         String
   email        String   @unique
   senhaHash    String
-  cpf          String?  @unique
-  papel        Papel    @default(MORADOR)
-  apartamento  String?
-  chavePix     String?
-  condominioId String?
-  ativo        Boolean  @default(true)
+  cpf             String?  @unique
+  asaasCustomerId String?  @unique
+  papel           Papel    @default(MORADOR)
+  apartamento     String?
+  chavePix        String?
+  condominioId    String?
+  ativo           Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -143,6 +144,7 @@ model Pagamento {
   id            String    @id @default(uuid())
   locacaoId     String    @unique
   asaasChargeId String?   @unique
+  invoiceUrl    String?
   status        String    @default("PENDENTE")
   valor         Decimal   @db.Decimal(10, 2)
   pagoEm        DateTime?

@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import http from 'http';
 import { createApp } from './app';
+import { setSocketServer } from './realtime/emitter';
 import { createSocketServer } from './realtime/socket';
 import { logger } from '@/common/logger';
 import { prisma } from '@/common/prisma';
@@ -10,7 +11,7 @@ const UMA_HORA_MS = 60 * 60 * 1000;
 
 const app = createApp();
 const httpServer = http.createServer(app);
-createSocketServer(httpServer);
+setSocketServer(createSocketServer(httpServer));
 
 httpServer.listen(PORT, () => {
   logger.info(`USAI backend rodando na porta ${PORT}`);

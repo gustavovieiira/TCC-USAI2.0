@@ -10,6 +10,7 @@ import { conversasRouter } from '@/modules/conversas/conversas.routes';
 import { itensRouter } from '@/modules/itens/itens.routes';
 import { locacoesRouter } from '@/modules/locacoes/locacoes.routes';
 import { muralRouter } from '@/modules/mural/mural.routes';
+import { asaasWebhookRouter } from '@/modules/pagamentos/webhook.routes';
 import { saquesRouter } from '@/modules/saques/saques.routes';
 import { sindicoRouter } from '@/modules/sindico/sindico.routes';
 
@@ -37,6 +38,7 @@ export function createApp(): Express {
   app.use('/api/saques', saquesRouter);
   app.use('/api/sindico', sindicoRouter);
   app.use('/api/admin', adminRouter);
+  app.use('/api/webhooks/asaas', asaasWebhookRouter);
 
   app.use('/uploads', express.static(UPLOADS_DIR));
 

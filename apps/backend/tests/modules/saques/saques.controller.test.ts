@@ -58,7 +58,8 @@ const saqueBase = {
 
 describe('POST /api/saques', () => {
   it('solicita o saque e retorna 201 quando cabe no saldo disponível', async () => {
-    (prisma.locacao.aggregate as jest.Mock).mockResolvedValue({ _sum: { valorTotal: 100 } });
+    // 200 brutos * 90% (taxa da plataforma de 10%) = 180 líquidos, cobre o pedido de 100.
+    (prisma.locacao.aggregate as jest.Mock).mockResolvedValue({ _sum: { valorTotal: 200 } });
     (prisma.solicitacaoSaque.create as jest.Mock).mockResolvedValue(saqueBase);
     const app = createApp();
 
@@ -109,7 +110,8 @@ describe('GET /api/saques/saldo', () => {
       .set('Authorization', `Bearer ${token(USER_ID)}`);
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ saldo: 200 });
+    // 300 brutos * 90% = 270 líquidos; 270 - 100 (aprovado) - 0 (pendente) = 170.
+    expect(response.body).toEqual({ saldo: 170 });
   });
 });
 

@@ -31,7 +31,8 @@ function nomeSalaConversa(conversaId: string): string {
   return `conversa:${conversaId}`;
 }
 
-function nomeSalaUsuario(userId: string): string {
+/** Exportado pra `realtime/emitter.ts` poder avisar um usuário específico fora do fluxo de sockets. */
+export function nomeSalaUsuario(userId: string): string {
   return `usuario:${userId}`;
 }
 

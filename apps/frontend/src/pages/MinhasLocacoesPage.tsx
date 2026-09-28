@@ -14,6 +14,8 @@ import {
   rejeitarLocacao,
 } from '@/features/locacoes/locacoes.api';
 import { LocacaoDTO } from '@/features/locacoes/locacoes.types';
+import { useLocacaoAtualizada } from '@/features/locacoes/useLocacaoAtualizada';
+import { criarCobranca } from '@/features/pagamentos/pagamentos.api';
 
 type Aba = 'locatario' | 'proprietario';
 
@@ -32,6 +34,14 @@ export function MinhasLocacoesPage() {
       })
       .catch((err) => setErro(extractErrorMessage(err)));
   }, []);
+
+  useLocacaoAtualizada((evento) => {
+    const aplicar = (lista: LocacaoDTO[] | null) =>
+      lista?.map((l) => (l.id === evento.locacaoId ? { ...l, status: evento.status } : l)) ?? lista;
+
+    setComoLocatario(aplicar);
+    setComoProprietario(aplicar);
+  });
 
   async function handleAprovar(locacao: LocacaoDTO) {
     setProcessandoId(locacao.id);
@@ -54,6 +64,19 @@ export function MinhasLocacoesPage() {
       setComoProprietario(
         (atual) => atual?.map((l) => (l.id === atualizada.id ? atualizada : l)) ?? atual,
       );
+    } catch (err) {
+      setErro(extractErrorMessage(err));
+    } finally {
+      setProcessandoId(null);
+    }
+  }
+
+  /** M3 — abre o link de pagamento PIX do Asaas numa aba nova; a volta pra PAGA chega sozinha via socket. */
+  async function handlePagar(locacao: LocacaoDTO) {
+    setProcessandoId(locacao.id);
+    try {
+      const { invoiceUrl } = await criarCobranca(locacao.id);
+      window.open(invoiceUrl, '_blank', 'noopener,noreferrer');
     } catch (err) {
       setErro(extractErrorMessage(err));
     } finally {
@@ -156,6 +179,16 @@ export function MinhasLocacoesPage() {
                       Rejeitar
                     </Button>
                   </div>
+                )}
+
+                {aba === 'locatario' && locacao.status === 'APROVADA' && (
+                  <Button
+                    fullWidth={false}
+                    isLoading={processandoId === locacao.id}
+                    onClick={() => handlePagar(locacao)}
+                  >
+                    Pagar agora
+                  </Button>
                 )}
               </div>
             </Card>

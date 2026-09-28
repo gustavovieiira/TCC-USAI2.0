@@ -55,7 +55,7 @@ describe('PerfilPage', () => {
         dataInicio: '2026-09-01T00:00:00.000Z',
         dataFim: '2026-09-03T00:00:00.000Z',
         valorTotal: 40,
-        status: 'APROVADA',
+        status: 'PAGA',
         createdAt: '2026-09-01T00:00:00.000Z',
         item: { id: 'item-2', titulo: 'Escada', valorDiaria: 20, ownerId: 'user-2' },
       },
@@ -227,6 +227,43 @@ describe('PerfilPage', () => {
     );
     expect(await screen.findByText('Ana Paula Ribeiro')).toBeInTheDocument();
     expect(screen.getByText('Apartamento 202')).toBeInTheDocument();
+  });
+
+  it('edita o CPF do próprio perfil (morador)', async () => {
+    vi.spyOn(authStorage, 'getStoredUser').mockReturnValue({
+      id: 'user-1',
+      nome: 'Ana Proprietaria',
+      email: 'ana@example.com',
+      papel: 'MORADOR',
+      condominioId: 'cond-1',
+      apartamento: '101',
+      cpf: null,
+    });
+    vi.spyOn(authStorage, 'updateStoredUser').mockImplementation(() => {});
+    vi.spyOn(saquesApi, 'buscarSaldo').mockResolvedValue(0);
+    vi.spyOn(itensApi, 'listarItens').mockResolvedValue([]);
+    vi.spyOn(locacoesApi, 'listarComoLocatario').mockResolvedValue([]);
+    vi.spyOn(locacoesApi, 'listarComoProprietario').mockResolvedValue([]);
+    vi.spyOn(authApi, 'atualizarPerfil').mockResolvedValue({
+      id: 'user-1',
+      nome: 'Ana Proprietaria',
+      email: 'ana@example.com',
+      papel: 'MORADOR',
+      condominioId: 'cond-1',
+      apartamento: '101',
+      cpf: '12345678901',
+    });
+
+    renderPage();
+    await userEvent.click(screen.getByRole('button', { name: 'Editar' }));
+
+    const cpfInput = screen.getByLabelText('CPF');
+    await userEvent.type(cpfInput, '12345678901');
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+
+    expect(authApi.atualizarPerfil).toHaveBeenCalledWith(
+      expect.objectContaining({ cpf: '12345678901' }),
+    );
   });
 
   it('cancela a edição sem salvar', async () => {

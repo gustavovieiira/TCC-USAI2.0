@@ -17,8 +17,15 @@ interface ClientToServerEvents {
 
 export type LocacaoSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
+export interface LocacaoAtualizadaEvento {
+  locacaoId: string;
+  status: 'PAGA' | 'CANCELADA';
+}
+
 interface ConversaServerToClientEvents {
   'conversa:mensagem:nova': (mensagem: MensagemPrivadaDTO) => void;
+  /** M3 — pagamento confirmado (ou perdeu a corrida pra outra locação concorrente do mesmo item). */
+  'locacao:atualizada': (evento: LocacaoAtualizadaEvento) => void;
 }
 
 interface ConversaClientToServerEvents {

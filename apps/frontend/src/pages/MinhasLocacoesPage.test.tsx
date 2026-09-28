@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { MinhasLocacoesPage } from './MinhasLocacoesPage';
 import * as locacoesApi from '@/features/locacoes/locacoes.api';
 import { LocacaoDTO } from '@/features/locacoes/locacoes.types';
+import * as pagamentosApi from '@/features/pagamentos/pagamentos.api';
 
 function buildLocacao(overrides: Partial<LocacaoDTO> = {}): LocacaoDTO {
   return {
@@ -83,5 +84,36 @@ describe('MinhasLocacoesPage', () => {
 
     await screen.findByText('Cancelada');
     expect(screen.queryByRole('button', { name: 'Aprovar' })).not.toBeInTheDocument();
+  });
+
+  it('mostra "Pagar agora" pra locação aprovada e abre o link do Asaas numa aba nova', async () => {
+    vi.spyOn(locacoesApi, 'listarComoLocatario').mockResolvedValue([
+      buildLocacao({ status: 'APROVADA' }),
+    ]);
+    vi.spyOn(locacoesApi, 'listarComoProprietario').mockResolvedValue([]);
+    vi.spyOn(pagamentosApi, 'criarCobranca').mockResolvedValue({
+      invoiceUrl: 'https://sandbox.asaas.com/i/pay_123',
+    });
+    const windowOpen = vi.spyOn(window, 'open').mockImplementation(() => null);
+
+    renderPage();
+    await userEvent.click(await screen.findByRole('button', { name: 'Pagar agora' }));
+
+    expect(pagamentosApi.criarCobranca).toHaveBeenCalledWith('locacao-1');
+    expect(windowOpen).toHaveBeenCalledWith(
+      'https://sandbox.asaas.com/i/pay_123',
+      '_blank',
+      'noopener,noreferrer',
+    );
+  });
+
+  it('não mostra "Pagar agora" pra locação ainda pendente', async () => {
+    vi.spyOn(locacoesApi, 'listarComoLocatario').mockResolvedValue([buildLocacao()]);
+    vi.spyOn(locacoesApi, 'listarComoProprietario').mockResolvedValue([]);
+
+    renderPage();
+    await screen.findByText('Furadeira Bosch');
+
+    expect(screen.queryByRole('button', { name: 'Pagar agora' })).not.toBeInTheDocument();
   });
 });

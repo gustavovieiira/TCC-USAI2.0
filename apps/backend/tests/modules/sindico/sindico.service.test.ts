@@ -43,7 +43,7 @@ const locacaoAtivaBase = {
   dataInicio: new Date('2026-10-01'),
   dataFim: new Date('2026-10-03'),
   valorTotal: 40 as unknown as number,
-  status: 'APROVADA',
+  status: 'PAGA',
   createdAt: new Date('2026-09-15'),
   updatedAt: new Date('2026-09-15'),
   item: { id: 'item-1', titulo: 'Furadeira Bosch', ownerId: 'user-1' },
@@ -129,7 +129,10 @@ describe('SindicoService.listarLocacoesAtivas', () => {
 
     expect(prisma.locacao.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ item: { condominioId: CONDOMINIO_ID } }),
+        where: expect.objectContaining({
+          item: { condominioId: CONDOMINIO_ID },
+          status: { in: ['PAGA', 'EM_ANDAMENTO'] },
+        }),
       }),
     );
     expect(result[0].item.titulo).toBe('Furadeira Bosch');

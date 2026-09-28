@@ -6,6 +6,77 @@
 
 ---
 
+## 2026-09-28 — M3: pagamento da locação via Asaas (PIX)
+
+**O que foi feito:** a peça que faltava do fluxo de locação — o locatário paga o valor via PIX pelo
+Asaas, e só quando o pagamento é confirmado (webhook) a locação trava de vez. Combinado com o usuário
+antes de implementar, porque envolvia decisões de produto que a RFC deixava em aberto:
+
+- **Quem recebe o dinheiro primeiro:** o Asaas cobra o locatário e o valor fica na conta da
+  plataforma — o dono recebe pelo saque manual que já existia (`SaquesService`), sem usar
+  split/subconta automática do Asaas. Menor escopo, e o síndico/Admin já tinham esse fluxo pronto.
+- **Taxa da plataforma: 10%**, descontada só no cálculo do saldo sacável
+  (`TAXA_PLATAFORMA` em `locacoes.service.ts`) — o locatário paga o valor cheio da locação, o dono
+  vê 90% disponível pra saque. `saques.service.ts` arredonda pra centavos antes de aplicar os
+  descontos de saques já aprovados/pendentes, pra não vazar erro de ponto flutuante.
+- **RN de disponibilidade nova (a mais delicada):** uma locação `APROVADA` sem pagamento **não
+  trava mais o período** — `STATUS_QUE_OCUPAM_PERIODO` passou a ser só `['PAGA', 'EM_ANDAMENTO']`.
+  Isso deixa vários moradores pedirem (e o dono aprovar) o mesmo item no mesmo período; só quando
+  o primeiro paga é que o item trava de verdade. Nesse momento, toda outra locação
+  `PENDENTE`/`APROVADA` do mesmo item com período sobreposto é cancelada automaticamente — dentro
+  da mesma transação que confirma o pagamento, usando `updateMany` condicionado ao status atual
+  como trava de corrida (equivalente a um `UPDATE ... WHERE status = 'APROVADA'`, que o MySQL já
+  serializa sozinho — sem `SELECT FOR UPDATE` nem SQL cru). Testado de verdade: duas locações
+  concorrentes pro mesmo item/período, aprovei as duas, "paguei" uma via webhook simulado — a outra
+  cancelou sozinha, sem eu precisar programar isso manualmente pro teste, só a lógica normal
+  reagindo.
+- **Pagamento "órfão":** se duas pessoas pagam quase ao mesmo tempo, quem perde a corrida tem o
+  `Pagamento` marcado como `PAGO_ORFAO` (mais um log de erro) em vez de estorno automático — não
+  tem integração com a API de reembolso do Asaas nesta versão; é resolvido manualmente pelo Admin.
+  Decisão consciente pra não superdimensionar o escopo de uma entrega de TCC.
+- **CPF do morador:** o Asaas exige CPF pra criar o cliente da cobrança — estendida a edição de
+  perfil que já existia (nome/apartamento) pra também aceitar CPF, normalizando pontuação e
+  validando duplicidade antes de salvar.
+- **Atualização em tempo real, sem botão de atualizar:** pedido explícito do usuário — nada de
+  "aperte aqui pra ver se já pagou". O webhook do Asaas roda fora do ciclo de request/response de
+  quem está com a tela aberta, então reaproveitei a sala pessoal de socket já usada pelas
+  notificações de conversa (`usuario:<id>`, ver `realtime/emitter.ts`, novo — dá pro webhook avisar
+  um usuário específico sem precisar conhecer a instância do socket.io criada em `server.ts`) pra
+  avisar tanto quem pagou (`PAGA`) quanto quem perdeu a corrida (`CANCELADA`), instantâneo, testado
+  ao vivo no navegador com duas abas logadas como usuários diferentes.
+- **Módulo novo** `apps/backend/src/modules/pagamentos/`: `asaas.client.ts` (wrapper fino sobre a
+  API REST do Asaas — só PIX, sandbox por padrão), `pagamentos.service.ts` (`criarCobranca`,
+  idempotente, e `confirmarPagamento`, chamado pelo webhook), rota de cobrança aninhada em
+  `POST /api/locacoes/:id/pagamento` (mesmo padrão do chat de locação) e webhook público em
+  `POST /api/webhooks/asaas` — sem `authGuard` (quem chama é o Asaas) e sempre respondendo 200
+  depois de validar o token, mesmo se algo falhar por dentro, pra não virar retry-storm.
+
+**Por que essas decisões:** a RN de disponibilidade (não travar por `APROVADA`) foi pedido direto
+do usuário depois de eu propor um modelo mais simples (expira em 48h) — o modelo escolhido é mais
+realista pro caso de uso (vários vizinhos interessados no mesmo fim de semana) e não exige um job
+periódico de expiração. A atualização automática por socket, e não por botão, também foi correção
+direta do usuário — a primeira proposta (botão "Atualizar") foi rejeitada explicitamente.
+
+**Verificação:** `npm run build:backend`/`build:frontend`, ESLint (zero warnings), 275 testes de
+backend (29 suítes, 98.83% de cobertura de statements) e 116 de frontend (20 suítes) passando —
+inclui testes novos cobrindo o `AsaasClient` (mockando `fetch`), o `PagamentosService` (cliente e
+cobrança idempotentes, corrida entre locações concorrentes, pagamento órfão), o webhook (token
+errado, evento desconhecido, corpo malformado, confirmação de verdade) e a mudança de regra de
+disponibilidade em `locacoes.service.ts`/`sindico.service.ts`. QA manual ponta a ponta: cadastrei
+CPF pelo perfil, publiquei um item, duas contas pediram o mesmo período e o dono aprovou as duas,
+cliquei em "Pagar agora" (o Asaas sandbox real rejeitou por falta de API key configurada — erro
+tratado direitinho na tela, sem quebrar nada), simulei a confirmação do Asaas via webhook direto
+pra validar a lógica de corrida sem precisar de credencial de sandbox de verdade, e conferi as duas
+abas (quem pagou e quem perdeu a corrida) atualizando sozinhas. Saldo do dono conferido: R$ 100 de
+locação vira R$ 90 sacável, batendo com a taxa de 10%.
+
+**Pendente:** `ASAAS_API_KEY` e `ASAAS_WEBHOOK_TOKEN` de verdade (conta sandbox do Asaas ainda
+precisa ser criada) — sem isso, o fluxo de criar cobrança de verdade não funciona fora deste teste
+simulado, só a lógica de confirmação (testada via webhook direto). Deploy em nuvem continua
+explicitamente adiado, combinado à parte.
+
+---
+
 ## 2026-09-18 — Editar perfil, síndico remove morador, notificação em tempo real nas conversas
 
 **O que foi feito:** três pedidos do usuário depois de revisar o produto: dar pro morador uma forma de

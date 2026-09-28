@@ -88,7 +88,7 @@ describe('LocacoesService.solicitar', () => {
     );
   });
 
-  it('rejeita quando o item já está ocupado no período', async () => {
+  it('rejeita quando o item já está ocupado no período (locação PAGA/EM_ANDAMENTO concorrente)', async () => {
     const prisma = buildPrismaMock();
     prisma.item.findFirst.mockResolvedValue(itemDisponivel);
     prisma.locacao.findFirst.mockResolvedValue(locacaoBase);
@@ -98,6 +98,22 @@ describe('LocacoesService.solicitar', () => {
     await expect(
       service.solicitar(CONDOMINIO_ID, LOCATARIO_ID, inputPadrao),
     ).rejects.toBeInstanceOf(AppError);
+  });
+
+  it('só considera PAGA/EM_ANDAMENTO como sobreposição — pendente/aprovada sem pagar não bloqueia (RN de disponibilidade do M3)', async () => {
+    const prisma = buildPrismaMock();
+    prisma.item.findFirst.mockResolvedValue(itemDisponivel);
+    prisma.locacao.findFirst.mockResolvedValue(null);
+    prisma.locacao.create.mockResolvedValue(locacaoBase);
+
+    const service = new LocacoesService(prisma);
+    await service.solicitar(CONDOMINIO_ID, LOCATARIO_ID, inputPadrao);
+
+    expect(prisma.locacao.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ status: { in: ['PAGA', 'EM_ANDAMENTO'] } }),
+      }),
+    );
   });
 });
 

@@ -21,4 +21,5 @@ export const refreshTokenSchema = z.object({
 export const atualizarPerfilSchema = z.object({
   nome: z.string().min(2, 'Nome é obrigatório'),
   apartamento: z.string().optional(),
+  cpf: z.string().optional(),
 });

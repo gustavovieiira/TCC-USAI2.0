@@ -11,6 +11,7 @@ export interface StoredUser {
   papel: Papel;
   condominioId: string | null;
   apartamento: string | null;
+  cpf?: string | null;
 }
 
 export function saveSession(accessToken: string, refreshToken: string, user: StoredUser) {

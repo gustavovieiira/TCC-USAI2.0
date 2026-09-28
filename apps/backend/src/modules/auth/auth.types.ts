@@ -17,6 +17,8 @@ export interface LoginInput {
 export interface AtualizarPerfilInput {
   nome: string;
   apartamento?: string;
+  /** CPF (só dígitos após normalização) — necessário pro locatário pagar uma locação via Asaas (M3). */
+  cpf?: string;
 }
 
 export interface AuthTokens {
@@ -31,6 +33,7 @@ export interface AuthenticatedUser {
   papel: Papel;
   condominioId: string | null;
   apartamento: string | null;
+  cpf: string | null;
 }
 
 export interface AuthResult extends AuthTokens {

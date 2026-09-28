@@ -20,7 +20,7 @@ import { extractErrorMessage } from '@/lib/apiClient';
 import { clearSession, getStoredUser, updateStoredUser } from '@/lib/authStorage';
 import { formatCurrency } from '@/lib/format';
 
-const LOCACAO_STATUS_ATIVOS = ['PENDENTE', 'APROVADA', 'PAGA', 'EM_ANDAMENTO'];
+const LOCACAO_STATUS_ATIVOS = ['PAGA', 'EM_ANDAMENTO'];
 
 interface DadosMorador {
   tipo: 'MORADOR';
@@ -85,6 +85,7 @@ export function PerfilPage() {
   const [editando, setEditando] = useState(false);
   const [nomeForm, setNomeForm] = useState('');
   const [apartamentoForm, setApartamentoForm] = useState('');
+  const [cpfForm, setCpfForm] = useState('');
   const [erroEdicao, setErroEdicao] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
 
@@ -150,6 +151,7 @@ export function PerfilPage() {
   function iniciarEdicao() {
     setNomeForm(user!.nome);
     setApartamentoForm(user!.apartamento ?? '');
+    setCpfForm(user!.cpf ?? '');
     setErroEdicao(null);
     setEditando(true);
   }
@@ -163,6 +165,7 @@ export function PerfilPage() {
       const atualizado = await atualizarPerfil({
         nome: nomeForm,
         apartamento: apartamentoForm || undefined,
+        cpf: cpfForm || undefined,
       });
       updateStoredUser(atualizado);
       setUser(atualizado);
@@ -192,6 +195,15 @@ export function PerfilPage() {
               value={apartamentoForm}
               onChange={(e) => setApartamentoForm(e.target.value)}
             />
+            {user.papel === 'MORADOR' && (
+              <TextField
+                label="CPF"
+                name="cpf"
+                placeholder="Necessário pra pagar uma locação"
+                value={cpfForm}
+                onChange={(e) => setCpfForm(e.target.value)}
+              />
+            )}
             {erroEdicao && (
               <p role="alert" className="text-sm text-carmim-700">
                 {erroEdicao}
