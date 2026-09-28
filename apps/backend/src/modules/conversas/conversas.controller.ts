@@ -15,8 +15,8 @@ function condominioDoUsuario(req: Request): string {
 
 export const conversasController = {
   async abrir(req: Request, res: Response) {
-    const input = abrirConversaSchema.parse(req.body);
     const condominioId = condominioDoUsuario(req);
+    const input = abrirConversaSchema.parse(req.body);
     const conversa = await conversasService.abrirOuContinuar(condominioId, req.auth!.userId, input);
     res.status(201).json(conversa);
   },
@@ -57,8 +57,8 @@ export const conversasController = {
   },
 
   async enviarMensagem(req: Request, res: Response) {
-    const input = enviarMensagemPrivadaSchema.parse(req.body);
     const condominioId = condominioDoUsuario(req);
+    const input = enviarMensagemPrivadaSchema.parse(req.body);
     const mensagem = await conversasService.enviarMensagem(
       req.params.id,
       condominioId,
