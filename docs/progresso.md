@@ -6,6 +6,40 @@
 
 ---
 
+## 2026-10-19 — Pós-M3: conferência periódica, taxa gravada por locação e extrato de saques
+
+**O que foi feito** (depois de testar o fluxo de pagamento de verdade no sandbox do Asaas):
+
+- **Conferência periódica das cobranças** (`PagamentosService.conferirPendentes`, disparada a cada
+  30 s em `server.ts` só quando `ASAAS_API_KEY` existe): o webhook do Asaas exige URL pública e o
+  ambiente de desenvolvimento (firewall corporativo) não deixa abrir túnel, então o backend também
+  pergunta ao Asaas (`GET /payments/{id}`) o status das cobranças pendentes das últimas 2 semanas.
+  É idempotente com o webhook — `confirmarPagamento` já ignorava confirmações repetidas — então no
+  deploy os dois convivem: webhook dá a resposta imediata, a conferência é a rede de segurança.
+- **Taxa e líquido gravados em cada locação** (`Locacao.taxaPlataforma` / `valorLiquido`, migration
+  `locacao_taxa_valor_liquido` com backfill das locações já pagas): antes o saldo era
+  `valorTotal × 0,9` recalculado na hora; se a taxa mudasse um dia, o histórico mudaria junto. Agora
+  `calcularRepasse` (em `locacoes.service.ts`) fixa o valor no momento da confirmação do pagamento e
+  o saldo é a soma de `valorLiquido` — extrato e saldo sempre batem porque usam o mesmo número.
+- **Extrato de saques** (`GET /api/saques/extrato`, `SaquesService.extrato`, tela `SaquesPage`):
+  mostra de forma direta o que **entrou** (aluguel recebido, quem pagou, bruto − taxa = líquido), o
+  que **saiu** (saques: em análise / pago / rejeitado com motivo, chave PIX mascarada) e, numa seção
+  à parte, o que a pessoa **pagou** como locatária (com aviso quando o pagamento está aguardando
+  reembolso). Só nome do outro morador (mesmo condomínio, por definição da locação) — nunca e-mail,
+  CPF ou chave PIX de terceiros. Admin ganhou o **histórico** de saques já processados (data da
+  decisão e motivo) ao lado da fila de pendentes.
+- **Sonar S9383** (promessas soltas em `socket.ts` e `PerfilPage.tsx`) corrigido com `await`/`void`.
+
+**Por que essas decisões:** o extrato era o pedido direto dos testes de usabilidade ("quem pagou,
+quem recebeu, de forma clara") — a conta por extenso em cada linha evita a pergunta "por que
+recebi R$ 90 de um aluguel de R$ 100?". Guardar o líquido na locação em vez de recalcular é a mesma
+lógica de nota fiscal: o valor do momento da venda não muda retroativamente.
+
+**Onde mexer a seguir:** notificações persistidas (sino + página) e unificação do chat da locação
+na página de Conversas — combinadas com o usuário, ainda não implementadas.
+
+---
+
 ## 2026-09-28 — M3: pagamento da locação via Asaas (PIX)
 
 **O que foi feito:** a peça que faltava do fluxo de locação — o locatário paga o valor via PIX pelo

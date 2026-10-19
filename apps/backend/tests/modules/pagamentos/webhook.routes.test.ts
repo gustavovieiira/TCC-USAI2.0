@@ -66,6 +66,7 @@ describe('POST /api/webhooks/asaas', () => {
       id: 'pagamento-1',
       locacaoId: 'locacao-1',
       asaasChargeId: 'pay_123',
+      valor: 100,
     });
     (prisma.locacao.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
     (prisma.locacao.findUniqueOrThrow as jest.Mock).mockResolvedValue({
@@ -86,7 +87,7 @@ describe('POST /api/webhooks/asaas', () => {
     expect(response.status).toBe(200);
     expect(prisma.locacao.updateMany).toHaveBeenCalledWith({
       where: { id: 'locacao-1', status: 'APROVADA' },
-      data: { status: 'PAGA' },
+      data: { status: 'PAGA', taxaPlataforma: 10, valorLiquido: 90 },
     });
   });
 

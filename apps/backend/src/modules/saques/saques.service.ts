@@ -1,8 +1,11 @@
 import { Prisma, PrismaClient, SolicitacaoSaque } from '@prisma/client';
 import { AppError, NotFoundError } from '@/common/errors';
-import { STATUS_QUE_GERAM_SALDO, TAXA_PLATAFORMA } from '@/modules/locacoes/locacoes.service';
+import { STATUS_QUE_GERAM_SALDO } from '@/modules/locacoes/locacoes.service';
 import {
+  ExtratoDTO,
   ListarSaquesFiltro,
+  MovimentoExtratoDTO,
+  PagamentoExtratoDTO,
   RejeitarSaqueInput,
   SaqueDTO,
   SolicitarSaqueInput,
@@ -11,6 +14,19 @@ import {
 function arredondarCentavos(valor: number): number {
   return Math.round(valor * 100) / 100;
 }
+
+/** O extrato mostra a chave PIX sem expô-la inteira: e-mail some no meio, o resto mostra só os 4 últimos caracteres. */
+function mascararChavePix(chave: string): string {
+  const arroba = chave.indexOf('@');
+  if (arroba > 0) return `${chave[0]}***${chave.slice(arroba)}`;
+  return chave.length <= 4 ? chave : `****${chave.slice(-4)}`;
+}
+
+const STATUS_SAQUE_NO_EXTRATO = {
+  PENDENTE: 'EM_ANALISE',
+  APROVADO: 'PAGO',
+  REJEITADO: 'REJEITADO',
+} as const;
 
 function toSaqueDTO(saque: SolicitacaoSaque, solicitanteNome?: string): SaqueDTO {
   return {
@@ -31,9 +47,9 @@ export class SaquesService {
 
   /**
    * Saldo líquido disponível pra saque: soma do valor das locações já pagas ao dono (RN — ver
-   * `STATUS_QUE_GERAM_SALDO`), já descontada a taxa da plataforma (`TAXA_PLATAFORMA`, 10% — o
-   * dono recebe 90% do valor da locação), menos o que já foi sacado (APROVADO) e menos o que já
-   * está em análise (PENDENTE) — assim, duas solicitações pendentes ao mesmo tempo não conseguem,
+   * `STATUS_QUE_GERAM_SALDO`), já descontada a taxa da plataforma (soma de `Locacao.valorLiquido`,
+   * gravado ao confirmar cada pagamento — ver `calcularRepasse`), menos o que já foi sacado
+   * (APROVADO) e menos o que já está em análise (PENDENTE) — assim, duas solicitações pendentes ao mesmo tempo não conseguem,
    * juntas, sacar mais do que a pessoa realmente recebeu. REJEITADO não desconta (o valor volta a
    * ficar disponível). A transição pra PAGA é feita pelo M3 (`pagamentos.service.ts`), disparada
    * pelo webhook do Asaas confirmando o pagamento do locatário.
@@ -49,7 +65,7 @@ export class SaquesService {
     const [recebido, aprovado, pendente] = await Promise.all([
       cliente.locacao.aggregate({
         where: { item: { ownerId: userId }, status: { in: STATUS_QUE_GERAM_SALDO } },
-        _sum: { valorTotal: true },
+        _sum: { valorLiquido: true },
       }),
       cliente.solicitacaoSaque.aggregate({
         where: { userId, status: 'APROVADO' },
@@ -61,12 +77,11 @@ export class SaquesService {
       }),
     ]);
 
-    const totalBruto = Number(recebido._sum.valorTotal ?? 0);
-    const totalLiquido = arredondarCentavos(totalBruto * (1 - TAXA_PLATAFORMA));
+    const totalLiquido = Number(recebido._sum.valorLiquido ?? 0);
     const jaSacado = Number(aprovado._sum.valor ?? 0);
     const emAnalise = Number(pendente._sum.valor ?? 0);
 
-    return Math.max(0, totalLiquido - jaSacado - emAnalise);
+    return Math.max(0, arredondarCentavos(totalLiquido - jaSacado - emAnalise));
   }
 
   /**
@@ -98,6 +113,88 @@ export class SaquesService {
 
       return toSaqueDTO(saque);
     });
+  }
+
+  /**
+   * Extrato do usuário, sempre escopado por `userId` (vem do token, nunca de parâmetro). Separa
+   * duas coisas pra não confundir: o que mexe no SALDO (aluguéis recebidos já com a taxa
+   * descontada, e saques) e o que a pessoa PAGOU como locatário (informativo, não mexe no saldo).
+   * O `saldoDisponivel` vem do mesmo `calcularSaldo` da tela de Perfil, então os números batem.
+   * Da contraparte só saem id e nome — nunca e-mail, CPF ou chave PIX de outra pessoa.
+   */
+  async extrato(userId: string): Promise<ExtratoDTO> {
+    const [recebidas, saques, pagas, saldoDisponivel] = await Promise.all([
+      this.prisma.locacao.findMany({
+        where: { item: { ownerId: userId }, status: { in: STATUS_QUE_GERAM_SALDO } },
+        include: { item: true, locatario: true, pagamento: true },
+      }),
+      this.prisma.solicitacaoSaque.findMany({ where: { userId } }),
+      this.prisma.locacao.findMany({
+        where: {
+          locatarioId: userId,
+          pagamento: { is: { status: { in: ['PAGO', 'PAGO_ORFAO'] } } },
+        },
+        include: { item: { include: { owner: true } }, pagamento: true },
+      }),
+      this.calcularSaldo(userId),
+    ]);
+
+    const recebimentos: MovimentoExtratoDTO[] = recebidas.map((locacao) => ({
+      id: locacao.id,
+      tipo: 'RECEBIMENTO',
+      data: locacao.pagamento?.pagoEm ?? locacao.updatedAt,
+      descricao: `Aluguel de "${locacao.item.titulo}"`,
+      contraparte: { id: locacao.locatario.id, nome: locacao.locatario.nome },
+      valor: Number(locacao.valorLiquido ?? 0),
+      valorBruto: Number(locacao.valorTotal),
+      taxa: Number(locacao.taxaPlataforma ?? 0),
+      status: 'CONFIRMADO',
+    }));
+
+    const retiradas: MovimentoExtratoDTO[] = saques.map((saque) => ({
+      id: saque.id,
+      tipo: 'SAQUE',
+      data: saque.createdAt,
+      descricao: 'Saque via PIX',
+      contraparte: null,
+      valor: -Number(saque.valor),
+      status: STATUS_SAQUE_NO_EXTRATO[saque.status],
+      motivo: saque.motivoRejeicao,
+      chavePix: mascararChavePix(saque.chavePixUsada),
+      processadoEm: saque.processadoEm,
+    }));
+
+    const movimentos = [...recebimentos, ...retiradas].sort(
+      (a, b) => b.data.getTime() - a.data.getTime(),
+    );
+
+    const pagamentos: PagamentoExtratoDTO[] = pagas
+      .map((locacao) => ({
+        id: locacao.id,
+        data: locacao.pagamento?.pagoEm ?? locacao.updatedAt,
+        descricao: `Aluguel de "${locacao.item.titulo}"`,
+        contraparte: { id: locacao.item.owner.id, nome: locacao.item.owner.nome },
+        valor: Number(locacao.pagamento?.valor ?? locacao.valorTotal),
+        status:
+          locacao.pagamento?.status === 'PAGO_ORFAO'
+            ? ('EM_REEMBOLSO' as const)
+            : ('CONFIRMADO' as const),
+      }))
+      .sort((a, b) => b.data.getTime() - a.data.getTime());
+
+    const somar = (itens: { valor: number }[]) =>
+      arredondarCentavos(itens.reduce((total, item) => total + item.valor, 0));
+
+    return {
+      resumo: {
+        saldoDisponivel,
+        totalRecebido: somar(recebimentos),
+        totalSacado: Math.abs(somar(retiradas.filter((m) => m.status === 'PAGO'))),
+        emAnalise: Math.abs(somar(retiradas.filter((m) => m.status === 'EM_ANALISE'))),
+      },
+      movimentos,
+      pagamentos,
+    };
   }
 
   async listarPorUsuario(userId: string): Promise<SaqueDTO[]> {

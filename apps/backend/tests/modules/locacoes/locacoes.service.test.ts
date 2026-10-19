@@ -1,4 +1,4 @@
-import { LocacoesService } from '@/modules/locacoes/locacoes.service';
+import { LocacoesService, calcularRepasse } from '@/modules/locacoes/locacoes.service';
 import { AppError, ForbiddenError, NotFoundError } from '@/common/errors';
 
 function buildPrismaMock() {
@@ -212,5 +212,19 @@ describe('LocacoesService.listarComoLocatario / listarComoProprietario', () => {
       }),
     );
     expect(result).toHaveLength(1);
+  });
+});
+
+describe('calcularRepasse', () => {
+  it('desconta a taxa de 10% da plataforma e devolve o líquido do dono', () => {
+    expect(calcularRepasse(100)).toEqual({ taxaPlataforma: 10, valorLiquido: 90 });
+  });
+
+  it('arredonda em centavos e taxa + líquido sempre somam o valor bruto', () => {
+    const { taxaPlataforma, valorLiquido } = calcularRepasse(33.33);
+
+    expect(valorLiquido).toBe(30);
+    expect(taxaPlataforma).toBe(3.33);
+    expect(Math.round((taxaPlataforma + valorLiquido) * 100) / 100).toBe(33.33);
   });
 });

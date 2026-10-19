@@ -126,6 +126,10 @@ model Locacao {
   dataInicio  DateTime
   dataFim     DateTime
   valorTotal  Decimal       @db.Decimal(10, 2)
+  /// Preenchidos quando o pagamento é confirmado (M3): a taxa da plataforma e o que o dono recebe,
+  /// gravados pra o histórico e o extrato não mudarem se a taxa mudar um dia.
+  taxaPlataforma Decimal?   @db.Decimal(10, 2)
+  valorLiquido   Decimal?   @db.Decimal(10, 2)
   status      StatusLocacao @default(PENDENTE)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt

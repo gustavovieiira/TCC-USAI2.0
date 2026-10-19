@@ -1,5 +1,5 @@
 import { apiClient } from '@/lib/apiClient';
-import { SaqueDTO, SolicitarSaqueInput, StatusSaque } from './saques.types';
+import { ExtratoDTO, SaqueDTO, SolicitarSaqueInput, StatusSaque } from './saques.types';
 
 export async function solicitarSaque(input: SolicitarSaqueInput): Promise<SaqueDTO> {
   const { data } = await apiClient.post<SaqueDTO>('/saques', input);
@@ -15,6 +15,12 @@ export async function listarMeusSaques(): Promise<SaqueDTO[]> {
 export async function buscarSaldo(): Promise<number> {
   const { data } = await apiClient.get<{ saldo: number }>('/saques/saldo');
   return data.saldo;
+}
+
+/** Extrato do usuário: o que entrou (aluguéis recebidos), o que saiu (saques) e o que ele pagou. */
+export async function buscarExtrato(): Promise<ExtratoDTO> {
+  const { data } = await apiClient.get<ExtratoDTO>('/saques/extrato');
+  return data;
 }
 
 /** Admin USAI. */

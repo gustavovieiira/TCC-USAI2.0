@@ -200,6 +200,7 @@ describe('PagamentosService.confirmarPagamento', () => {
       id: 'pagamento-1',
       locacaoId: LOCACAO_ID,
       asaasChargeId: 'pay_123',
+      valor: 100,
     });
     prisma.locacao.updateMany.mockResolvedValue({ count: 1 });
     prisma.locacao.findUniqueOrThrow.mockResolvedValue({
@@ -222,7 +223,7 @@ describe('PagamentosService.confirmarPagamento', () => {
 
     expect(prisma.locacao.updateMany).toHaveBeenNthCalledWith(1, {
       where: { id: LOCACAO_ID, status: 'APROVADA' },
-      data: { status: 'PAGA' },
+      data: { status: 'PAGA', taxaPlataforma: 10, valorLiquido: 90 },
     });
     expect(prisma.locacao.updateMany).toHaveBeenNthCalledWith(2, {
       where: { id: { in: ['locacao-concorrente'] } },
@@ -250,6 +251,7 @@ describe('PagamentosService.confirmarPagamento', () => {
       id: 'pagamento-1',
       locacaoId: LOCACAO_ID,
       asaasChargeId: 'pay_123',
+      valor: 100,
     });
     prisma.locacao.updateMany.mockResolvedValue({ count: 0 });
 

@@ -11,7 +11,8 @@ jest.mock('@/common/prisma', () => {
       aggregate: jest.fn().mockResolvedValue({ _sum: { valor: null } }),
     },
     locacao: {
-      aggregate: jest.fn().mockResolvedValue({ _sum: { valorTotal: null } }),
+      aggregate: jest.fn().mockResolvedValue({ _sum: { valorLiquido: null } }),
+      findMany: jest.fn().mockResolvedValue([]),
     },
     logAuditoria: { create: jest.fn() },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -58,8 +59,8 @@ const saqueBase = {
 
 describe('POST /api/saques', () => {
   it('solicita o saque e retorna 201 quando cabe no saldo disponível', async () => {
-    // 200 brutos * 90% (taxa da plataforma de 10%) = 180 líquidos, cobre o pedido de 100.
-    (prisma.locacao.aggregate as jest.Mock).mockResolvedValue({ _sum: { valorTotal: 200 } });
+    // Líquido de 180 cobre o pedido de 100.
+    (prisma.locacao.aggregate as jest.Mock).mockResolvedValue({ _sum: { valorLiquido: 180 } });
     (prisma.solicitacaoSaque.create as jest.Mock).mockResolvedValue(saqueBase);
     const app = createApp();
 
@@ -84,7 +85,7 @@ describe('POST /api/saques', () => {
   });
 
   it('rejeita com 400 quando o valor pedido é maior que o saldo disponível', async () => {
-    (prisma.locacao.aggregate as jest.Mock).mockResolvedValue({ _sum: { valorTotal: 50 } });
+    (prisma.locacao.aggregate as jest.Mock).mockResolvedValue({ _sum: { valorLiquido: 50 } });
     const app = createApp();
 
     const response = await request(app)
@@ -99,7 +100,7 @@ describe('POST /api/saques', () => {
 
 describe('GET /api/saques/saldo', () => {
   it('retorna o saldo líquido disponível pro usuário autenticado', async () => {
-    (prisma.locacao.aggregate as jest.Mock).mockResolvedValue({ _sum: { valorTotal: 300 } });
+    (prisma.locacao.aggregate as jest.Mock).mockResolvedValue({ _sum: { valorLiquido: 270 } });
     (prisma.solicitacaoSaque.aggregate as jest.Mock)
       .mockResolvedValueOnce({ _sum: { valor: 100 } })
       .mockResolvedValueOnce({ _sum: { valor: 0 } });
@@ -110,8 +111,30 @@ describe('GET /api/saques/saldo', () => {
       .set('Authorization', `Bearer ${token(USER_ID)}`);
 
     expect(response.status).toBe(200);
-    // 300 brutos * 90% = 270 líquidos; 270 - 100 (aprovado) - 0 (pendente) = 170.
+    // Líquido gravado: 270; 270 - 100 (aprovado) - 0 (em análise) = 170.
     expect(response.body).toEqual({ saldo: 170 });
+  });
+});
+
+describe('GET /api/saques/extrato', () => {
+  it('retorna o extrato do usuário autenticado, escopado pelo token', async () => {
+    (prisma.solicitacaoSaque.findMany as jest.Mock).mockResolvedValue([saqueBase]);
+    const app = createApp();
+
+    const response = await request(app)
+      .get('/api/saques/extrato')
+      .set('Authorization', `Bearer ${token(USER_ID)}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.movimentos).toHaveLength(1);
+    expect(response.body.movimentos[0]).toMatchObject({ tipo: 'SAQUE', status: 'EM_ANALISE' });
+    expect(prisma.solicitacaoSaque.findMany).toHaveBeenCalledWith({ where: { userId: USER_ID } });
+  });
+
+  it('exige autenticação', async () => {
+    const response = await request(createApp()).get('/api/saques/extrato');
+
+    expect(response.status).toBe(401);
   });
 });
 

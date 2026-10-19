@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { AppError, ForbiddenError, NotFoundError } from '@/common/errors';
 import { logger } from '@/common/logger';
+import { calcularRepasse } from '@/modules/locacoes/locacoes.service';
 import { emitirParaUsuario } from '@/realtime/emitter';
 import { AsaasClient } from './asaas.client';
 import { CriarCobrancaResultado } from './pagamentos.types';
@@ -157,9 +158,10 @@ export class PagamentosService {
       const pagamento = await tx.pagamento.findUnique({ where: { asaasChargeId } });
       if (!pagamento) return null;
 
+      const repasse = calcularRepasse(Number(pagamento.valor));
       const flipLocacao = await tx.locacao.updateMany({
         where: { id: pagamento.locacaoId, status: 'APROVADA' },
-        data: { status: 'PAGA' },
+        data: { status: 'PAGA', ...repasse },
       });
 
       if (flipLocacao.count === 0) {

@@ -10,6 +10,7 @@ saquesRouter.use(authGuard);
 saquesRouter.post('/', asyncHandler(saquesController.solicitar));
 saquesRouter.get('/minhas', asyncHandler(saquesController.listarMinhas));
 saquesRouter.get('/saldo', asyncHandler(saquesController.saldo));
+saquesRouter.get('/extrato', asyncHandler(saquesController.extrato));
 
 saquesRouter.get('/', requireRole('ADMIN'), asyncHandler(saquesController.listarTodas));
 saquesRouter.post('/:id/aprovar', requireRole('ADMIN'), asyncHandler(saquesController.aprovar));

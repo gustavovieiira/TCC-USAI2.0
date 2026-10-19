@@ -87,6 +87,52 @@ describe('AdminPage — aba Financeiro', () => {
     expect(saquesApi.rejeitarSaque).toHaveBeenCalledWith('saque-1', 'Chave inválida');
     expect(await screen.findByText('Nenhum saque pendente')).toBeInTheDocument();
   });
+
+  it('mostra o histórico de saques já processados, com motivo da rejeição', async () => {
+    mockApis({
+      saques: [
+        saquePendente,
+        {
+          ...saquePendente,
+          id: 'saque-2',
+          valor: 40,
+          status: 'APROVADO',
+          processadoEm: '2026-09-20T12:00:00.000Z',
+        },
+        {
+          ...saquePendente,
+          id: 'saque-3',
+          valor: 60,
+          status: 'REJEITADO',
+          motivoRejeicao: 'Chave PIX divergente',
+          processadoEm: '2026-09-21T12:00:00.000Z',
+        },
+      ],
+    });
+
+    render(<AdminPage />);
+
+    expect(await screen.findByText('Histórico de saques')).toBeInTheDocument();
+    expect(screen.getByText(/Motivo: Chave PIX divergente/)).toBeInTheDocument();
+    expect(screen.getAllByText(/decidido em/)).toHaveLength(2);
+    // Só o pendente tem botões de decisão.
+    expect(screen.getAllByRole('button', { name: 'Aprovar' })).toHaveLength(1);
+  });
+
+  it('aprovar move o saque da fila de pendentes para o histórico', async () => {
+    mockApis();
+    vi.spyOn(saquesApi, 'aprovarSaque').mockResolvedValue({
+      ...saquePendente,
+      status: 'APROVADO',
+      processadoEm: '2026-09-20T12:00:00.000Z',
+    });
+
+    render(<AdminPage />);
+    await screen.findByText('user@pix.com', { exact: false });
+    await userEvent.click(screen.getByRole('button', { name: 'Aprovar' }));
+
+    expect(await screen.findByText(/decidido em/)).toBeInTheDocument();
+  });
 });
 
 describe('AdminPage — aba Condomínios', () => {

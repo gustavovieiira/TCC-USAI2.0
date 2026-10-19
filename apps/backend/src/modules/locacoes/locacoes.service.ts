@@ -27,6 +27,25 @@ export const STATUS_QUE_GERAM_SALDO: StatusLocacao[] = ['PAGA', 'EM_ANDAMENTO', 
 /** RN — 10% retido pela plataforma; o dono recebe 90% do valor da locação via saque manual (M3). */
 export const TAXA_PLATAFORMA = 0.1;
 
+function arredondarCentavos(valor: number): number {
+  return Math.round(valor * 100) / 100;
+}
+
+/**
+ * Divide o valor pago pelo locatário entre a taxa da plataforma e o que o dono recebe. Arredonda
+ * o líquido a centavos e deixa a taxa como a diferença, então `taxa + líquido` fecha sempre com o
+ * valor pago. O resultado é GRAVADO na locação quando o pagamento confirma (ver
+ * `pagamentos.service.ts#confirmarPagamento`) — assim saldo e extrato somam os mesmos números e
+ * o histórico não muda se `TAXA_PLATAFORMA` mudar um dia.
+ */
+export function calcularRepasse(valorBruto: number): {
+  taxaPlataforma: number;
+  valorLiquido: number;
+} {
+  const valorLiquido = arredondarCentavos(valorBruto * (1 - TAXA_PLATAFORMA));
+  return { taxaPlataforma: arredondarCentavos(valorBruto - valorLiquido), valorLiquido };
+}
+
 type LocacaoComItem = Locacao & { item: Item };
 
 function toLocacaoDTO(locacao: LocacaoComItem): LocacaoDTO {

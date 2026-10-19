@@ -26,6 +26,11 @@ export const saquesController = {
     res.status(200).json({ saldo });
   },
 
+  async extrato(req: Request, res: Response) {
+    const extrato = await saquesService.extrato(req.auth!.userId);
+    res.status(200).json(extrato);
+  },
+
   async listarTodas(req: Request, res: Response) {
     const filtro = listarSaquesQuerySchema.parse(req.query);
     const saques = await saquesService.listarTodas(filtro);

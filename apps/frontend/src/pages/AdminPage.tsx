@@ -24,15 +24,15 @@ type Aba = 'financeiro' | 'condominios' | 'sindicos';
 export function AdminPage() {
   const [aba, setAba] = useState<Aba>('financeiro');
   const [resumo, setResumo] = useState<ResumoFinanceiroDTO | null>(null);
-  const [saquesPendentes, setSaquesPendentes] = useState<SaqueDTO[] | null>(null);
+  const [saques, setSaques] = useState<SaqueDTO[] | null>(null);
   const [condominios, setCondominios] = useState<CondominioAdminDTO[] | null>(null);
   const [erro, setErro] = useState<string | null>(null);
 
   function carregar() {
-    Promise.all([resumoFinanceiro(), listarTodosSaques('PENDENTE'), listarCondominios()])
-      .then(([res, saques, conds]) => {
+    Promise.all([resumoFinanceiro(), listarTodosSaques(), listarCondominios()])
+      .then(([res, todosSaques, conds]) => {
         setResumo(res);
-        setSaquesPendentes(saques);
+        setSaques(todosSaques);
         setCondominios(conds);
       })
       .catch((err) => setErro(extractErrorMessage(err)));
@@ -72,10 +72,12 @@ export function AdminPage() {
       {aba === 'financeiro' && (
         <AbaFinanceiro
           resumo={resumo}
-          saques={saquesPendentes}
+          saques={saques}
           erro={erro}
           onMudou={(atualizado) => {
-            setSaquesPendentes((atual) => atual?.filter((s) => s.id !== atualizado.id) ?? atual);
+            setSaques(
+              (atual) => atual?.map((s) => (s.id === atualizado.id ? atualizado : s)) ?? atual,
+            );
             // Best-effort: a aprovação/rejeição já aconteceu: se o refresh dos cards falhar, os
             // números só ficam desatualizados até a próxima visita — não é um erro pro usuário ver.
             resumoFinanceiro()
@@ -155,6 +157,9 @@ function AbaFinanceiro({ resumo, saques, erro, onMudou, onErro }: AbaFinanceiroP
 
   if (!resumo) return null;
 
+  const pendentes = saques?.filter((s) => s.status === 'PENDENTE') ?? null;
+  const processados = saques?.filter((s) => s.status !== 'PENDENTE') ?? [];
+
   return (
     <div className="flex flex-col gap-5">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -194,11 +199,11 @@ function AbaFinanceiro({ resumo, saques, erro, onMudou, onErro }: AbaFinanceiroP
       <div>
         <h2 className="mb-3 font-display font-semibold text-ink">Saques pendentes de avaliação</h2>
 
-        {saques && saques.length === 0 && <EmptyState title="Nenhum saque pendente" />}
+        {pendentes && pendentes.length === 0 && <EmptyState title="Nenhum saque pendente" />}
 
-        {saques && saques.length > 0 && (
+        {pendentes && pendentes.length > 0 && (
           <div className="flex flex-col gap-3">
-            {saques.map((saque) => (
+            {pendentes.map((saque) => (
               <Card key={saque.id} className="flex flex-col gap-2">
                 <div className="flex items-center justify-between gap-2">
                   <div>
@@ -265,6 +270,39 @@ function AbaFinanceiro({ resumo, saques, erro, onMudou, onErro }: AbaFinanceiroP
                       Rejeitar
                     </Button>
                   </div>
+                )}
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div>
+        <h2 className="mb-3 font-display font-semibold text-ink">Histórico de saques</h2>
+
+        {processados.length === 0 && <EmptyState title="Nenhum saque processado ainda" />}
+
+        {processados.length > 0 && (
+          <div className="flex flex-col gap-3">
+            {processados.map((saque) => (
+              <Card key={saque.id} className="flex flex-col gap-1">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <span className="font-display font-semibold text-ink">
+                      {formatCurrency(saque.valor)}
+                    </span>
+                    {saque.solicitanteNome && (
+                      <p className="text-sm text-ink-soft">{saque.solicitanteNome}</p>
+                    )}
+                  </div>
+                  <SaqueStatusBadge status={saque.status} />
+                </div>
+                <p className="text-sm text-ink-soft">
+                  Chave PIX: {saque.chavePixUsada} · pedido em {formatDateTime(saque.createdAt)}
+                  {saque.processadoEm && ` · decidido em ${formatDateTime(saque.processadoEm)}`}
+                </p>
+                {saque.status === 'REJEITADO' && saque.motivoRejeicao && (
+                  <p className="text-sm text-carmim-700">Motivo: {saque.motivoRejeicao}</p>
                 )}
               </Card>
             ))}

@@ -5,13 +5,14 @@ function buildPrismaMock() {
   const prisma = {
     solicitacaoSaque: {
       create: jest.fn(),
-      findMany: jest.fn(),
+      findMany: jest.fn().mockResolvedValue([]),
       findUnique: jest.fn(),
       update: jest.fn(),
       aggregate: jest.fn().mockResolvedValue({ _sum: { valor: null } }),
     },
     locacao: {
-      aggregate: jest.fn().mockResolvedValue({ _sum: { valorTotal: null } }),
+      aggregate: jest.fn().mockResolvedValue({ _sum: { valorLiquido: null } }),
+      findMany: jest.fn().mockResolvedValue([]),
     },
     logAuditoria: { create: jest.fn() },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -24,8 +25,8 @@ function buildPrismaMock() {
 }
 
 /** Ajuda os testes de `solicitar` a simular quanto a pessoa já recebeu em locações pagas. */
-function comSaldoRecebido(prisma: ReturnType<typeof buildPrismaMock>, valorTotal: number) {
-  prisma.locacao.aggregate.mockResolvedValue({ _sum: { valorTotal } });
+function comSaldoRecebido(prisma: ReturnType<typeof buildPrismaMock>, valorLiquido: number) {
+  prisma.locacao.aggregate.mockResolvedValue({ _sum: { valorLiquido } });
 }
 
 const USER_ID = 'user-1';
@@ -47,7 +48,7 @@ const saquePendente = {
 describe('SaquesService.calcularSaldo', () => {
   it('é a soma das locações pagas (já com a taxa da plataforma descontada) menos o que já foi sacado e o que está pendente', async () => {
     const prisma = buildPrismaMock();
-    comSaldoRecebido(prisma, 500);
+    comSaldoRecebido(prisma, 450);
     prisma.solicitacaoSaque.aggregate
       .mockResolvedValueOnce({ _sum: { valor: 120 } }) // APROVADO
       .mockResolvedValueOnce({ _sum: { valor: 80 } }); // PENDENTE
@@ -55,13 +56,13 @@ describe('SaquesService.calcularSaldo', () => {
     const service = new SaquesService(prisma);
     const saldo = await service.calcularSaldo(USER_ID);
 
-    // 500 brutos * 90% (taxa da plataforma de 10%) = 450 líquidos; 450 - 120 - 80 = 250.
+    // Líquido já gravado nas locações: 450; 450 - 120 (sacado) - 80 (em análise) = 250.
     expect(saldo).toBe(250);
   });
 
-  it('desconta a taxa da plataforma (10%) mesmo sem nenhum saque em aberto', async () => {
+  it('é o líquido gravado nas locações pagas (a taxa já saiu na confirmação) quando não há saque em aberto', async () => {
     const prisma = buildPrismaMock();
-    comSaldoRecebido(prisma, 100);
+    comSaldoRecebido(prisma, 90);
 
     const service = new SaquesService(prisma);
     const saldo = await service.calcularSaldo(USER_ID);
@@ -225,5 +226,121 @@ describe('SaquesService.listarTodas', () => {
       expect.objectContaining({ where: { status: 'PENDENTE' }, include: { user: true } }),
     );
     expect(resultado.solicitanteNome).toBe('Bruno Locatario');
+  });
+});
+
+describe('SaquesService.extrato', () => {
+  const recebida = {
+    id: 'loc-1',
+    valorTotal: 100,
+    valorLiquido: 90,
+    taxaPlataforma: 10,
+    updatedAt: new Date('2026-10-02'),
+    item: { titulo: 'Furadeira' },
+    locatario: { id: 'loc-user', nome: 'Carla Locataria', email: 'carla@x.com' },
+    pagamento: { pagoEm: new Date('2026-10-03') },
+  };
+
+  it('lista o que entrou (já com a taxa), o que saiu e o resumo batendo com o saldo', async () => {
+    const prisma = buildPrismaMock();
+    prisma.locacao.findMany
+      .mockResolvedValueOnce([recebida]) // recebidas
+      .mockResolvedValueOnce([]); // pagas como locatário
+    prisma.solicitacaoSaque.findMany.mockResolvedValue([
+      { ...saquePendente, valor: 30, createdAt: new Date('2026-10-05') },
+      {
+        ...saquePendente,
+        id: 'saque-2',
+        valor: 20,
+        status: 'APROVADO',
+        chavePixUsada: 'chave-pix-longa-1234',
+        createdAt: new Date('2026-10-04'),
+        processadoEm: new Date('2026-10-04'),
+      },
+    ]);
+    comSaldoRecebido(prisma, 90);
+    prisma.solicitacaoSaque.aggregate
+      .mockResolvedValueOnce({ _sum: { valor: 20 } })
+      .mockResolvedValueOnce({ _sum: { valor: 30 } });
+
+    const extrato = await new SaquesService(prisma).extrato(USER_ID);
+
+    expect(extrato.resumo).toEqual({
+      saldoDisponivel: 40,
+      totalRecebido: 90,
+      totalSacado: 20,
+      emAnalise: 30,
+    });
+    // Mais recente primeiro: saque pendente (05), saque pago (04), recebimento (03).
+    expect(extrato.movimentos.map((m) => m.id)).toEqual(['saque-1', 'saque-2', 'loc-1']);
+    expect(extrato.movimentos[0]).toMatchObject({ valor: -30, status: 'EM_ANALISE' });
+    expect(extrato.movimentos[1]).toMatchObject({
+      valor: -20,
+      status: 'PAGO',
+      chavePix: '****1234',
+    });
+    expect(extrato.movimentos[2]).toMatchObject({
+      tipo: 'RECEBIMENTO',
+      valor: 90,
+      valorBruto: 100,
+      taxa: 10,
+      contraparte: { id: 'loc-user', nome: 'Carla Locataria' },
+    });
+  });
+
+  it('nunca expõe e-mail da contraparte nem a chave PIX inteira', async () => {
+    const prisma = buildPrismaMock();
+    prisma.locacao.findMany.mockResolvedValueOnce([recebida]).mockResolvedValueOnce([]);
+    prisma.solicitacaoSaque.findMany.mockResolvedValue([saquePendente]);
+
+    const extrato = await new SaquesService(prisma).extrato(USER_ID);
+    const json = JSON.stringify(extrato);
+
+    expect(json).not.toContain('carla@x.com');
+    expect(json).not.toContain('user@pix.com');
+    // Chave e-mail: primeira letra + domínio, nada do meio.
+    expect(extrato.movimentos.find((m) => m.tipo === 'SAQUE')?.chavePix).toBe('u***@pix.com');
+  });
+
+  it('mostra o que a pessoa pagou como locatário, marcando reembolso pendente quando PAGO_ORFAO', async () => {
+    const prisma = buildPrismaMock();
+    const paga = (id: string, status: string, pagoEm: string) => ({
+      id,
+      valorTotal: 50,
+      updatedAt: new Date(pagoEm),
+      item: { titulo: 'Escada', owner: { id: 'dono-1', nome: 'Davi Dono' } },
+      pagamento: { status, valor: 50, pagoEm: new Date(pagoEm) },
+    });
+    prisma.locacao.findMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        paga('p-1', 'PAGO', '2026-10-01'),
+        paga('p-2', 'PAGO_ORFAO', '2026-10-02'),
+      ]);
+
+    const extrato = await new SaquesService(prisma).extrato(USER_ID);
+
+    expect(extrato.pagamentos.map((p) => [p.id, p.status])).toEqual([
+      ['p-2', 'EM_REEMBOLSO'],
+      ['p-1', 'CONFIRMADO'],
+    ]);
+    expect(extrato.pagamentos[0].contraparte).toEqual({ id: 'dono-1', nome: 'Davi Dono' });
+    // Pagar como locatário não mexe no saldo nem no total recebido.
+    expect(extrato.resumo.totalRecebido).toBe(0);
+  });
+
+  it('saque rejeitado aparece no extrato com o motivo mas não conta em sacado nem em análise', async () => {
+    const prisma = buildPrismaMock();
+    prisma.solicitacaoSaque.findMany.mockResolvedValue([
+      { ...saquePendente, status: 'REJEITADO', motivoRejeicao: 'Chave PIX divergente' },
+    ]);
+
+    const extrato = await new SaquesService(prisma).extrato(USER_ID);
+
+    expect(extrato.movimentos[0]).toMatchObject({
+      status: 'REJEITADO',
+      motivo: 'Chave PIX divergente',
+    });
+    expect(extrato.resumo).toMatchObject({ totalSacado: 0, emAnalise: 0 });
   });
 });
