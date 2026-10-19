@@ -76,12 +76,12 @@ export function createSocketServer(
 
     // Sala pessoal: garante que o destinatário receba o aviso de mensagem nova mesmo antes de
     // entrar na sala específica da conversa (ex.: é a primeira mensagem de uma conversa nova).
-    socket.join(nomeSalaUsuario(userId));
+    void socket.join(nomeSalaUsuario(userId));
 
     socket.on('locacao:entrar', async (locacaoId: string, callback?: EntrarLocacaoAck) => {
       try {
         await mensagensService.verificarParticipante(locacaoId, userId);
-        socket.join(nomeSala(locacaoId));
+        await socket.join(nomeSala(locacaoId));
         callback?.(true);
       } catch {
         callback?.(false);
@@ -109,7 +109,7 @@ export function createSocketServer(
       try {
         if (!condominioId) throw new Error('sem condomínio');
         await conversasService.verificarParticipante(conversaId, condominioId, userId);
-        socket.join(nomeSalaConversa(conversaId));
+        await socket.join(nomeSalaConversa(conversaId));
         callback?.(true);
       } catch {
         callback?.(false);

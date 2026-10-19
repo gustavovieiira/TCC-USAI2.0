@@ -138,7 +138,7 @@ export function PerfilPage() {
       }
     }
 
-    carregar();
+    void carregar();
   }, []);
 
   if (!user) return null;
