@@ -83,6 +83,33 @@ describe('AsaasClient.criarCobrancaPix', () => {
   });
 });
 
+describe('AsaasClient.buscarCobranca', () => {
+  it('consulta o status atual da cobrança por GET', async () => {
+    jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(mockFetchResponse(true, { id: 'pay_123', status: 'RECEIVED' }));
+
+    const client = new AsaasClient();
+    const result = await client.buscarCobranca('pay_123');
+
+    expect(result).toEqual({ id: 'pay_123', status: 'RECEIVED' });
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/payments/pay_123'),
+      expect.objectContaining({ method: 'GET' }),
+    );
+  });
+
+  it('propaga erro do Asaas como AppError 502', async () => {
+    jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(mockFetchResponse(false, { errors: [{ description: 'não encontrada' }] }));
+
+    const client = new AsaasClient();
+
+    await expect(client.buscarCobranca('pay_inexistente')).rejects.toBeInstanceOf(AppError);
+  });
+});
+
 describe('AsaasClient.cancelarCobranca', () => {
   it('não lança mesmo se o Asaas falhar (best-effort)', async () => {
     jest.spyOn(global, 'fetch').mockRejectedValue(new Error('network down'));

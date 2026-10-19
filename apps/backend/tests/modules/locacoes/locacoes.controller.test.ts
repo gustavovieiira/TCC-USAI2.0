@@ -58,6 +58,16 @@ const locacaoBase = {
   item: itemBase,
 };
 
+/**
+ * O schema recusa início no passado, então as datas do pedido precisam ser sempre futuras —
+ * datas fixas no código (ex.: '2026-10-01') passam a falhar no dia em que o calendário as alcança.
+ */
+function periodoFuturo() {
+  const MS_POR_DIA = 24 * 60 * 60 * 1000;
+  const iso = (dias: number) => new Date(Date.now() + dias * MS_POR_DIA).toISOString().slice(0, 10);
+  return { dataInicio: iso(30), dataFim: iso(32) };
+}
+
 describe('POST /api/locacoes', () => {
   it('solicita a locação e retorna 201', async () => {
     (prisma.item.findFirst as jest.Mock).mockResolvedValue(itemBase);
@@ -68,7 +78,7 @@ describe('POST /api/locacoes', () => {
     const response = await request(app)
       .post('/api/locacoes')
       .set('Authorization', `Bearer ${token(LOCATARIO_ID)}`)
-      .send({ itemId: 'item-1', dataInicio: '2026-10-01', dataFim: '2026-10-03' });
+      .send({ itemId: 'item-1', ...periodoFuturo() });
 
     expect(response.status).toBe(201);
     expect(response.body.valorTotal).toBe(40);
@@ -81,9 +91,10 @@ describe('POST /api/locacoes', () => {
     const response = await request(app)
       .post('/api/locacoes')
       .set('Authorization', `Bearer ${token(OWNER_ID)}`)
-      .send({ itemId: 'item-1', dataInicio: '2026-10-01', dataFim: '2026-10-03' });
+      .send({ itemId: 'item-1', ...periodoFuturo() });
 
     expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('SELF_RENTAL');
     expect(prisma.locacao.create).not.toHaveBeenCalled();
   });
 

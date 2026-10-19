@@ -10,6 +10,11 @@ export interface AsaasCobranca {
   status: string;
 }
 
+export interface AsaasStatusCobranca {
+  id: string;
+  status: string;
+}
+
 interface AsaasErroBody {
   errors?: { description?: string }[];
 }
@@ -22,7 +27,7 @@ interface AsaasErroBody {
  */
 export class AsaasClient {
   private baseUrl(): string {
-    return process.env.ASAAS_BASE_URL ?? 'https://sandbox.asaas.com/api/v3';
+    return process.env.ASAAS_BASE_URL ?? 'https://api-sandbox.asaas.com/v3';
   }
 
   private headers(): Record<string, string> {
@@ -78,6 +83,13 @@ export class AsaasClient {
         description: input.descricao,
         externalReference: input.externalReference,
       }),
+    });
+  }
+
+  /** Consulta o status atual da cobrança — base da conferência periódica (rede de segurança do webhook). */
+  async buscarCobranca(chargeId: string): Promise<AsaasStatusCobranca> {
+    return this.requisitar<AsaasStatusCobranca>(`/payments/${encodeURIComponent(chargeId)}`, {
+      method: 'GET',
     });
   }
 

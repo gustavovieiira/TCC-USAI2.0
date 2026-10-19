@@ -7,6 +7,12 @@ import { CriarCobrancaResultado } from './pagamentos.types';
 
 const DIAS_ATE_VENCIMENTO = 2;
 
+/** Status do Asaas que significam "dinheiro recebido": RECEIVED é o do PIX, CONFIRMED o de cartão/boleto. */
+const STATUS_ASAAS_PAGO = ['RECEIVED', 'CONFIRMED'];
+const JANELA_CONFERENCIA_DIAS = 14;
+const LIMITE_CONFERENCIA = 100;
+const MS_POR_DIA = 24 * 60 * 60 * 1000;
+
 /**
  * M3 — cobrança do locatário via Asaas (PIX) e confirmação por webhook. O dono do item recebe o
  * valor via saque manual já existente (`saques.service.ts`), não por split automático do Asaas —
@@ -95,6 +101,43 @@ export class PagamentosService {
     });
 
     return { invoiceUrl: cobranca.invoiceUrl };
+  }
+
+  /**
+   * Rede de segurança do webhook: pergunta ao Asaas o status das cobranças ainda pendentes e
+   * confirma as que já foram pagas, pelo mesmo caminho do webhook (`confirmarPagamento`, que é
+   * idempotente — se os dois chegarem, o segundo não faz nada). Cobre webhook atrasado, fila
+   * pausada (o Asaas pausa após 15 falhas seguidas) e ambiente sem endereço público (dev local).
+   * Uma cobrança que falha na consulta não impede a conferência das demais. Retorna quantas
+   * foram confirmadas nesta rodada.
+   */
+  async conferirPendentes(): Promise<number> {
+    const desde = new Date(Date.now() - JANELA_CONFERENCIA_DIAS * MS_POR_DIA);
+
+    const pendentes = await this.prisma.pagamento.findMany({
+      where: { status: 'PENDENTE', asaasChargeId: { not: null }, createdAt: { gte: desde } },
+      orderBy: { createdAt: 'asc' },
+      take: LIMITE_CONFERENCIA,
+    });
+
+    let confirmados = 0;
+
+    for (const pagamento of pendentes) {
+      const chargeId = pagamento.asaasChargeId;
+      if (!chargeId) continue;
+
+      try {
+        const cobranca = await this.asaas.buscarCobranca(chargeId);
+        if (STATUS_ASAAS_PAGO.includes(cobranca.status)) {
+          await this.confirmarPagamento(chargeId);
+          confirmados += 1;
+        }
+      } catch (error) {
+        logger.error('Falha ao conferir cobrança no Asaas', { chargeId, error });
+      }
+    }
+
+    return confirmados;
   }
 
   /**

@@ -16,6 +16,7 @@ function buildPrismaMock() {
       upsert: jest.fn(),
       updateMany: jest.fn().mockResolvedValue({ count: 0 }),
       findUnique: jest.fn(),
+      findMany: jest.fn().mockResolvedValue([]),
       update: jest.fn(),
     },
     user: {
@@ -32,6 +33,7 @@ function buildAsaasMock(): jest.Mocked<AsaasClient> {
   return {
     criarCliente: jest.fn(),
     criarCobrancaPix: jest.fn(),
+    buscarCobranca: jest.fn(),
     cancelarCobranca: jest.fn().mockResolvedValue(undefined),
   } as unknown as jest.Mocked<AsaasClient>;
 }
@@ -258,5 +260,77 @@ describe('PagamentosService.confirmarPagamento', () => {
       where: { id: 'pagamento-1' },
       data: { status: 'PAGO_ORFAO' },
     });
+  });
+});
+
+describe('PagamentosService.conferirPendentes', () => {
+  it('confirma só as cobranças que o Asaas já marcou como recebidas', async () => {
+    const prisma = buildPrismaMock();
+    const asaas = buildAsaasMock();
+    prisma.pagamento.findMany.mockResolvedValue([
+      { id: 'pg-1', asaasChargeId: 'pay_paga' },
+      { id: 'pg-2', asaasChargeId: 'pay_pendente' },
+    ]);
+    asaas.buscarCobranca
+      .mockResolvedValueOnce({ id: 'pay_paga', status: 'RECEIVED' })
+      .mockResolvedValueOnce({ id: 'pay_pendente', status: 'PENDING' });
+
+    const service = new PagamentosService(prisma, asaas);
+    const confirmar = jest.spyOn(service, 'confirmarPagamento').mockResolvedValue(undefined);
+
+    const confirmados = await service.conferirPendentes();
+
+    expect(confirmados).toBe(1);
+    expect(confirmar).toHaveBeenCalledTimes(1);
+    expect(confirmar).toHaveBeenCalledWith('pay_paga');
+  });
+
+  it('só busca pagamentos pendentes com cobrança criada, dentro da janela de conferência', async () => {
+    const prisma = buildPrismaMock();
+    const asaas = buildAsaasMock();
+
+    const service = new PagamentosService(prisma, asaas);
+    await service.conferirPendentes();
+
+    expect(prisma.pagamento.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: 'PENDENTE',
+          asaasChargeId: { not: null },
+          createdAt: { gte: expect.any(Date) },
+        }),
+      }),
+    );
+  });
+
+  it('uma cobrança que falha na consulta não impede a conferência das demais', async () => {
+    const prisma = buildPrismaMock();
+    const asaas = buildAsaasMock();
+    prisma.pagamento.findMany.mockResolvedValue([
+      { id: 'pg-1', asaasChargeId: 'pay_quebrada' },
+      { id: 'pg-2', asaasChargeId: 'pay_paga' },
+    ]);
+    asaas.buscarCobranca
+      .mockRejectedValueOnce(new Error('Asaas fora do ar'))
+      .mockResolvedValueOnce({ id: 'pay_paga', status: 'RECEIVED' });
+
+    const service = new PagamentosService(prisma, asaas);
+    const confirmar = jest.spyOn(service, 'confirmarPagamento').mockResolvedValue(undefined);
+
+    const confirmados = await service.conferirPendentes();
+
+    expect(confirmados).toBe(1);
+    expect(confirmar).toHaveBeenCalledWith('pay_paga');
+  });
+
+  it('não faz nenhuma consulta ao Asaas quando não há pagamentos pendentes', async () => {
+    const prisma = buildPrismaMock();
+    const asaas = buildAsaasMock();
+
+    const service = new PagamentosService(prisma, asaas);
+    const confirmados = await service.conferirPendentes();
+
+    expect(confirmados).toBe(0);
+    expect(asaas.buscarCobranca).not.toHaveBeenCalled();
   });
 });
