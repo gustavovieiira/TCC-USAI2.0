@@ -22,10 +22,12 @@ enum StatusLocacao {
   CANCELADA
 }
 
+/// PENDENTE → (Admin decide) APROVADO ou REJEITADO; APROVADO → (Admin transfere o PIX) PAGO.
 enum StatusSaque {
   PENDENTE
   APROVADO
   REJEITADO
+  PAGO
 }
 
 enum StatusPost {
@@ -81,6 +83,7 @@ model User {
   conversasComoA        ConversaPrivada[]  @relation("ConversaParticipanteA")
   conversasComoB        ConversaPrivada[]  @relation("ConversaParticipanteB")
   mensagensPrivadas     MensagemPrivada[]
+  notificacoes          Notificacao[]
 
   @@index([condominioId])
   @@map("users")
@@ -183,6 +186,8 @@ model SolicitacaoSaque {
   motivoRejeicao String?
   createdAt      DateTime    @default(now())
   processadoEm   DateTime?
+  /// Quando o Admin confirmou que o PIX foi transferido (status PAGO).
+  pagoEm         DateTime?
 
   user User @relation(fields: [userId], references: [id])
 
@@ -277,4 +282,23 @@ model LogAuditoria {
 
   @@index([adminId])
   @@map("logs_auditoria")
+}
+
+/// Aviso persistido pra um usuário (sino + página de notificações). Criado pelos services quando
+/// algo acontece que a pessoa precisa saber (pedido de locação, pagamento, saque...). `tipo` é uma
+/// das strings de `TipoNotificacao` em `notificacoes.types.ts`; `link` é a rota do front pra abrir.
+model Notificacao {
+  id        String   @id @default(uuid())
+  userId    String
+  tipo      String
+  titulo    String
+  mensagem  String   @db.Text
+  link      String?
+  lida      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, lida, createdAt])
+  @@map("notificacoes")
 }

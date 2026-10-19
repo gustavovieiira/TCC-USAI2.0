@@ -3,6 +3,9 @@ import jwt from 'jsonwebtoken';
 
 jest.mock('@/modules/pagamentos/asaas.client');
 
+// Os avisos persistidos têm testes próprios; aqui só importa o fluxo HTTP.
+jest.mock('@/modules/notificacoes/notificacoes.service');
+
 jest.mock('@/common/prisma', () => ({
   prisma: {
     locacao: {

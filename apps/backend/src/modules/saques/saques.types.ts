@@ -18,12 +18,16 @@ export interface SaqueDTO {
   userId: string;
   /** Nome de quem solicitou — só vem preenchido na listagem do Admin USAI (`listarTodas`). */
   solicitanteNome?: string;
+  /** Condomínio de quem solicitou — idem, só na visão do Admin USAI. */
+  solicitanteCondominio?: string | null;
   valor: number;
   chavePixUsada: string;
   status: StatusSaque;
   motivoRejeicao: string | null;
   createdAt: Date;
   processadoEm: Date | null;
+  /** Quando o Admin confirmou a transferência do PIX (status PAGO). */
+  pagoEm: Date | null;
 }
 
 export interface ContraparteDTO {
@@ -43,11 +47,15 @@ export interface MovimentoExtratoDTO {
   valor: number;
   valorBruto?: number;
   taxa?: number;
-  status: 'CONFIRMADO' | 'EM_ANALISE' | 'PAGO' | 'REJEITADO';
+  /** Período do aluguel (só no recebimento). */
+  periodo?: { inicio: Date; fim: Date };
+  /** APROVADO = Admin aprovou, o PIX ainda não foi transferido. */
+  status: 'CONFIRMADO' | 'EM_ANALISE' | 'APROVADO' | 'PAGO' | 'REJEITADO';
   motivo?: string | null;
   /** Chave PIX mascarada — só os 4 últimos caracteres. */
   chavePix?: string;
   processadoEm?: Date | null;
+  pagoEm?: Date | null;
 }
 
 /** Um aluguel que o usuário PAGOU como locatário — não mexe no saldo, é o que saiu do bolso dele. */
@@ -58,6 +66,7 @@ export interface PagamentoExtratoDTO {
   /** O dono do item, quem recebeu. */
   contraparte: ContraparteDTO | null;
   valor: number;
+  periodo: { inicio: Date; fim: Date };
   status: 'CONFIRMADO' | 'EM_REEMBOLSO';
 }
 
@@ -65,7 +74,10 @@ export interface ExtratoDTO {
   resumo: {
     saldoDisponivel: number;
     totalRecebido: number;
+    /** Saques já transferidos (PAGO). */
     totalSacado: number;
+    /** Saques aprovados cujo PIX ainda não foi transferido. */
+    aPagar: number;
     emAnalise: number;
   };
   movimentos: MovimentoExtratoDTO[];

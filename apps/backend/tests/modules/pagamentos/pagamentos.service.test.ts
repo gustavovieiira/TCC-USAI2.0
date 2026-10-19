@@ -336,3 +336,105 @@ describe('PagamentosService.conferirPendentes', () => {
     expect(asaas.buscarCobranca).not.toHaveBeenCalled();
   });
 });
+
+describe('PagamentosService.confirmarPagamento — notificações', () => {
+  function comNotificacoes() {
+    const notificacoes = {
+      notificar: jest.fn().mockResolvedValue(undefined),
+      notificarAdmins: jest.fn().mockResolvedValue(undefined),
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return notificacoes as any;
+  }
+
+  function prepararConfirmacao(prisma: ReturnType<typeof buildPrismaMock>) {
+    prisma.pagamento.updateMany.mockResolvedValue({ count: 1 });
+    prisma.pagamento.findUnique.mockResolvedValue({
+      id: 'pagamento-1',
+      locacaoId: LOCACAO_ID,
+      asaasChargeId: 'pay_123',
+      valor: 100,
+    });
+    prisma.locacao.updateMany.mockResolvedValue({ count: 1 });
+    prisma.locacao.findUniqueOrThrow.mockResolvedValue({
+      id: LOCACAO_ID,
+      itemId: ITEM_ID,
+      locatarioId: LOCATARIO_ID,
+      dataInicio: new Date('2026-10-01'),
+      dataFim: new Date('2026-10-03'),
+      item: { id: ITEM_ID, titulo: 'Furadeira Bosch', ownerId: OWNER_ID },
+      locatario: { nome: 'Bruno Locatario' },
+    });
+  }
+
+  it('avisa o locatário, o dono (com o líquido e a taxa) e cada concorrente cancelado', async () => {
+    const prisma = buildPrismaMock();
+    prepararConfirmacao(prisma);
+    prisma.locacao.findMany.mockResolvedValue([
+      { id: 'locacao-concorrente', locatarioId: 'outro-locatario', pagamento: null },
+    ]);
+    const notificacoes = comNotificacoes();
+
+    await new PagamentosService(prisma, buildAsaasMock(), notificacoes).confirmarPagamento(
+      'pay_123',
+    );
+
+    expect(notificacoes.notificar).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: LOCATARIO_ID, tipo: 'PAGAMENTO_CONFIRMADO' }),
+    );
+    const recebido = notificacoes.notificar.mock.calls
+      .map((c: unknown[]) => c[0])
+      .find((n: { tipo: string }) => n.tipo === 'PAGAMENTO_RECEBIDO');
+    expect(recebido.userId).toBe(OWNER_ID);
+    expect(recebido.mensagem).toContain('Bruno Locatario pagou "Furadeira Bosch"');
+    expect(recebido.mensagem).toContain('R$ 90,00');
+    expect(recebido.mensagem).toContain('R$ 10,00');
+    expect(notificacoes.notificar).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'outro-locatario', tipo: 'LOCACAO_CANCELADA' }),
+    );
+  });
+
+  it('reentrega do webhook (já confirmado) não notifica de novo', async () => {
+    const prisma = buildPrismaMock();
+    prisma.pagamento.updateMany.mockResolvedValue({ count: 0 });
+    const notificacoes = comNotificacoes();
+
+    await new PagamentosService(prisma, buildAsaasMock(), notificacoes).confirmarPagamento(
+      'pay_123',
+    );
+
+    expect(notificacoes.notificar).not.toHaveBeenCalled();
+  });
+
+  it('pagamento órfão avisa o locatário do reembolso e os admins do reembolso manual', async () => {
+    const prisma = buildPrismaMock();
+    prisma.pagamento.updateMany.mockResolvedValue({ count: 1 });
+    prisma.pagamento.findUnique.mockResolvedValue({
+      id: 'pagamento-1',
+      locacaoId: LOCACAO_ID,
+      asaasChargeId: 'pay_123',
+      valor: 100,
+    });
+    prisma.locacao.updateMany.mockResolvedValue({ count: 0 });
+    prisma.locacao.findUnique.mockResolvedValue({
+      id: LOCACAO_ID,
+      locatarioId: LOCATARIO_ID,
+      item: { titulo: 'Furadeira Bosch', ownerId: OWNER_ID },
+    });
+    const notificacoes = comNotificacoes();
+
+    await new PagamentosService(prisma, buildAsaasMock(), notificacoes).confirmarPagamento(
+      'pay_123',
+    );
+
+    expect(notificacoes.notificar).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: LOCATARIO_ID, tipo: 'PAGAMENTO_REEMBOLSO' }),
+    );
+    expect(notificacoes.notificarAdmins).toHaveBeenCalledWith(
+      expect.objectContaining({ tipo: 'PAGAMENTO_REEMBOLSO', link: '/admin' }),
+    );
+    expect(notificacoes.notificar).not.toHaveBeenCalledWith(
+      expect.objectContaining({ tipo: 'PAGAMENTO_RECEBIDO' }),
+    );
+  });
+});

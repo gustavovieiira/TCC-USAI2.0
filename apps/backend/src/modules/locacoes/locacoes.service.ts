@@ -1,5 +1,7 @@
 import { Item, Locacao, PrismaClient, StatusLocacao } from '@prisma/client';
 import { AppError, ForbiddenError, NotFoundError } from '@/common/errors';
+import { formatarReais } from '@/modules/notificacoes/notificacoes.format';
+import { NotificacoesService } from '@/modules/notificacoes/notificacoes.service';
 import { CriarLocacaoInput, LocacaoDTO } from './locacoes.types';
 
 const MS_POR_DIA = 1000 * 60 * 60 * 24;
@@ -67,12 +69,22 @@ function toLocacaoDTO(locacao: LocacaoComItem): LocacaoDTO {
   };
 }
 
+const formatadorData = new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC' });
+
+/** dataInicio/dataFim são dias de calendário (meia-noite UTC), então formatam em UTC. */
+function descreverPeriodo(dataInicio: Date, dataFim: Date): string {
+  return `${formatadorData.format(dataInicio)} a ${formatadorData.format(dataFim)}`;
+}
+
 function calcularDias(dataInicio: Date, dataFim: Date): number {
   return Math.max(1, Math.ceil((dataFim.getTime() - dataInicio.getTime()) / MS_POR_DIA));
 }
 
 export class LocacoesService {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly notificacoes?: NotificacoesService,
+  ) {}
 
   /**
    * RF10/RF11 — solicita a locação de um item por um período, calculando o valor automaticamente.
@@ -120,7 +132,15 @@ export class LocacoesService {
         valorTotal,
         status: 'PENDENTE',
       },
-      include: { item: true },
+      include: { item: true, locatario: true },
+    });
+
+    await this.notificacoes?.notificar({
+      userId: item.ownerId,
+      tipo: 'LOCACAO_SOLICITADA',
+      titulo: 'Novo pedido de locação',
+      mensagem: `${locacao.locatario.nome} quer alugar "${item.titulo}" de ${descreverPeriodo(input.dataInicio, input.dataFim)} (${formatarReais(valorTotal)}).`,
+      link: '/locacoes',
     });
 
     return toLocacaoDTO(locacao);
@@ -144,6 +164,14 @@ export class LocacoesService {
       include: { item: true },
     });
 
+    await this.notificacoes?.notificar({
+      userId: atualizada.locatarioId,
+      tipo: 'LOCACAO_APROVADA',
+      titulo: 'Seu pedido foi aprovado',
+      mensagem: `O dono aprovou "${atualizada.item.titulo}". Pague o PIX para garantir o período — quem pagar primeiro fica com o item.`,
+      link: '/locacoes',
+    });
+
     return toLocacaoDTO(atualizada);
   }
 
@@ -163,6 +191,14 @@ export class LocacoesService {
       where: { id: locacaoId },
       data: { status: 'CANCELADA' },
       include: { item: true },
+    });
+
+    await this.notificacoes?.notificar({
+      userId: atualizada.locatarioId,
+      tipo: 'LOCACAO_REJEITADA',
+      titulo: 'Seu pedido foi recusado',
+      mensagem: `O dono recusou o pedido de locação de "${atualizada.item.titulo}".`,
+      link: '/locacoes',
     });
 
     return toLocacaoDTO(atualizada);

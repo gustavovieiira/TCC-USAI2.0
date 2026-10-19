@@ -36,6 +36,12 @@ export async function aprovarSaque(id: string): Promise<SaqueDTO> {
   return data;
 }
 
+/** Admin confirma que o PIX do saque aprovado foi transferido (APROVADO → PAGO). */
+export async function pagarSaque(id: string): Promise<SaqueDTO> {
+  const { data } = await apiClient.post<SaqueDTO>(`/saques/${id}/pagar`);
+  return data;
+}
+
 export async function rejeitarSaque(id: string, motivoRejeicao: string): Promise<SaqueDTO> {
   const { data } = await apiClient.post<SaqueDTO>(`/saques/${id}/rejeitar`, { motivoRejeicao });
   return data;

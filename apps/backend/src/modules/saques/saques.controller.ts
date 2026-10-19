@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '@/common/prisma';
+import { NotificacoesService } from '@/modules/notificacoes/notificacoes.service';
 import { SaquesService } from './saques.service';
 import {
   listarSaquesQuerySchema,
@@ -7,7 +8,7 @@ import {
   solicitarSaqueSchema,
 } from './saques.schemas';
 
-const saquesService = new SaquesService(prisma);
+const saquesService = new SaquesService(prisma, new NotificacoesService(prisma));
 
 export const saquesController = {
   async solicitar(req: Request, res: Response) {
@@ -39,6 +40,11 @@ export const saquesController = {
 
   async aprovar(req: Request, res: Response) {
     const saque = await saquesService.aprovar(req.params.id, req.auth!.userId);
+    res.status(200).json(saque);
+  },
+
+  async pagar(req: Request, res: Response) {
+    const saque = await saquesService.marcarComoPago(req.params.id, req.auth!.userId);
     res.status(200).json(saque);
   },
 

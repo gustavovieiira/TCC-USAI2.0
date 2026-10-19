@@ -1,12 +1,15 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { CardClicavel } from '@/components/ui/CardClicavel';
+import { Detalhe, DetalheModal } from '@/components/ui/DetalheModal';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { TextField } from '@/components/ui/TextField';
 import { Spinner } from '@/components/ui/Spinner';
 import { extractErrorMessage } from '@/lib/apiClient';
 import { formatCurrency, formatDateTime } from '@/lib/format';
 import { buscarExtrato, solicitarSaque } from '@/features/saques/saques.api';
+import { detalheMovimento, detalhePagamento } from '@/features/saques/detalhes';
 import {
   ExtratoDTO,
   MovimentoExtratoDTO,
@@ -88,7 +91,7 @@ function Resumo({ extrato }: { extrato: ExtratoDTO | null }) {
           {mostrar(resumo?.saldoDisponivel)}
         </p>
       </Card>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Card>
           <p className="font-meta text-xs text-ink-faint">Já recebi</p>
           <p className="mt-1 font-display text-lg font-bold text-ink">
@@ -99,6 +102,12 @@ function Resumo({ extrato }: { extrato: ExtratoDTO | null }) {
           <p className="font-meta text-xs text-ink-faint">Já saquei</p>
           <p className="mt-1 font-display text-lg font-bold text-ink">
             {mostrar(resumo?.totalSacado)}
+          </p>
+        </Card>
+        <Card>
+          <p className="font-meta text-xs text-ink-faint">Aprovado, a caminho</p>
+          <p className="mt-1 font-display text-lg font-bold text-barro-700">
+            {mostrar(resumo?.aPagar)}
           </p>
         </Card>
         <Card>
@@ -113,6 +122,8 @@ function Resumo({ extrato }: { extrato: ExtratoDTO | null }) {
 }
 
 function AbaExtrato({ extrato, semErro }: { extrato: ExtratoDTO | null; semErro: boolean }) {
+  const [detalhe, setDetalhe] = useState<Detalhe | null>(null);
+
   if (!extrato) {
     return semErro ? (
       <div className="flex justify-center py-12">
@@ -123,6 +134,7 @@ function AbaExtrato({ extrato, semErro }: { extrato: ExtratoDTO | null; semErro:
 
   return (
     <div className="flex flex-col gap-8">
+      {detalhe && <DetalheModal detalhe={detalhe} onFechar={() => setDetalhe(null)} />}
       <section>
         <h2 className="mb-1 font-display font-semibold text-ink">Movimentações do seu saldo</h2>
         <p className="mb-3 text-sm text-ink-soft">
@@ -136,9 +148,13 @@ function AbaExtrato({ extrato, semErro }: { extrato: ExtratoDTO | null; semErro:
             description="Quando alguém pagar um aluguel de um item seu, o valor aparece aqui."
           />
         ) : (
-          <div className="flex flex-col gap-3">
+          <div className="flex max-h-[32rem] flex-col gap-3 overflow-y-auto pr-1">
             {extrato.movimentos.map((movimento) => (
-              <LinhaMovimento key={`${movimento.tipo}-${movimento.id}`} movimento={movimento} />
+              <LinhaMovimento
+                key={`${movimento.tipo}-${movimento.id}`}
+                movimento={movimento}
+                onAbrir={() => setDetalhe(detalheMovimento(movimento))}
+              />
             ))}
           </div>
         )}
@@ -150,9 +166,13 @@ function AbaExtrato({ extrato, semErro }: { extrato: ExtratoDTO | null; semErro:
           <p className="mb-3 text-sm text-ink-soft">
             Aluguéis que você pagou como locatário. Isso não altera o seu saldo para saque.
           </p>
-          <div className="flex flex-col gap-3">
+          <div className="flex max-h-[24rem] flex-col gap-3 overflow-y-auto pr-1">
             {extrato.pagamentos.map((pagamento) => (
-              <LinhaPagamento key={pagamento.id} pagamento={pagamento} />
+              <LinhaPagamento
+                key={pagamento.id}
+                pagamento={pagamento}
+                onAbrir={() => setDetalhe(detalhePagamento(pagamento))}
+              />
             ))}
           </div>
         </section>
@@ -163,6 +183,7 @@ function AbaExtrato({ extrato, semErro }: { extrato: ExtratoDTO | null; semErro:
 
 const ROTULO_STATUS_SAQUE = {
   EM_ANALISE: { texto: 'Em análise', classe: 'bg-mostarda-100 text-mostarda-700' },
+  APROVADO: { texto: 'Aprovado — PIX a caminho', classe: 'bg-barro-100 text-barro-700' },
   PAGO: { texto: 'Pago na sua chave PIX', classe: 'bg-jade-100 text-jade-700' },
   REJEITADO: { texto: 'Rejeitado', classe: 'bg-carmim-100 text-carmim-700' },
 } as const;
@@ -175,7 +196,13 @@ function Selo({ classe, children }: { classe: string; children: string }) {
   );
 }
 
-function LinhaMovimento({ movimento }: { movimento: MovimentoExtratoDTO }) {
+function LinhaMovimento({
+  movimento,
+  onAbrir,
+}: {
+  movimento: MovimentoExtratoDTO;
+  onAbrir: () => void;
+}) {
   const entrada = movimento.tipo === 'RECEBIMENTO';
   const rejeitado = movimento.status === 'REJEITADO';
   const selo =
@@ -184,7 +211,7 @@ function LinhaMovimento({ movimento }: { movimento: MovimentoExtratoDTO }) {
       : null;
 
   return (
-    <Card className="flex flex-col gap-1">
+    <CardClicavel onAbrir={onAbrir} className="flex flex-col gap-1">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="font-display font-semibold text-ink">{movimento.descricao}</p>
@@ -227,16 +254,22 @@ function LinhaMovimento({ movimento }: { movimento: MovimentoExtratoDTO }) {
       {rejeitado && (
         <p className="text-sm text-ink-soft">O valor voltou para o seu saldo disponível.</p>
       )}
-      {movimento.status === 'PAGO' && movimento.processadoEm && (
-        <p className="text-sm text-ink-soft">Pago em {formatDateTime(movimento.processadoEm)}</p>
+      {movimento.status === 'PAGO' && movimento.pagoEm && (
+        <p className="text-sm text-ink-soft">PIX enviado em {formatDateTime(movimento.pagoEm)}</p>
       )}
-    </Card>
+    </CardClicavel>
   );
 }
 
-function LinhaPagamento({ pagamento }: { pagamento: PagamentoExtratoDTO }) {
+function LinhaPagamento({
+  pagamento,
+  onAbrir,
+}: {
+  pagamento: PagamentoExtratoDTO;
+  onAbrir: () => void;
+}) {
   return (
-    <Card className="flex flex-col gap-1">
+    <CardClicavel onAbrir={onAbrir} className="flex flex-col gap-1">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="font-display font-semibold text-ink">{pagamento.descricao}</p>
@@ -261,7 +294,7 @@ function LinhaPagamento({ pagamento }: { pagamento: PagamentoExtratoDTO }) {
           Outra pessoa pagou esse período antes de você. A equipe USAI vai devolver o seu valor.
         </p>
       )}
-    </Card>
+    </CardClicavel>
   );
 }
 

@@ -6,6 +6,65 @@
 
 ---
 
+## 2026-10-19 — Saque em duas etapas (aprovar → marcar como pago), detalhes e recibo
+
+**O que foi feito** (feedback do uso do painel do Admin):
+
+- **Novo estado `PAGO` no saque** (migration `saque_pago`, com `pagoEm`): `PENDENTE → APROVADO |
+  REJEITADO`, e `APROVADO → PAGO` quando o Admin confirma que transferiu o PIX
+  (`SaquesService#marcarComoPago`, `POST /api/saques/:id/pagar`, só Admin, auditado como
+  `PAGAR_SAQUE`). Antes "aprovado" e "pago" eram a mesma coisa, então o usuário não sabia se o
+  dinheiro já tinha saído. O valor continua saindo do saldo **na aprovação** (APROVADO e PAGO
+  contam como sacado) — assim ninguém saca duas vezes enquanto o PIX não foi feito. A migration
+  converte os APROVADO antigos em PAGO (eram "aprovado e pago por fora").
+- **O usuário vê a atualização:** o extrato ganhou o estado "Aprovado — PIX a caminho", o card
+  "Aprovado, a caminho" e, quando pago, "PIX enviado em …"; ao marcar como pago ele recebe a
+  notificação `SAQUE_PAGO` (com a chave mascarada).
+- **Painel do Admin** em três blocos: pendentes (Aprovar/Rejeitar) → "Aprovados — aguardando o PIX"
+  (botão **Marcar como pago**) → histórico (pagos e rejeitados). O resumo ganhou "A pagar" e "Saques
+  pagos".
+- **Bug do nome sumindo:** depois de aprovar/rejeitar, o card perdia o nome de quem pediu (a
+  resposta da ação não trazia o solicitante e o front trocava o item). Agora toda ação do Admin
+  devolve nome e condomínio.
+- **Listas com rolagem** (altura máxima): histórico do Admin, extrato do usuário, "o que você
+  pagou" e notificações — a página não cresce mais conforme o histórico aumenta.
+- **Cards clicáveis → detalhes e recibo:** clicar num card (ou no botão "Ver detalhes e recibo",
+  que existe pro teclado) abre uma janela com todos os dados — solicitante, condomínio, chave PIX
+  (completa pro Admin, mascarada pro usuário), valores, período do aluguel, datas de cada etapa,
+  motivo da rejeição e protocolo. "Gerar recibo" usa a impressão do navegador com CSS de impressão
+  (só o bloco do recibo sai; dá pra salvar em PDF), sem biblioteca extra. Só operações concluídas
+  (saque pago, aluguel recebido, aluguel pago) viram "recibo"; as demais oferecem "Imprimir
+  detalhes". Disponível no Admin e no extrato do usuário.
+
+---
+
+## 2026-10-19 — Notificações persistidas (sino + página)
+
+**O que foi feito** (pedido dos testes de usabilidade: "para cada ação uma notificação"):
+
+- **Modelo `Notificacao`** (migration `notificacoes`): usuário, tipo, título, mensagem, link pra tela
+  do assunto, lida/não lida. Módulo novo `modules/notificacoes` com `NotificacoesService`
+  (`notificar`, `notificarAdmins`, `listar`, `marcarComoLida`, `marcarTodasComoLidas`,
+  `removerAntigas`) e rotas `GET /api/notificacoes`, `POST /:id/lida`, `POST /ler-todas` — tudo
+  escopado pelo `userId` do token (notificação alheia responde 404, sem vazar que existe).
+- **Quem avisa quem:** pedido de locação → dono; aprovada/recusada → locatário; pagamento confirmado
+  → locatário **e** dono (com líquido e taxa); concorrente cancelado por outro pagamento →
+  locatário; pagamento órfão → locatário (reembolso) + Admins (reembolso manual); saque pedido →
+  Admins; saque aprovado/rejeitado (com motivo) → quem pediu; resposta no seu post do Mural → autor.
+- **Tempo real:** ao gravar, o service emite `notificacao:nova` na sala pessoal do usuário (mesma
+  infra de `locacao:atualizada`). No front, `useNotificacoes` (provido pelo `AppShell` via contexto)
+  alimenta o **sino** com contador no header (vale pra morador, síndico e Admin), um **toast** e a
+  página `/notificacoes`; a tela de Locações recarrega sozinha quando chega aviso de locação/pagamento.
+- **Decisão de robustez:** `notificar` nunca lança — falha vira log. Notificação é consequência de
+  uma ação que já deu certo (um pagamento confirmado não pode "desfazer" porque o aviso falhou).
+  Os services recebem o `NotificacoesService` como dependência opcional, então os testes antigos
+  continuam rodando sem ele e os novos verificam cada aviso (quem, tipo, texto).
+- **Retenção:** varredura de hora em hora apaga notificações com mais de 30 dias (`server.ts`).
+
+**Onde mexer a seguir:** unificar o chat da locação na página de Conversas (combinado, não iniciado).
+
+---
+
 ## 2026-10-19 — Pós-M3: conferência periódica, taxa gravada por locação e extrato de saques
 
 **O que foi feito** (depois de testar o fluxo de pagamento de verdade no sandbox do Asaas):

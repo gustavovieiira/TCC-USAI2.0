@@ -97,7 +97,7 @@ export class AdminService {
 
   /** Financeiro global: totais de solicitações de saque por status + condomínios ativos. */
   async resumoFinanceiro(): Promise<ResumoFinanceiroDTO> {
-    const [pendente, aprovado, rejeitado, condominiosAtivos] = await Promise.all([
+    const [pendente, aprovado, pago, rejeitado, condominiosAtivos] = await Promise.all([
       this.prisma.solicitacaoSaque.aggregate({
         where: { status: 'PENDENTE' },
         _count: true,
@@ -105,6 +105,11 @@ export class AdminService {
       }),
       this.prisma.solicitacaoSaque.aggregate({
         where: { status: 'APROVADO' },
+        _count: true,
+        _sum: { valor: true },
+      }),
+      this.prisma.solicitacaoSaque.aggregate({
+        where: { status: 'PAGO' },
         _count: true,
         _sum: { valor: true },
       }),
@@ -120,6 +125,7 @@ export class AdminService {
       saques: {
         pendente: { quantidade: pendente._count, valorTotal: Number(pendente._sum.valor ?? 0) },
         aprovado: { quantidade: aprovado._count, valorTotal: Number(aprovado._sum.valor ?? 0) },
+        pago: { quantidade: pago._count, valorTotal: Number(pago._sum.valor ?? 0) },
         rejeitado: { quantidade: rejeitado._count, valorTotal: Number(rejeitado._sum.valor ?? 0) },
       },
       condominiosAtivos,

@@ -41,7 +41,9 @@ export interface ResumoSaquesDTO {
 export interface ResumoFinanceiroDTO {
   saques: {
     pendente: ResumoSaquesDTO;
+    /** Aprovados cujo PIX ainda não foi transferido. */
     aprovado: ResumoSaquesDTO;
+    pago: ResumoSaquesDTO;
     rejeitado: ResumoSaquesDTO;
   };
   condominiosAtivos: number;

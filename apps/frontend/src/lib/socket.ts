@@ -2,6 +2,7 @@ import { io, Socket } from 'socket.io-client';
 import { getAccessToken } from './authStorage';
 import { MensagemDTO } from '@/features/mensagens/mensagens.types';
 import { MensagemPrivadaDTO } from '@/features/conversas/conversas.types';
+import { NotificacaoDTO } from '@/features/notificacoes/notificacoes.types';
 
 interface ServerToClientEvents {
   'mensagem:nova': (mensagem: MensagemDTO) => void;
@@ -26,6 +27,8 @@ interface ConversaServerToClientEvents {
   'conversa:mensagem:nova': (mensagem: MensagemPrivadaDTO) => void;
   /** M3 — pagamento confirmado (ou perdeu a corrida pra outra locação concorrente do mesmo item). */
   'locacao:atualizada': (evento: LocacaoAtualizadaEvento) => void;
+  /** Aviso persistido novo (pedido de locação, pagamento, saque...) — ver módulo notificacoes. */
+  'notificacao:nova': (notificacao: NotificacaoDTO) => void;
 }
 
 interface ConversaClientToServerEvents {

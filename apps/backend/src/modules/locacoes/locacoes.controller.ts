@@ -1,10 +1,11 @@
 import { Request, Response } from 'express';
 import { prisma } from '@/common/prisma';
+import { NotificacoesService } from '@/modules/notificacoes/notificacoes.service';
 import { ForbiddenError } from '@/common/errors';
 import { LocacoesService } from './locacoes.service';
 import { criarLocacaoSchema } from './locacoes.schemas';
 
-const locacoesService = new LocacoesService(prisma);
+const locacoesService = new LocacoesService(prisma, new NotificacoesService(prisma));
 
 function condominioDoUsuario(req: Request): string {
   if (!req.auth?.condominioId) {

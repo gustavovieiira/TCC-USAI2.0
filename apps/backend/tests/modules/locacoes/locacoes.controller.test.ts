@@ -1,6 +1,9 @@
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
 
+// Os avisos persistidos têm testes próprios; aqui só importa o fluxo HTTP.
+jest.mock('@/modules/notificacoes/notificacoes.service');
+
 jest.mock('@/common/prisma', () => ({
   prisma: {
     item: { findFirst: jest.fn() },
@@ -72,7 +75,10 @@ describe('POST /api/locacoes', () => {
   it('solicita a locação e retorna 201', async () => {
     (prisma.item.findFirst as jest.Mock).mockResolvedValue(itemBase);
     (prisma.locacao.findFirst as jest.Mock).mockResolvedValue(null);
-    (prisma.locacao.create as jest.Mock).mockResolvedValue(locacaoBase);
+    (prisma.locacao.create as jest.Mock).mockResolvedValue({
+      ...locacaoBase,
+      locatario: { nome: 'Bruno Locatario' },
+    });
     const app = createApp();
 
     const response = await request(app)

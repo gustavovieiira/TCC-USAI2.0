@@ -11,6 +11,7 @@ const resumo: ResumoFinanceiroDTO = {
   saques: {
     pendente: { quantidade: 1, valorTotal: 100 },
     aprovado: { quantidade: 2, valorTotal: 300 },
+    pago: { quantidade: 4, valorTotal: 500 },
     rejeitado: { quantidade: 0, valorTotal: 0 },
   },
   condominiosAtivos: 2,
@@ -26,6 +27,7 @@ const saquePendente: SaqueDTO = {
   motivoRejeicao: null,
   createdAt: '2026-09-15T12:00:00.000Z',
   processadoEm: null,
+  pagoEm: null,
 };
 
 const condominioBase: CondominioAdminDTO = {
@@ -54,11 +56,16 @@ describe('AdminPage — aba Financeiro', () => {
     expect(await screen.findByText('user@pix.com', { exact: false })).toBeInTheDocument();
     expect(screen.getByText('Bruno Locatario')).toBeInTheDocument();
     expect(screen.getByText('Condomínios ativos').nextSibling).toHaveTextContent('2');
+    expect(screen.getByText('Saques pagos').nextSibling).toHaveTextContent('4');
   });
 
-  it('aprova um saque pendente e remove ele da lista', async () => {
+  it('aprovar tira o saque dos pendentes e leva pra "aguardando o PIX" (ainda não é pago)', async () => {
     mockApis();
-    vi.spyOn(saquesApi, 'aprovarSaque').mockResolvedValue({ ...saquePendente, status: 'APROVADO' });
+    vi.spyOn(saquesApi, 'aprovarSaque').mockResolvedValue({
+      ...saquePendente,
+      status: 'APROVADO',
+      processadoEm: '2026-09-20T12:00:00.000Z',
+    });
 
     render(<AdminPage />);
     await screen.findByText('user@pix.com', { exact: false });
@@ -67,6 +74,45 @@ describe('AdminPage — aba Financeiro', () => {
 
     expect(saquesApi.aprovarSaque).toHaveBeenCalledWith('saque-1');
     expect(await screen.findByText('Nenhum saque pendente')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Marcar como pago' })).toBeInTheDocument();
+    // o nome de quem pediu continua aparecendo depois da ação
+    expect(screen.getByText('Bruno Locatario')).toBeInTheDocument();
+  });
+
+  it('marcar como pago move o saque aprovado para o histórico, com o nome e a data do PIX', async () => {
+    mockApis({
+      saques: [{ ...saquePendente, status: 'APROVADO', processadoEm: '2026-09-20T12:00:00.000Z' }],
+    });
+    vi.spyOn(saquesApi, 'pagarSaque').mockResolvedValue({
+      ...saquePendente,
+      status: 'PAGO',
+      processadoEm: '2026-09-20T12:00:00.000Z',
+      pagoEm: '2026-09-21T12:00:00.000Z',
+    });
+
+    render(<AdminPage />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Marcar como pago' }));
+
+    expect(saquesApi.pagarSaque).toHaveBeenCalledWith('saque-1');
+    expect(await screen.findByText('Nenhum PIX a transferir')).toBeInTheDocument();
+    expect(screen.getByText(/PIX enviado em/)).toBeInTheDocument();
+    expect(screen.getByText('Bruno Locatario')).toBeInTheDocument();
+  });
+
+  it('mostra erro quando marcar como pago falha e mantém o saque na fila', async () => {
+    mockApis({ saques: [{ ...saquePendente, status: 'APROVADO' }] });
+    vi.spyOn(saquesApi, 'pagarSaque').mockRejectedValue({
+      isAxiosError: true,
+      response: {
+        data: { error: { message: 'Só é possível marcar como pago um saque aprovado' } },
+      },
+    });
+
+    render(<AdminPage />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Marcar como pago' }));
+
+    expect(await screen.findByText(/Só é possível marcar como pago/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Marcar como pago' })).toBeInTheDocument();
   });
 
   it('rejeita um saque pendente informando o motivo', async () => {
@@ -86,9 +132,10 @@ describe('AdminPage — aba Financeiro', () => {
 
     expect(saquesApi.rejeitarSaque).toHaveBeenCalledWith('saque-1', 'Chave inválida');
     expect(await screen.findByText('Nenhum saque pendente')).toBeInTheDocument();
+    expect(screen.getByText(/Motivo: Chave inválida/)).toBeInTheDocument();
   });
 
-  it('mostra o histórico de saques já processados, com motivo da rejeição', async () => {
+  it('o histórico mostra pagos e rejeitados, com o nome de quem pediu e o motivo', async () => {
     mockApis({
       saques: [
         saquePendente,
@@ -96,8 +143,10 @@ describe('AdminPage — aba Financeiro', () => {
           ...saquePendente,
           id: 'saque-2',
           valor: 40,
-          status: 'APROVADO',
+          solicitanteNome: 'Ana Proprietaria',
+          status: 'PAGO',
           processadoEm: '2026-09-20T12:00:00.000Z',
+          pagoEm: '2026-09-21T12:00:00.000Z',
         },
         {
           ...saquePendente,
@@ -113,25 +162,64 @@ describe('AdminPage — aba Financeiro', () => {
     render(<AdminPage />);
 
     expect(await screen.findByText('Histórico de saques')).toBeInTheDocument();
+    expect(screen.getByText('Ana Proprietaria')).toBeInTheDocument();
     expect(screen.getByText(/Motivo: Chave PIX divergente/)).toBeInTheDocument();
     expect(screen.getAllByText(/decidido em/)).toHaveLength(2);
-    // Só o pendente tem botões de decisão.
+    // só o pendente tem os botões de decisão
     expect(screen.getAllByRole('button', { name: 'Aprovar' })).toHaveLength(1);
   });
 
-  it('aprovar move o saque da fila de pendentes para o histórico', async () => {
-    mockApis();
-    vi.spyOn(saquesApi, 'aprovarSaque').mockResolvedValue({
-      ...saquePendente,
-      status: 'APROVADO',
-      processadoEm: '2026-09-20T12:00:00.000Z',
+  it('a lista do histórico rola em vez de esticar a página', async () => {
+    mockApis({
+      saques: [{ ...saquePendente, status: 'PAGO', pagoEm: '2026-09-21T12:00:00.000Z' }],
     });
 
     render(<AdminPage />);
-    await screen.findByText('user@pix.com', { exact: false });
-    await userEvent.click(screen.getByRole('button', { name: 'Aprovar' }));
+    await screen.findByText('Histórico de saques');
 
-    expect(await screen.findByText(/decidido em/)).toBeInTheDocument();
+    const lista = screen.getByText(/PIX enviado em/).closest('.overflow-y-auto');
+    expect(lista).toHaveClass('max-h-[28rem]');
+  });
+
+  it('clicar no card abre os detalhes completos do saque, com recibo quando está pago', async () => {
+    const imprimir = vi.spyOn(window, 'print').mockImplementation(() => undefined);
+    mockApis({
+      saques: [
+        {
+          ...saquePendente,
+          status: 'PAGO',
+          solicitanteCondominio: 'Residencial Jardim Europa',
+          processadoEm: '2026-09-20T12:00:00.000Z',
+          pagoEm: '2026-09-21T12:00:00.000Z',
+        },
+      ],
+    });
+
+    render(<AdminPage />);
+    await userEvent.click(await screen.findByText(/PIX enviado em/));
+
+    const dialogo = await screen.findByRole('dialog', { name: 'Recibo de pagamento de saque' });
+    expect(dialogo).toHaveTextContent('Residencial Jardim Europa');
+    expect(dialogo).toHaveTextContent('user@pix.com');
+    expect(dialogo).toHaveTextContent('Protocolo: saque-1');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Gerar recibo' }));
+    expect(imprimir).toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Fechar' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('saque pendente abre detalhes sem recibo (só imprimir detalhes) e os botões do card não abrem o modal', async () => {
+    mockApis();
+    vi.spyOn(saquesApi, 'aprovarSaque').mockResolvedValue({ ...saquePendente, status: 'APROVADO' });
+
+    render(<AdminPage />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Aprovar' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    await userEvent.click(await screen.findByRole('button', { name: /Ver detalhes e recibo/ }));
+    expect(screen.getByRole('button', { name: 'Imprimir detalhes' })).toBeInTheDocument();
   });
 });
 

@@ -1,11 +1,16 @@
 import { Request, Response } from 'express';
 import { prisma } from '@/common/prisma';
+import { NotificacoesService } from '@/modules/notificacoes/notificacoes.service';
 import { logger } from '@/common/logger';
 import { AsaasClient } from './asaas.client';
 import { asaasWebhookSchema } from './pagamentos.schemas';
 import { PagamentosService } from './pagamentos.service';
 
-const pagamentosService = new PagamentosService(prisma, new AsaasClient());
+const pagamentosService = new PagamentosService(
+  prisma,
+  new AsaasClient(),
+  new NotificacoesService(prisma),
+);
 
 /** Eventos do Asaas que valem como "PIX confirmado" — os demais são reconhecidos e ignorados. */
 const EVENTOS_PAGAMENTO_CONFIRMADO = ['PAYMENT_CONFIRMED', 'PAYMENT_RECEIVED'];

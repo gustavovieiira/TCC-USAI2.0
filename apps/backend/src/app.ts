@@ -9,6 +9,7 @@ import { authRouter } from '@/modules/auth/auth.routes';
 import { conversasRouter } from '@/modules/conversas/conversas.routes';
 import { itensRouter } from '@/modules/itens/itens.routes';
 import { locacoesRouter } from '@/modules/locacoes/locacoes.routes';
+import { notificacoesRouter } from '@/modules/notificacoes/notificacoes.routes';
 import { muralRouter } from '@/modules/mural/mural.routes';
 import { asaasWebhookRouter } from '@/modules/pagamentos/webhook.routes';
 import { saquesRouter } from '@/modules/saques/saques.routes';
@@ -35,6 +36,7 @@ export function createApp(): Express {
   app.use('/api/itens', itensRouter);
   app.use('/api/locacoes', locacoesRouter);
   app.use('/api/mural', muralRouter);
+  app.use('/api/notificacoes', notificacoesRouter);
   app.use('/api/saques', saquesRouter);
   app.use('/api/sindico', sindicoRouter);
   app.use('/api/admin', adminRouter);

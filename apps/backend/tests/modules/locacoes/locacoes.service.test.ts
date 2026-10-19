@@ -228,3 +228,74 @@ describe('calcularRepasse', () => {
     expect(Math.round((taxaPlataforma + valorLiquido) * 100) / 100).toBe(33.33);
   });
 });
+
+describe('LocacoesService — notificações', () => {
+  function comNotificacoes() {
+    const notificacoes = { notificar: jest.fn().mockResolvedValue(undefined) };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return notificacoes as any;
+  }
+
+  it('solicitar avisa o dono do item com nome de quem pediu, período e valor', async () => {
+    const prisma = buildPrismaMock();
+    prisma.item.findFirst.mockResolvedValue(itemDisponivel);
+    prisma.locacao.findFirst.mockResolvedValue(null);
+    prisma.locacao.create.mockResolvedValue({
+      ...locacaoBase,
+      locatario: { nome: 'Bruno Locatario' },
+    });
+    const notificacoes = comNotificacoes();
+
+    await new LocacoesService(prisma, notificacoes).solicitar(
+      CONDOMINIO_ID,
+      LOCATARIO_ID,
+      inputPadrao,
+    );
+
+    expect(notificacoes.notificar).toHaveBeenCalledWith({
+      userId: OWNER_ID,
+      tipo: 'LOCACAO_SOLICITADA',
+      titulo: 'Novo pedido de locação',
+      mensagem:
+        'Bruno Locatario quer alugar "Furadeira Bosch" de 01/10/2026 a 03/10/2026 (R$ 40,00).',
+      link: '/locacoes',
+    });
+  });
+
+  it('aprovar avisa o locatário pra pagar', async () => {
+    const prisma = buildPrismaMock();
+    prisma.locacao.findUnique.mockResolvedValue(locacaoBase);
+    prisma.locacao.update.mockResolvedValue({ ...locacaoBase, status: 'APROVADA' });
+    const notificacoes = comNotificacoes();
+
+    await new LocacoesService(prisma, notificacoes).aprovar('locacao-1', OWNER_ID);
+
+    expect(notificacoes.notificar).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: LOCATARIO_ID, tipo: 'LOCACAO_APROVADA' }),
+    );
+  });
+
+  it('rejeitar avisa o locatário que o pedido foi recusado', async () => {
+    const prisma = buildPrismaMock();
+    prisma.locacao.findUnique.mockResolvedValue(locacaoBase);
+    prisma.locacao.update.mockResolvedValue({ ...locacaoBase, status: 'CANCELADA' });
+    const notificacoes = comNotificacoes();
+
+    await new LocacoesService(prisma, notificacoes).rejeitar('locacao-1', OWNER_ID);
+
+    expect(notificacoes.notificar).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: LOCATARIO_ID, tipo: 'LOCACAO_REJEITADA' }),
+    );
+  });
+
+  it('não notifica quando a operação falha (ex.: quem aprova não é o dono)', async () => {
+    const prisma = buildPrismaMock();
+    prisma.locacao.findUnique.mockResolvedValue(locacaoBase);
+    const notificacoes = comNotificacoes();
+
+    await expect(
+      new LocacoesService(prisma, notificacoes).aprovar('locacao-1', 'outro-usuario'),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(notificacoes.notificar).not.toHaveBeenCalled();
+  });
+});

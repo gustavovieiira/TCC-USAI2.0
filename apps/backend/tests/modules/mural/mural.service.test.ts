@@ -282,3 +282,58 @@ describe('MuralService.excluir', () => {
     expect(prisma.post.delete).not.toHaveBeenCalled();
   });
 });
+
+describe('MuralService.responder — notificações', () => {
+  const comentarioDoBruno = {
+    id: 'comentario-1',
+    postId: 'post-1',
+    autorId: OUTRO_MORADOR_ID,
+    conteudo: 'Tenho uma, te empresto!',
+    createdAt: new Date('2026-09-16'),
+    autor: { id: OUTRO_MORADOR_ID, nome: 'Bruno Locatário', papel: 'MORADOR' },
+  };
+
+  it('avisa o autor do post quando outra pessoa responde', async () => {
+    const prisma = buildPrismaMock();
+    prisma.post.findFirst.mockResolvedValue(postBase);
+    prisma.comentarioPost.create.mockResolvedValue(comentarioDoBruno);
+    const notificacoes = { notificar: jest.fn().mockResolvedValue(undefined) };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await new MuralService(prisma, notificacoes as any).responder(
+      'post-1',
+      CONDOMINIO_ID,
+      OUTRO_MORADOR_ID,
+      { conteudo: 'Tenho uma, te empresto!' },
+    );
+
+    expect(notificacoes.notificar).toHaveBeenCalledWith({
+      userId: AUTOR_ID,
+      tipo: 'MURAL_RESPOSTA',
+      titulo: 'Nova resposta no seu post',
+      mensagem: 'Bruno Locatário respondeu ao seu post no Mural.',
+      link: '/mural/post-1',
+    });
+  });
+
+  it('não avisa quando o autor responde ao próprio post', async () => {
+    const prisma = buildPrismaMock();
+    prisma.post.findFirst.mockResolvedValue(postBase);
+    prisma.comentarioPost.create.mockResolvedValue({
+      ...comentarioDoBruno,
+      autorId: AUTOR_ID,
+      autor,
+    });
+    const notificacoes = { notificar: jest.fn().mockResolvedValue(undefined) };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await new MuralService(prisma, notificacoes as any).responder(
+      'post-1',
+      CONDOMINIO_ID,
+      AUTOR_ID,
+      { conteudo: 'Atualização: já resolvi' },
+    );
+
+    expect(notificacoes.notificar).not.toHaveBeenCalled();
+  });
+});

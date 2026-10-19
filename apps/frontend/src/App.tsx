@@ -16,6 +16,7 @@ import { MuralPage } from '@/pages/MuralPage';
 import { PerfilPage } from '@/pages/PerfilPage';
 import { PostDetalhePage } from '@/pages/PostDetalhePage';
 import { PublicarItemPage } from '@/pages/PublicarItemPage';
+import { NotificacoesPage } from '@/pages/NotificacoesPage';
 import { SaquesPage } from '@/pages/SaquesPage';
 import { SindicoPage } from '@/pages/SindicoPage';
 
@@ -29,6 +30,7 @@ export default function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<AppShell />}>
           <Route path="/perfil" element={<PerfilPage />} />
+          <Route path="/notificacoes" element={<NotificacoesPage />} />
 
           <Route element={<RoleRoute allow={['MORADOR']} />}>
             <Route path="/catalogo" element={<CatalogoPage />} />

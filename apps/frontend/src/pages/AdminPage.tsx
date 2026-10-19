@@ -1,6 +1,8 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { CardClicavel } from '@/components/ui/CardClicavel';
+import { Detalhe, DetalheModal } from '@/components/ui/DetalheModal';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SaqueStatusBadge } from '@/components/ui/Badge';
 import { Select } from '@/components/ui/Select';
@@ -16,7 +18,13 @@ import {
   resumoFinanceiro,
 } from '@/features/admin/admin.api';
 import { CondominioAdminDTO, ResumoFinanceiroDTO } from '@/features/admin/admin.types';
-import { aprovarSaque, listarTodosSaques, rejeitarSaque } from '@/features/saques/saques.api';
+import { detalheSaqueAdmin } from '@/features/saques/detalhes';
+import {
+  aprovarSaque,
+  listarTodosSaques,
+  pagarSaque,
+  rejeitarSaque,
+} from '@/features/saques/saques.api';
 import { SaqueDTO } from '@/features/saques/saques.types';
 
 type Aba = 'financeiro' | 'condominios' | 'sindicos';
@@ -115,35 +123,41 @@ interface AbaFinanceiroProps {
   onErro: (erro: string) => void;
 }
 
+/** Cada ponto da fila de saques do Admin: decidir (pendente) → transferir o PIX (aprovado) → histórico. */
 function AbaFinanceiro({ resumo, saques, erro, onMudou, onErro }: AbaFinanceiroProps) {
   const [processandoId, setProcessandoId] = useState<string | null>(null);
   const [rejeitandoId, setRejeitandoId] = useState<string | null>(null);
   const [motivo, setMotivo] = useState('');
+  const [detalhe, setDetalhe] = useState<Detalhe | null>(null);
 
-  async function handleAprovar(id: string) {
+  async function executar(id: string, acao: () => Promise<SaqueDTO>) {
     setProcessandoId(id);
     try {
-      const atualizado = await aprovarSaque(id);
+      const atualizado = await acao();
       onMudou(atualizado);
+      return true;
     } catch (err) {
       onErro(extractErrorMessage(err));
+      return false;
     } finally {
       setProcessandoId(null);
     }
   }
 
+  function handleAprovar(id: string) {
+    return executar(id, () => aprovarSaque(id));
+  }
+
+  function handlePagar(id: string) {
+    return executar(id, () => pagarSaque(id));
+  }
+
   async function handleRejeitar(event: FormEvent, id: string) {
     event.preventDefault();
-    setProcessandoId(id);
-    try {
-      const atualizado = await rejeitarSaque(id, motivo);
-      onMudou(atualizado);
+    const ok = await executar(id, () => rejeitarSaque(id, motivo));
+    if (ok) {
       setRejeitandoId(null);
       setMotivo('');
-    } catch (err) {
-      onErro(extractErrorMessage(err));
-    } finally {
-      setProcessandoId(null);
     }
   }
 
@@ -158,42 +172,31 @@ function AbaFinanceiro({ resumo, saques, erro, onMudou, onErro }: AbaFinanceiroP
   if (!resumo) return null;
 
   const pendentes = saques?.filter((s) => s.status === 'PENDENTE') ?? null;
-  const processados = saques?.filter((s) => s.status !== 'PENDENTE') ?? [];
+  const aPagar = saques?.filter((s) => s.status === 'APROVADO') ?? [];
+  const historico = saques?.filter((s) => s.status === 'PAGO' || s.status === 'REJEITADO') ?? [];
+  const parar = (e: { stopPropagation: () => void }) => e.stopPropagation();
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {detalhe && <DetalheModal detalhe={detalhe} onFechar={() => setDetalhe(null)} />}
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         <Card>
           <p className="font-meta text-xs text-ink-faint">Condomínios ativos</p>
           <p className="mt-1 font-display text-xl font-bold text-ink">{resumo.condominiosAtivos}</p>
         </Card>
-        <Card>
-          <p className="font-meta text-xs text-ink-faint">Saques pendentes</p>
-          <p className="mt-1 font-display text-xl font-bold text-mostarda-500">
-            {resumo.saques.pendente.quantidade}
-          </p>
-          <p className="font-mono font-meta text-xs text-ink-faint">
-            {formatCurrency(resumo.saques.pendente.valorTotal)}
-          </p>
-        </Card>
-        <Card>
-          <p className="font-meta text-xs text-ink-faint">Saques aprovados</p>
-          <p className="mt-1 font-display text-xl font-bold text-jade-500">
-            {resumo.saques.aprovado.quantidade}
-          </p>
-          <p className="font-mono font-meta text-xs text-ink-faint">
-            {formatCurrency(resumo.saques.aprovado.valorTotal)}
-          </p>
-        </Card>
-        <Card>
-          <p className="font-meta text-xs text-ink-faint">Saques rejeitados</p>
-          <p className="mt-1 font-display text-xl font-bold text-carmim-500">
-            {resumo.saques.rejeitado.quantidade}
-          </p>
-          <p className="font-mono font-meta text-xs text-ink-faint">
-            {formatCurrency(resumo.saques.rejeitado.valorTotal)}
-          </p>
-        </Card>
+        <ResumoSaque
+          rotulo="Saques pendentes"
+          cor="text-mostarda-500"
+          resumo={resumo.saques.pendente}
+        />
+        <ResumoSaque rotulo="A pagar (PIX)" cor="text-barro-700" resumo={resumo.saques.aprovado} />
+        <ResumoSaque rotulo="Saques pagos" cor="text-jade-500" resumo={resumo.saques.pago} />
+        <ResumoSaque
+          rotulo="Saques rejeitados"
+          cor="text-carmim-500"
+          resumo={resumo.saques.rejeitado}
+        />
       </div>
 
       <div>
@@ -202,20 +205,14 @@ function AbaFinanceiro({ resumo, saques, erro, onMudou, onErro }: AbaFinanceiroP
         {pendentes && pendentes.length === 0 && <EmptyState title="Nenhum saque pendente" />}
 
         {pendentes && pendentes.length > 0 && (
-          <div className="flex flex-col gap-3">
+          <div className="flex max-h-[28rem] flex-col gap-3 overflow-y-auto pr-1">
             {pendentes.map((saque) => (
-              <Card key={saque.id} className="flex flex-col gap-2">
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <span className="font-display font-semibold text-ink">
-                      {formatCurrency(saque.valor)}
-                    </span>
-                    {saque.solicitanteNome && (
-                      <p className="text-sm text-ink-soft">{saque.solicitanteNome}</p>
-                    )}
-                  </div>
-                  <SaqueStatusBadge status={saque.status} />
-                </div>
+              <CardClicavel
+                key={saque.id}
+                onAbrir={() => setDetalhe(detalheSaqueAdmin(saque))}
+                className="flex flex-col gap-2"
+              >
+                <CabecalhoSaque saque={saque} />
                 <p className="text-sm text-ink-soft">
                   Chave PIX: {saque.chavePixUsada} · {formatDateTime(saque.createdAt)}
                 </p>
@@ -223,6 +220,7 @@ function AbaFinanceiro({ resumo, saques, erro, onMudou, onErro }: AbaFinanceiroP
                 {rejeitandoId === saque.id ? (
                   <form
                     onSubmit={(e) => handleRejeitar(e, saque.id)}
+                    onClick={parar}
                     className="flex flex-col gap-2"
                   >
                     <TextField
@@ -253,7 +251,7 @@ function AbaFinanceiro({ resumo, saques, erro, onMudou, onErro }: AbaFinanceiroP
                     </div>
                   </form>
                 ) : (
-                  <div className="flex gap-2">
+                  <div className="flex gap-2" onClick={parar}>
                     <Button
                       fullWidth={false}
                       isLoading={processandoId === saque.id}
@@ -271,7 +269,44 @@ function AbaFinanceiro({ resumo, saques, erro, onMudou, onErro }: AbaFinanceiroP
                     </Button>
                   </div>
                 )}
-              </Card>
+              </CardClicavel>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div>
+        <h2 className="mb-1 font-display font-semibold text-ink">Aprovados — aguardando o PIX</h2>
+        <p className="mb-3 text-sm text-ink-soft">
+          Transfira o valor para a chave PIX e depois confirme. O usuário recebe um aviso e passa a
+          ver o saque como pago, com recibo.
+        </p>
+
+        {aPagar.length === 0 && <EmptyState title="Nenhum PIX a transferir" />}
+
+        {aPagar.length > 0 && (
+          <div className="flex max-h-[28rem] flex-col gap-3 overflow-y-auto pr-1">
+            {aPagar.map((saque) => (
+              <CardClicavel
+                key={saque.id}
+                onAbrir={() => setDetalhe(detalheSaqueAdmin(saque))}
+                className="flex flex-col gap-2"
+              >
+                <CabecalhoSaque saque={saque} />
+                <p className="text-sm text-ink-soft">
+                  Chave PIX: {saque.chavePixUsada}
+                  {saque.processadoEm && ` · aprovado em ${formatDateTime(saque.processadoEm)}`}
+                </p>
+                <div className="flex gap-2" onClick={parar}>
+                  <Button
+                    fullWidth={false}
+                    isLoading={processandoId === saque.id}
+                    onClick={() => handlePagar(saque.id)}
+                  >
+                    Marcar como pago
+                  </Button>
+                </div>
+              </CardClicavel>
             ))}
           </div>
         )}
@@ -280,35 +315,63 @@ function AbaFinanceiro({ resumo, saques, erro, onMudou, onErro }: AbaFinanceiroP
       <div>
         <h2 className="mb-3 font-display font-semibold text-ink">Histórico de saques</h2>
 
-        {processados.length === 0 && <EmptyState title="Nenhum saque processado ainda" />}
+        {historico.length === 0 && <EmptyState title="Nenhum saque concluído ainda" />}
 
-        {processados.length > 0 && (
-          <div className="flex flex-col gap-3">
-            {processados.map((saque) => (
-              <Card key={saque.id} className="flex flex-col gap-1">
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <span className="font-display font-semibold text-ink">
-                      {formatCurrency(saque.valor)}
-                    </span>
-                    {saque.solicitanteNome && (
-                      <p className="text-sm text-ink-soft">{saque.solicitanteNome}</p>
-                    )}
-                  </div>
-                  <SaqueStatusBadge status={saque.status} />
-                </div>
+        {historico.length > 0 && (
+          <div className="flex max-h-[28rem] flex-col gap-3 overflow-y-auto pr-1">
+            {historico.map((saque) => (
+              <CardClicavel
+                key={saque.id}
+                onAbrir={() => setDetalhe(detalheSaqueAdmin(saque))}
+                className="flex flex-col gap-1"
+              >
+                <CabecalhoSaque saque={saque} />
                 <p className="text-sm text-ink-soft">
                   Chave PIX: {saque.chavePixUsada} · pedido em {formatDateTime(saque.createdAt)}
                   {saque.processadoEm && ` · decidido em ${formatDateTime(saque.processadoEm)}`}
+                  {saque.pagoEm && ` · PIX enviado em ${formatDateTime(saque.pagoEm)}`}
                 </p>
                 {saque.status === 'REJEITADO' && saque.motivoRejeicao && (
                   <p className="text-sm text-carmim-700">Motivo: {saque.motivoRejeicao}</p>
                 )}
-              </Card>
+              </CardClicavel>
             ))}
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function ResumoSaque({
+  rotulo,
+  cor,
+  resumo,
+}: {
+  rotulo: string;
+  cor: string;
+  resumo: { quantidade: number; valorTotal: number };
+}) {
+  return (
+    <Card>
+      <p className="font-meta text-xs text-ink-faint">{rotulo}</p>
+      <p className={`mt-1 font-display text-xl font-bold ${cor}`}>{resumo.quantidade}</p>
+      <p className="font-mono font-meta text-xs text-ink-faint">
+        {formatCurrency(resumo.valorTotal)}
+      </p>
+    </Card>
+  );
+}
+
+/** Valor, nome de quem pediu (sempre — também no histórico) e o selo de status. */
+function CabecalhoSaque({ saque }: { saque: SaqueDTO }) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <div>
+        <span className="font-display font-semibold text-ink">{formatCurrency(saque.valor)}</span>
+        {saque.solicitanteNome && <p className="text-sm text-ink-soft">{saque.solicitanteNome}</p>}
+      </div>
+      <SaqueStatusBadge status={saque.status} />
     </div>
   );
 }

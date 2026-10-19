@@ -1,6 +1,9 @@
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
 
+// Os avisos persistidos têm testes próprios; aqui só importa o fluxo HTTP.
+jest.mock('@/modules/notificacoes/notificacoes.service');
+
 jest.mock('@/common/prisma', () => {
   const mockPrisma = {
     solicitacaoSaque: {
@@ -163,7 +166,10 @@ describe('GET /api/saques (Admin)', () => {
 
     expect(response.status).toBe(200);
     expect(prisma.solicitacaoSaque.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { status: 'PENDENTE' }, include: { user: true } }),
+      expect.objectContaining({
+        where: { status: 'PENDENTE' },
+        include: { user: { include: { condominio: true } } },
+      }),
     );
     expect(response.body[0].solicitanteNome).toBe('Ana Proprietaria');
   });
@@ -218,5 +224,56 @@ describe('POST /api/saques/:id/aprovar e /rejeitar (Admin)', () => {
       .set('Authorization', `Bearer ${token(ADMIN_ID, 'ADMIN')}`);
 
     expect(response.status).toBe(404);
+  });
+});
+
+describe('POST /api/saques/:id/pagar (Admin)', () => {
+  it('confirma o PIX transferido de um saque aprovado e devolve PAGO', async () => {
+    (prisma.solicitacaoSaque.findUnique as jest.Mock).mockResolvedValue({
+      ...saqueBase,
+      status: 'APROVADO',
+    });
+    (prisma.solicitacaoSaque.update as jest.Mock).mockResolvedValue({
+      ...saqueBase,
+      status: 'PAGO',
+      pagoEm: new Date('2026-10-03'),
+      user: { nome: 'Ana Proprietaria', condominio: { nome: 'Residencial Jardim Europa' } },
+    });
+    const app = createApp();
+
+    const response = await request(app)
+      .post('/api/saques/saque-1/pagar')
+      .set('Authorization', `Bearer ${token(ADMIN_ID, 'ADMIN')}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      status: 'PAGO',
+      solicitanteNome: 'Ana Proprietaria',
+      solicitanteCondominio: 'Residencial Jardim Europa',
+    });
+    expect(prisma.logAuditoria.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ acao: 'PAGAR_SAQUE' }) }),
+    );
+  });
+
+  it('retorna 409 quando o saque ainda está pendente', async () => {
+    (prisma.solicitacaoSaque.findUnique as jest.Mock).mockResolvedValue(saqueBase);
+    const app = createApp();
+
+    const response = await request(app)
+      .post('/api/saques/saque-1/pagar')
+      .set('Authorization', `Bearer ${token(ADMIN_ID, 'ADMIN')}`);
+
+    expect(response.status).toBe(409);
+  });
+
+  it('é exclusivo do Admin USAI: morador recebe 403', async () => {
+    const app = createApp();
+
+    const response = await request(app)
+      .post('/api/saques/saque-1/pagar')
+      .set('Authorization', `Bearer ${token(USER_ID)}`);
+
+    expect(response.status).toBe(403);
   });
 });

@@ -1,9 +1,12 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppShell } from './AppShell';
+import * as conversasApi from '@/features/conversas/conversas.api';
+import * as notificacoesApi from '@/features/notificacoes/notificacoes.api';
 import * as authStorage from '@/lib/authStorage';
+import * as socketLib from '@/lib/socket';
 
 function renderShell(initialEntry: string) {
   return render(
@@ -21,6 +24,20 @@ function renderShell(initialEntry: string) {
 }
 
 describe('AppShell', () => {
+  beforeEach(() => {
+    // O shell conecta socket e carrega conversas/notificações; nos testes nada disso sai pra rede.
+    vi.spyOn(socketLib, 'createConversaSocket').mockReturnValue({
+      on: vi.fn(),
+      emit: vi.fn(),
+      disconnect: vi.fn(),
+    } as unknown as socketLib.ConversaSocket);
+    vi.spyOn(conversasApi, 'listarMinhasConversas').mockResolvedValue([]);
+    vi.spyOn(notificacoesApi, 'listarNotificacoes').mockResolvedValue({
+      notificacoes: [],
+      naoLidas: 2,
+    });
+  });
+
   it('renderiza o nome do morador logado e o conteúdo da rota', () => {
     vi.spyOn(authStorage, 'getStoredUser').mockReturnValue({
       id: 'user-1',
@@ -54,5 +71,21 @@ describe('AppShell', () => {
     await userEvent.click(screen.getByRole('link', { name: /Carla Síndica/ }));
 
     expect(await screen.findByText('Página de perfil')).toBeInTheDocument();
+  });
+
+  it('mostra no sino do header a quantidade de notificações não lidas', async () => {
+    vi.spyOn(authStorage, 'getStoredUser').mockReturnValue({
+      id: 'user-1',
+      nome: 'Bruno Locatario',
+      email: 'bruno@example.com',
+      papel: 'MORADOR',
+      condominioId: 'cond-1',
+      apartamento: null,
+    });
+
+    renderShell('/catalogo');
+
+    expect(await screen.findByTestId('notificacoes-contagem')).toHaveTextContent('2');
+    expect(screen.getByRole('link', { name: 'Notificações (2 não lidas)' })).toBeInTheDocument();
   });
 });

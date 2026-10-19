@@ -1,7 +1,9 @@
-import { PrismaClient } from '@prisma/client';
+import { Item, Locacao, PrismaClient } from '@prisma/client';
 import { AppError, ForbiddenError, NotFoundError } from '@/common/errors';
 import { logger } from '@/common/logger';
 import { calcularRepasse } from '@/modules/locacoes/locacoes.service';
+import { formatarReais } from '@/modules/notificacoes/notificacoes.format';
+import { NotificacoesService } from '@/modules/notificacoes/notificacoes.service';
 import { emitirParaUsuario } from '@/realtime/emitter';
 import { AsaasClient } from './asaas.client';
 import { CriarCobrancaResultado } from './pagamentos.types';
@@ -23,6 +25,7 @@ export class PagamentosService {
   constructor(
     private readonly prisma: PrismaClient,
     private readonly asaas: AsaasClient,
+    private readonly notificacoes?: NotificacoesService,
   ) {}
 
   /**
@@ -170,12 +173,16 @@ export class PagamentosService {
           'Pagamento Asaas confirmado pra uma locação que não está mais APROVADA (corrida perdida) — reembolso manual necessário',
           { asaasChargeId, locacaoId: pagamento.locacaoId },
         );
-        return null;
+        const perdida = await tx.locacao.findUnique({
+          where: { id: pagamento.locacaoId },
+          include: { item: true },
+        });
+        return { orfao: true as const, locacao: perdida, valor: Number(pagamento.valor) };
       }
 
       const locacao = await tx.locacao.findUniqueOrThrow({
         where: { id: pagamento.locacaoId },
-        include: { item: true },
+        include: { item: true, locatario: true },
       });
 
       const concorrentes = await tx.locacao.findMany({
@@ -203,12 +210,17 @@ export class PagamentosService {
         });
       }
 
-      return { locacao, concorrentes };
+      return { orfao: false as const, locacao, concorrentes, repasse };
     });
 
     if (!resultado) return;
 
-    const { locacao, concorrentes } = resultado;
+    if (resultado.orfao) {
+      await this.avisarPagamentoOrfao(resultado.locacao, resultado.valor);
+      return;
+    }
+
+    const { locacao, concorrentes, repasse } = resultado;
 
     emitirParaUsuario(locacao.locatarioId, 'locacao:atualizada', {
       locacaoId: locacao.id,
@@ -219,16 +231,60 @@ export class PagamentosService {
       status: 'PAGA',
     });
 
+    await this.notificacoes?.notificar({
+      userId: locacao.locatarioId,
+      tipo: 'PAGAMENTO_CONFIRMADO',
+      titulo: 'Pagamento confirmado',
+      mensagem: `Recebemos o seu pagamento de "${locacao.item.titulo}". O item está reservado para você.`,
+      link: '/locacoes',
+    });
+    await this.notificacoes?.notificar({
+      userId: locacao.item.ownerId,
+      tipo: 'PAGAMENTO_RECEBIDO',
+      titulo: 'Você recebeu um pagamento',
+      mensagem: `${locacao.locatario.nome} pagou "${locacao.item.titulo}". Entraram ${formatarReais(repasse.valorLiquido)} no seu saldo (já descontada a taxa de ${formatarReais(repasse.taxaPlataforma)}).`,
+      link: '/saques',
+    });
+
     await Promise.all(
       concorrentes.map(async (concorrente) => {
         emitirParaUsuario(concorrente.locatarioId, 'locacao:atualizada', {
           locacaoId: concorrente.id,
           status: 'CANCELADA',
         });
+        await this.notificacoes?.notificar({
+          userId: concorrente.locatarioId,
+          tipo: 'LOCACAO_CANCELADA',
+          titulo: 'Seu pedido foi cancelado',
+          mensagem: `Outra pessoa pagou "${locacao.item.titulo}" para o mesmo período antes de você.`,
+          link: '/locacoes',
+        });
         if (concorrente.pagamento?.asaasChargeId) {
           await this.asaas.cancelarCobranca(concorrente.pagamento.asaasChargeId);
         }
       }),
     );
+  }
+
+  /** Perdeu a corrida: avisa o locatário (que já pagou) e o Admin, que precisa devolver o dinheiro. */
+  private async avisarPagamentoOrfao(
+    locacao: (Locacao & { item: Item }) | null,
+    valor: number,
+  ): Promise<void> {
+    if (!locacao) return;
+
+    await this.notificacoes?.notificar({
+      userId: locacao.locatarioId,
+      tipo: 'PAGAMENTO_REEMBOLSO',
+      titulo: 'Seu pagamento será reembolsado',
+      mensagem: `Você pagou ${formatarReais(valor)} por "${locacao.item.titulo}", mas outra pessoa pagou o mesmo período antes. A equipe USAI vai devolver o seu valor.`,
+      link: '/saques',
+    });
+    await this.notificacoes?.notificarAdmins({
+      tipo: 'PAGAMENTO_REEMBOLSO',
+      titulo: 'Reembolso manual necessário',
+      mensagem: `Pagamento de ${formatarReais(valor)} de "${locacao.item.titulo}" confirmado, mas o período já estava ocupado. Devolva o valor pelo Asaas.`,
+      link: '/admin',
+    });
   }
 }

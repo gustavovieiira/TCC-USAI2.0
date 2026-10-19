@@ -14,4 +14,5 @@ saquesRouter.get('/extrato', asyncHandler(saquesController.extrato));
 
 saquesRouter.get('/', requireRole('ADMIN'), asyncHandler(saquesController.listarTodas));
 saquesRouter.post('/:id/aprovar', requireRole('ADMIN'), asyncHandler(saquesController.aprovar));
+saquesRouter.post('/:id/pagar', requireRole('ADMIN'), asyncHandler(saquesController.pagar));
 saquesRouter.post('/:id/rejeitar', requireRole('ADMIN'), asyncHandler(saquesController.rejeitar));

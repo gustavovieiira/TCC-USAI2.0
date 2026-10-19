@@ -1,5 +1,6 @@
 import { ComentarioPost, Post, PrismaClient, User } from '@prisma/client';
 import { ForbiddenError, NotFoundError } from '@/common/errors';
+import { NotificacoesService } from '@/modules/notificacoes/notificacoes.service';
 import {
   ComentarioDTO,
   CriarPostInput,
@@ -45,7 +46,10 @@ function toComentarioDTO(comentario: ComentarioComAutor): ComentarioDTO {
  * depois da RFC original, a partir do uso real da plataforma.
  */
 export class MuralService {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly notificacoes?: NotificacoesService,
+  ) {}
 
   /**
    * `condominioIdDoAutor` vem do token de quem está logado; é `null` pro Admin USAI (não pertence a
@@ -100,12 +104,22 @@ export class MuralService {
     autorId: string,
     input: ResponderPostInput,
   ): Promise<ComentarioDTO> {
-    await this.buscarOuFalhar(postId, condominioId);
+    const post = await this.buscarOuFalhar(postId, condominioId);
 
     const comentario = await this.prisma.comentarioPost.create({
       data: { postId, autorId, conteudo: input.conteudo },
       include: { autor: true },
     });
+
+    if (post.autorId !== autorId) {
+      await this.notificacoes?.notificar({
+        userId: post.autorId,
+        tipo: 'MURAL_RESPOSTA',
+        titulo: 'Nova resposta no seu post',
+        mensagem: `${comentario.autor.nome} respondeu ao seu post no Mural.`,
+        link: `/mural/${postId}`,
+      });
+    }
 
     return toComentarioDTO(comentario);
   }

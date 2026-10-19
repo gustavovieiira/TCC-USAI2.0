@@ -131,6 +131,7 @@ describe('PerfilPage', () => {
     vi.spyOn(adminApi, 'resumoFinanceiro').mockResolvedValue({
       saques: {
         pendente: { quantidade: 2, valorTotal: 150 },
+        pago: { quantidade: 0, valorTotal: 0 },
         aprovado: { quantidade: 0, valorTotal: 0 },
         rejeitado: { quantidade: 0, valorTotal: 0 },
       },

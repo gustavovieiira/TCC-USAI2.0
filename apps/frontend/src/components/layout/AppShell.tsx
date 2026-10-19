@@ -1,6 +1,8 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useConversaNotifications } from '@/features/conversas/useConversaNotifications';
+import { NotificacoesContext, useNotificacoes } from '@/features/notificacoes/useNotificacoes';
 import { getStoredUser, homeRouteFor, Papel } from '@/lib/authStorage';
+import { NotificacoesBell } from './NotificacoesBell';
 import { ProfileMenu } from './ProfileMenu';
 
 interface NavItem {
@@ -38,108 +40,156 @@ export function AppShell() {
   const notificacoesAtivas = user?.papel === 'MORADOR' || user?.papel === 'SINDICO';
   const { hasUnread, toast, abrirToast, fecharToast } =
     useConversaNotifications(notificacoesAtivas);
+  const navigate = useNavigate();
+  const notificacoes = useNotificacoes(!!user);
+  const { toast: avisoToast, fecharToast: fecharAviso, marcarComoLida } = notificacoes;
+
+  function abrirAviso() {
+    if (!avisoToast) return;
+    marcarComoLida(avisoToast.id);
+    if (avisoToast.link) navigate(avisoToast.link);
+    fecharAviso();
+  }
 
   return (
-    <div className="min-h-screen bg-paper">
-      <header className="sticky top-0 z-20 bg-ink text-ink-inverse">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3 md:px-6">
-          <NavLink
-            to={homeRouteFor(user?.papel)}
-            className="flex items-center gap-2 font-display text-xl font-bold text-ink-inverse"
-          >
-            <span className="notch-sm h-5 w-5 bg-barro-400" aria-hidden="true" />
-            USAI
-          </NavLink>
+    <NotificacoesContext.Provider value={notificacoes}>
+      <div className="min-h-screen bg-paper">
+        <header className="sticky top-0 z-20 bg-ink text-ink-inverse">
+          <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3 md:px-6">
+            <NavLink
+              to={homeRouteFor(user?.papel)}
+              className="flex items-center gap-2 font-display text-xl font-bold text-ink-inverse"
+            >
+              <span className="notch-sm h-5 w-5 bg-barro-400" aria-hidden="true" />
+              USAI
+            </NavLink>
 
-          <nav className="hidden items-center gap-1 md:flex">
-            {navItems.map(({ to, label }) => (
-              <NavLink
-                key={to}
-                to={to}
-                className={({ isActive }) =>
-                  `relative px-3 py-2 text-sm font-semibold transition ${
-                    isActive ? 'text-barro-400' : 'text-ink-inverse-soft hover:text-ink-inverse'
-                  }`
-                }
-              >
-                {label}
+            <nav className="hidden items-center gap-1 md:flex">
+              {navItems.map(({ to, label }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  className={({ isActive }) =>
+                    `relative px-3 py-2 text-sm font-semibold transition ${
+                      isActive ? 'text-barro-400' : 'text-ink-inverse-soft hover:text-ink-inverse'
+                    }`
+                  }
+                >
+                  {label}
+                  {to === '/conversas' && hasUnread && (
+                    <span
+                      className="absolute right-1 top-1.5 h-2 w-2 rounded-full bg-carmim-500"
+                      aria-label="Mensagens não lidas"
+                    />
+                  )}
+                </NavLink>
+              ))}
+            </nav>
+
+            <div className="flex items-center gap-1">
+              <NotificacoesBell />
+              <ProfileMenu user={user} />
+            </div>
+          </div>
+        </header>
+
+        <main className="mx-auto max-w-5xl bg-cortica bg-cortica-grid px-4 pb-24 pt-6 md:px-6 md:pb-10 md:pt-8">
+          <Outlet />
+        </main>
+
+        <nav
+          className="fixed inset-x-0 bottom-0 z-20 flex items-stretch justify-around border-t
+          border-paper-line bg-paper-surface pb-[env(safe-area-inset-bottom)] md:hidden"
+        >
+          {navItems.map(({ to, label, icon: Icon }) => (
+            <NavLink
+              key={to}
+              to={to}
+              className={({ isActive }) =>
+                `relative flex flex-1 flex-col items-center gap-0.5 py-2.5 text-xs font-semibold
+                transition ${isActive ? 'text-barro-700' : 'text-ink-faint'}`
+              }
+            >
+              <span className="relative">
+                <Icon className="h-6 w-6" />
                 {to === '/conversas' && hasUnread && (
                   <span
-                    className="absolute right-1 top-1.5 h-2 w-2 rounded-full bg-carmim-500"
+                    className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-carmim-500"
                     aria-label="Mensagens não lidas"
                   />
                 )}
-              </NavLink>
-            ))}
-          </nav>
+              </span>
+              {label}
+            </NavLink>
+          ))}
+        </nav>
 
-          <ProfileMenu user={user} />
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-5xl bg-cortica bg-cortica-grid px-4 pb-24 pt-6 md:px-6 md:pb-10 md:pt-8">
-        <Outlet />
-      </main>
-
-      <nav
-        className="fixed inset-x-0 bottom-0 z-20 flex items-stretch justify-around border-t
-          border-paper-line bg-paper-surface pb-[env(safe-area-inset-bottom)] md:hidden"
-      >
-        {navItems.map(({ to, label, icon: Icon }) => (
-          <NavLink
-            key={to}
-            to={to}
-            className={({ isActive }) =>
-              `relative flex flex-1 flex-col items-center gap-0.5 py-2.5 text-xs font-semibold
-                transition ${isActive ? 'text-barro-700' : 'text-ink-faint'}`
-            }
+        {avisoToast && (
+          <button
+            type="button"
+            onClick={abrirAviso}
+            className="notch fixed right-4 top-20 z-30 max-w-xs border border-paper-line
+            bg-paper-surface p-4 text-left shadow-paper-2 transition hover:bg-paper"
           >
-            <span className="relative">
-              <Icon className="h-6 w-6" />
-              {to === '/conversas' && hasUnread && (
-                <span
-                  className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-carmim-500"
-                  aria-label="Mensagens não lidas"
-                />
-              )}
+            <p className="font-meta text-[10px] uppercase tracking-wide text-ink-faint">
+              Notificação
+            </p>
+            <p className="mt-1 text-sm font-semibold text-ink">{avisoToast.titulo}</p>
+            <p className="mt-0.5 text-xs text-ink-soft">{avisoToast.mensagem}</p>
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={(e) => {
+                e.stopPropagation();
+                fecharAviso();
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.stopPropagation();
+                  fecharAviso();
+                }
+              }}
+              className="absolute right-2 top-2 text-ink-faint hover:text-ink"
+              aria-label="Fechar notificação"
+            >
+              ✕
             </span>
-            {label}
-          </NavLink>
-        ))}
-      </nav>
+          </button>
+        )}
 
-      {toast && (
-        <button
-          type="button"
-          onClick={abrirToast}
-          className="notch fixed bottom-20 right-4 z-30 max-w-xs border border-paper-line
+        {toast && (
+          <button
+            type="button"
+            onClick={abrirToast}
+            className="notch fixed bottom-20 right-4 z-30 max-w-xs border border-paper-line
             bg-paper-surface p-4 text-left shadow-paper-2 transition hover:bg-paper md:bottom-6"
-        >
-          <p className="font-meta text-[10px] uppercase tracking-wide text-ink-faint">
-            Nova mensagem
-          </p>
-          <p className="mt-1 text-sm font-semibold text-ink">{toast.nome}</p>
-          <span
-            role="button"
-            tabIndex={0}
-            onClick={(e) => {
-              e.stopPropagation();
-              fecharToast();
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
+          >
+            <p className="font-meta text-[10px] uppercase tracking-wide text-ink-faint">
+              Nova mensagem
+            </p>
+            <p className="mt-1 text-sm font-semibold text-ink">{toast.nome}</p>
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={(e) => {
                 e.stopPropagation();
                 fecharToast();
-              }
-            }}
-            className="absolute right-2 top-2 text-ink-faint hover:text-ink"
-            aria-label="Fechar notificação"
-          >
-            ✕
-          </span>
-        </button>
-      )}
-    </div>
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.stopPropagation();
+                  fecharToast();
+                }
+              }}
+              className="absolute right-2 top-2 text-ink-faint hover:text-ink"
+              aria-label="Fechar notificação"
+            >
+              ✕
+            </span>
+          </button>
+        )}
+      </div>
+    </NotificacoesContext.Provider>
   );
 }
 

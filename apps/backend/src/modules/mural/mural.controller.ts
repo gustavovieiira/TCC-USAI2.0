@@ -1,10 +1,11 @@
 import { Request, Response } from 'express';
 import { prisma } from '@/common/prisma';
+import { NotificacoesService } from '@/modules/notificacoes/notificacoes.service';
 import { ForbiddenError } from '@/common/errors';
 import { MuralService } from './mural.service';
 import { criarPostSchema, responderPostSchema } from './mural.schemas';
 
-const muralService = new MuralService(prisma);
+const muralService = new MuralService(prisma, new NotificacoesService(prisma));
 
 function condominioDoUsuario(req: Request): string {
   if (!req.auth?.condominioId) {

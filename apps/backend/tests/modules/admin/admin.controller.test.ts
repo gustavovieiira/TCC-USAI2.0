@@ -184,6 +184,7 @@ describe('GET /api/admin/financeiro/resumo', () => {
     (prisma.solicitacaoSaque.aggregate as jest.Mock)
       .mockResolvedValueOnce({ _count: 2, _sum: { valor: 200 } })
       .mockResolvedValueOnce({ _count: 1, _sum: { valor: 100 } })
+      .mockResolvedValueOnce({ _count: 3, _sum: { valor: 300 } })
       .mockResolvedValueOnce({ _count: 0, _sum: { valor: null } });
     (prisma.condominio.count as jest.Mock).mockResolvedValue(3);
     const app = createApp();
@@ -197,6 +198,7 @@ describe('GET /api/admin/financeiro/resumo', () => {
       saques: {
         pendente: { quantidade: 2, valorTotal: 200 },
         aprovado: { quantidade: 1, valorTotal: 100 },
+        pago: { quantidade: 3, valorTotal: 300 },
         rejeitado: { quantidade: 0, valorTotal: 0 },
       },
       condominiosAtivos: 3,

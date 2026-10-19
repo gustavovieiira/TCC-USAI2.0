@@ -10,5 +10,5 @@ export const rejeitarSaqueSchema = z.object({
 });
 
 export const listarSaquesQuerySchema = z.object({
-  status: z.enum(['PENDENTE', 'APROVADO', 'REJEITADO']).optional(),
+  status: z.enum(['PENDENTE', 'APROVADO', 'REJEITADO', 'PAGO']).optional(),
 });

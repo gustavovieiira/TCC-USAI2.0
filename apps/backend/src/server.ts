@@ -5,6 +5,7 @@ import { setSocketServer } from './realtime/emitter';
 import { createSocketServer } from './realtime/socket';
 import { logger } from '@/common/logger';
 import { prisma } from '@/common/prisma';
+import { NotificacoesService } from '@/modules/notificacoes/notificacoes.service';
 import { AsaasClient } from '@/modules/pagamentos/asaas.client';
 import { PagamentosService } from '@/modules/pagamentos/pagamentos.service';
 
@@ -31,13 +32,21 @@ setInterval(() => {
     .catch((error) => logger.error('Falha ao expirar conversas privadas do Mural', { error }));
 }, UMA_HORA_MS);
 
+/** Notificações guardam só os últimos 30 dias (ver `NotificacoesService#removerAntigas`). */
+const notificacoesService = new NotificacoesService(prisma);
+setInterval(() => {
+  notificacoesService
+    .removerAntigas()
+    .catch((error) => logger.error('Falha ao limpar notificações antigas', { error }));
+}, UMA_HORA_MS);
+
 /**
  * Rede de segurança do webhook do Asaas: a cada 30s confere as cobranças ainda pendentes direto na
  * API do Asaas e confirma as já pagas (ver `PagamentosService#conferirPendentes`). Só liga com
  * `ASAAS_API_KEY` configurada, e nunca roda duas conferências ao mesmo tempo.
  */
 if (process.env.ASAAS_API_KEY) {
-  const pagamentosService = new PagamentosService(prisma, new AsaasClient());
+  const pagamentosService = new PagamentosService(prisma, new AsaasClient(), notificacoesService);
   let conferindo = false;
 
   setInterval(() => {

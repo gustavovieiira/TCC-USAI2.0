@@ -14,6 +14,7 @@ import {
   rejeitarLocacao,
 } from '@/features/locacoes/locacoes.api';
 import { LocacaoDTO } from '@/features/locacoes/locacoes.types';
+import { useNotificacoesContext } from '@/features/notificacoes/useNotificacoes';
 import { useLocacaoAtualizada } from '@/features/locacoes/useLocacaoAtualizada';
 import { criarCobranca } from '@/features/pagamentos/pagamentos.api';
 
@@ -26,6 +27,11 @@ export function MinhasLocacoesPage() {
   const [erro, setErro] = useState<string | null>(null);
   const [processandoId, setProcessandoId] = useState<string | null>(null);
 
+  // Notificação ao vivo de locação/pagamento (pedido novo, aprovação...) → recarrega as listas.
+  const { ultimaRecebida } = useNotificacoesContext();
+  const recarregarComNotificacao =
+    ultimaRecebida && /^(LOCACAO|PAGAMENTO)_/.test(ultimaRecebida.tipo) ? ultimaRecebida.id : null;
+
   useEffect(() => {
     Promise.all([listarComoLocatario(), listarComoProprietario()])
       .then(([locatario, proprietario]) => {
@@ -33,7 +39,7 @@ export function MinhasLocacoesPage() {
         setComoProprietario(proprietario);
       })
       .catch((err) => setErro(extractErrorMessage(err)));
-  }, []);
+  }, [recarregarComNotificacao]);
 
   useLocacaoAtualizada((evento) => {
     const aplicar = (lista: LocacaoDTO[] | null) =>

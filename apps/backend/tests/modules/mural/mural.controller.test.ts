@@ -1,6 +1,9 @@
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
 
+// Os avisos persistidos têm testes próprios; aqui só importa o fluxo HTTP.
+jest.mock('@/modules/notificacoes/notificacoes.service');
+
 jest.mock('@/common/prisma', () => ({
   prisma: {
     post: {

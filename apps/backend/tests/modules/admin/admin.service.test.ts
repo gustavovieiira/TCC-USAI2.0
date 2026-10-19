@@ -168,6 +168,7 @@ describe('AdminService.resumoFinanceiro', () => {
     prisma.solicitacaoSaque.aggregate
       .mockResolvedValueOnce({ _count: 2, _sum: { valor: 150 } })
       .mockResolvedValueOnce({ _count: 5, _sum: { valor: 800 } })
+      .mockResolvedValueOnce({ _count: 4, _sum: { valor: 600 } })
       .mockResolvedValueOnce({ _count: 1, _sum: { valor: 50 } });
     prisma.condominio.count.mockResolvedValue(3);
 
@@ -178,6 +179,7 @@ describe('AdminService.resumoFinanceiro', () => {
       saques: {
         pendente: { quantidade: 2, valorTotal: 150 },
         aprovado: { quantidade: 5, valorTotal: 800 },
+        pago: { quantidade: 4, valorTotal: 600 },
         rejeitado: { quantidade: 1, valorTotal: 50 },
       },
       condominiosAtivos: 3,

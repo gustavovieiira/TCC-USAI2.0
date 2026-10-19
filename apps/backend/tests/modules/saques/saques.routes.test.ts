@@ -1,6 +1,7 @@
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
 import { createApp } from '@/app';
+// Aqui só importa o RBAC; sem o mock, aprovar/rejeitar tentariam gravar notificação no banco.jest.mock('@/modules/notificacoes/notificacoes.service');
 
 const ACCESS_SECRET = 'test-access-secret';
 

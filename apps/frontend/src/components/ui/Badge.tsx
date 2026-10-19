@@ -38,12 +38,14 @@ export function StatusBadge({ status }: { status: StatusLocacao }) {
 const SAQUE_STATUS_LABEL: Record<StatusSaque, string> = {
   PENDENTE: 'Pendente',
   APROVADO: 'Aprovado',
+  PAGO: 'Pago',
   REJEITADO: 'Rejeitado',
 };
 
 const SAQUE_STATUS_CLASSES: Record<StatusSaque, string> = {
   PENDENTE: 'bg-mostarda-100 text-mostarda-700',
-  APROVADO: 'bg-jade-100 text-jade-700',
+  APROVADO: 'bg-barro-100 text-barro-700',
+  PAGO: 'bg-jade-100 text-jade-700',
   REJEITADO: 'bg-carmim-100 text-carmim-700',
 };
 

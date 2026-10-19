@@ -1,6 +1,8 @@
-import { Prisma, PrismaClient, SolicitacaoSaque } from '@prisma/client';
+import { Condominio, Prisma, PrismaClient, SolicitacaoSaque, User } from '@prisma/client';
 import { AppError, NotFoundError } from '@/common/errors';
 import { STATUS_QUE_GERAM_SALDO } from '@/modules/locacoes/locacoes.service';
+import { formatarReais } from '@/modules/notificacoes/notificacoes.format';
+import { NotificacoesService } from '@/modules/notificacoes/notificacoes.service';
 import {
   ExtratoDTO,
   ListarSaquesFiltro,
@@ -24,32 +26,44 @@ function mascararChavePix(chave: string): string {
 
 const STATUS_SAQUE_NO_EXTRATO = {
   PENDENTE: 'EM_ANALISE',
-  APROVADO: 'PAGO',
+  APROVADO: 'APROVADO',
+  PAGO: 'PAGO',
   REJEITADO: 'REJEITADO',
 } as const;
 
-function toSaqueDTO(saque: SolicitacaoSaque, solicitanteNome?: string): SaqueDTO {
+/** Include padrão das operações do Admin: devolve nome e condomínio de quem pediu o saque. */
+const INCLUIR_SOLICITANTE = { user: { include: { condominio: true } } } as const;
+
+type SaqueComSolicitante = SolicitacaoSaque & { user: User & { condominio: Condominio | null } };
+
+function toSaqueDTO(saque: SolicitacaoSaque, solicitante?: SaqueComSolicitante['user']): SaqueDTO {
   return {
     id: saque.id,
     userId: saque.userId,
-    solicitanteNome,
+    solicitanteNome: solicitante?.nome,
+    solicitanteCondominio: solicitante ? (solicitante.condominio?.nome ?? null) : undefined,
     valor: Number(saque.valor),
     chavePixUsada: saque.chavePixUsada,
     status: saque.status,
     motivoRejeicao: saque.motivoRejeicao,
     createdAt: saque.createdAt,
     processadoEm: saque.processadoEm,
+    pagoEm: saque.pagoEm,
   };
 }
 
 export class SaquesService {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly notificacoes?: NotificacoesService,
+  ) {}
 
   /**
    * Saldo líquido disponível pra saque: soma do valor das locações já pagas ao dono (RN — ver
    * `STATUS_QUE_GERAM_SALDO`), já descontada a taxa da plataforma (soma de `Locacao.valorLiquido`,
    * gravado ao confirmar cada pagamento — ver `calcularRepasse`), menos o que já foi sacado
-   * (APROVADO) e menos o que já está em análise (PENDENTE) — assim, duas solicitações pendentes ao mesmo tempo não conseguem,
+   * (APROVADO ou PAGO — o valor sai do saldo na aprovação, antes mesmo do PIX ser transferido) e
+   * menos o que já está em análise (PENDENTE) — assim, duas solicitações pendentes ao mesmo tempo não conseguem,
    * juntas, sacar mais do que a pessoa realmente recebeu. REJEITADO não desconta (o valor volta a
    * ficar disponível). A transição pra PAGA é feita pelo M3 (`pagamentos.service.ts`), disparada
    * pelo webhook do Asaas confirmando o pagamento do locatário.
@@ -68,7 +82,7 @@ export class SaquesService {
         _sum: { valorLiquido: true },
       }),
       cliente.solicitacaoSaque.aggregate({
-        where: { userId, status: 'APROVADO' },
+        where: { userId, status: { in: ['APROVADO', 'PAGO'] } },
         _sum: { valor: true },
       }),
       cliente.solicitacaoSaque.aggregate({
@@ -91,7 +105,7 @@ export class SaquesService {
    * criar antes de decidir se ainda cabe).
    */
   async solicitar(userId: string, input: SolicitarSaqueInput): Promise<SaqueDTO> {
-    return this.prisma.$transaction(async (tx) => {
+    const saque = await this.prisma.$transaction(async (tx) => {
       const saldo = await this.calcularSaldoComCliente(tx, userId);
 
       if (input.valor > saldo) {
@@ -109,10 +123,20 @@ export class SaquesService {
           chavePixUsada: input.chavePixUsada,
           status: 'PENDENTE',
         },
+        include: { user: true },
       });
 
-      return toSaqueDTO(saque);
+      return saque;
     });
+
+    await this.notificacoes?.notificarAdmins({
+      tipo: 'SAQUE_SOLICITADO',
+      titulo: 'Novo pedido de saque',
+      mensagem: `${saque.user.nome} pediu um saque de ${formatarReais(Number(saque.valor))}.`,
+      link: '/admin',
+    });
+
+    return toSaqueDTO(saque);
   }
 
   /**
@@ -148,6 +172,7 @@ export class SaquesService {
       valor: Number(locacao.valorLiquido ?? 0),
       valorBruto: Number(locacao.valorTotal),
       taxa: Number(locacao.taxaPlataforma ?? 0),
+      periodo: { inicio: locacao.dataInicio, fim: locacao.dataFim },
       status: 'CONFIRMADO',
     }));
 
@@ -162,6 +187,7 @@ export class SaquesService {
       motivo: saque.motivoRejeicao,
       chavePix: mascararChavePix(saque.chavePixUsada),
       processadoEm: saque.processadoEm,
+      pagoEm: saque.pagoEm,
     }));
 
     const movimentos = [...recebimentos, ...retiradas].sort(
@@ -175,6 +201,7 @@ export class SaquesService {
         descricao: `Aluguel de "${locacao.item.titulo}"`,
         contraparte: { id: locacao.item.owner.id, nome: locacao.item.owner.nome },
         valor: Number(locacao.pagamento?.valor ?? locacao.valorTotal),
+        periodo: { inicio: locacao.dataInicio, fim: locacao.dataFim },
         status:
           locacao.pagamento?.status === 'PAGO_ORFAO'
             ? ('EM_REEMBOLSO' as const)
@@ -190,6 +217,7 @@ export class SaquesService {
         saldoDisponivel,
         totalRecebido: somar(recebimentos),
         totalSacado: Math.abs(somar(retiradas.filter((m) => m.status === 'PAGO'))),
+        aPagar: Math.abs(somar(retiradas.filter((m) => m.status === 'APROVADO'))),
         emAnalise: Math.abs(somar(retiradas.filter((m) => m.status === 'EM_ANALISE'))),
       },
       movimentos,
@@ -210,11 +238,11 @@ export class SaquesService {
   async listarTodas(filtro: ListarSaquesFiltro = {}): Promise<SaqueDTO[]> {
     const saques = await this.prisma.solicitacaoSaque.findMany({
       where: filtro.status ? { status: filtro.status } : undefined,
-      include: { user: true },
+      include: INCLUIR_SOLICITANTE,
       orderBy: { createdAt: 'desc' },
     });
 
-    return saques.map((saque) => toSaqueDTO(saque, saque.user.nome));
+    return saques.map((saque) => toSaqueDTO(saque, saque.user));
   }
 
   /** Admin USAI aprova — grava em LogAuditoria para rastreabilidade financeira. */
@@ -224,11 +252,54 @@ export class SaquesService {
     const atualizado = await this.prisma.solicitacaoSaque.update({
       where: { id: saqueId },
       data: { status: 'APROVADO', processadoEm: new Date() },
+      include: INCLUIR_SOLICITANTE,
     });
 
     await this.registrarAuditoria(adminId, 'APROVAR_SAQUE', saqueId);
 
-    return toSaqueDTO(atualizado);
+    await this.notificacoes?.notificar({
+      userId: atualizado.userId,
+      tipo: 'SAQUE_APROVADO',
+      titulo: 'Saque aprovado',
+      mensagem: `Seu saque de ${formatarReais(Number(atualizado.valor))} foi aprovado. Assim que o PIX for transferido, você recebe outro aviso.`,
+      link: '/saques',
+    });
+
+    return toSaqueDTO(atualizado, atualizado.user);
+  }
+
+  /**
+   * Admin USAI confirma que o PIX do saque aprovado foi transferido (APROVADO → PAGO). É o que o
+   * usuário vê como "Pago" no extrato e no recibo; também auditado.
+   */
+  async marcarComoPago(saqueId: string, adminId: string): Promise<SaqueDTO> {
+    const saque = await this.prisma.solicitacaoSaque.findUnique({ where: { id: saqueId } });
+
+    if (!saque) {
+      throw new NotFoundError('Solicitação de saque não encontrada');
+    }
+
+    if (saque.status !== 'APROVADO') {
+      throw new AppError('Só é possível marcar como pago um saque aprovado', 409, 'INVALID_STATUS');
+    }
+
+    const atualizado = await this.prisma.solicitacaoSaque.update({
+      where: { id: saqueId },
+      data: { status: 'PAGO', pagoEm: new Date() },
+      include: INCLUIR_SOLICITANTE,
+    });
+
+    await this.registrarAuditoria(adminId, 'PAGAR_SAQUE', saqueId);
+
+    await this.notificacoes?.notificar({
+      userId: atualizado.userId,
+      tipo: 'SAQUE_PAGO',
+      titulo: 'Saque pago',
+      mensagem: `O PIX de ${formatarReais(Number(atualizado.valor))} foi enviado para a chave ${mascararChavePix(atualizado.chavePixUsada)}. Você já pode gerar o recibo no extrato.`,
+      link: '/saques',
+    });
+
+    return toSaqueDTO(atualizado, atualizado.user);
   }
 
   /** Admin USAI rejeita — exige motivo, também auditado. */
@@ -242,13 +313,22 @@ export class SaquesService {
         motivoRejeicao: input.motivoRejeicao,
         processadoEm: new Date(),
       },
+      include: INCLUIR_SOLICITANTE,
     });
 
     await this.registrarAuditoria(adminId, 'REJEITAR_SAQUE', saqueId, {
       motivoRejeicao: input.motivoRejeicao,
     });
 
-    return toSaqueDTO(atualizado);
+    await this.notificacoes?.notificar({
+      userId: atualizado.userId,
+      tipo: 'SAQUE_REJEITADO',
+      titulo: 'Saque rejeitado',
+      mensagem: `Seu saque de ${formatarReais(Number(atualizado.valor))} foi rejeitado: ${input.motivoRejeicao}. O valor voltou para o seu saldo.`,
+      link: '/saques',
+    });
+
+    return toSaqueDTO(atualizado, atualizado.user);
   }
 
   private async buscarPendenteOuFalhar(saqueId: string): Promise<SolicitacaoSaque> {

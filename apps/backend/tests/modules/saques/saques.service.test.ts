@@ -104,6 +104,7 @@ describe('SaquesService.solicitar', () => {
 
     expect(prisma.solicitacaoSaque.create).toHaveBeenCalledWith({
       data: { userId: USER_ID, valor: 100, chavePixUsada: 'user@pix.com', status: 'PENDENTE' },
+      include: { user: true },
     });
     expect(result.status).toBe('PENDENTE');
     expect(result.valor).toBe(100);
@@ -223,7 +224,10 @@ describe('SaquesService.listarTodas', () => {
     const [resultado] = await service.listarTodas({ status: 'PENDENTE' });
 
     expect(prisma.solicitacaoSaque.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { status: 'PENDENTE' }, include: { user: true } }),
+      expect.objectContaining({
+        where: { status: 'PENDENTE' },
+        include: { user: { include: { condominio: true } } },
+      }),
     );
     expect(resultado.solicitanteNome).toBe('Bruno Locatario');
   });
@@ -252,34 +256,45 @@ describe('SaquesService.extrato', () => {
         ...saquePendente,
         id: 'saque-2',
         valor: 20,
-        status: 'APROVADO',
+        status: 'PAGO',
         chavePixUsada: 'chave-pix-longa-1234',
         createdAt: new Date('2026-10-04'),
         processadoEm: new Date('2026-10-04'),
+        pagoEm: new Date('2026-10-04'),
+      },
+      {
+        ...saquePendente,
+        id: 'saque-3',
+        valor: 10,
+        status: 'APROVADO',
+        createdAt: new Date('2026-10-03T12:00:00Z'),
+        processadoEm: new Date('2026-10-03T12:00:00Z'),
       },
     ]);
     comSaldoRecebido(prisma, 90);
     prisma.solicitacaoSaque.aggregate
-      .mockResolvedValueOnce({ _sum: { valor: 20 } })
-      .mockResolvedValueOnce({ _sum: { valor: 30 } });
+      .mockResolvedValueOnce({ _sum: { valor: 30 } }) // APROVADO + PAGO
+      .mockResolvedValueOnce({ _sum: { valor: 30 } }); // PENDENTE
 
     const extrato = await new SaquesService(prisma).extrato(USER_ID);
 
     expect(extrato.resumo).toEqual({
-      saldoDisponivel: 40,
+      saldoDisponivel: 30,
       totalRecebido: 90,
       totalSacado: 20,
+      aPagar: 10,
       emAnalise: 30,
     });
-    // Mais recente primeiro: saque pendente (05), saque pago (04), recebimento (03).
-    expect(extrato.movimentos.map((m) => m.id)).toEqual(['saque-1', 'saque-2', 'loc-1']);
+    // Mais recente primeiro: pendente (05), pago (04), aprovado (03 às 12h), recebimento (03 às 0h).
+    expect(extrato.movimentos.map((m) => m.id)).toEqual(['saque-1', 'saque-2', 'saque-3', 'loc-1']);
+    expect(extrato.movimentos[2]).toMatchObject({ valor: -10, status: 'APROVADO' });
     expect(extrato.movimentos[0]).toMatchObject({ valor: -30, status: 'EM_ANALISE' });
     expect(extrato.movimentos[1]).toMatchObject({
       valor: -20,
       status: 'PAGO',
       chavePix: '****1234',
     });
-    expect(extrato.movimentos[2]).toMatchObject({
+    expect(extrato.movimentos[3]).toMatchObject({
       tipo: 'RECEBIMENTO',
       valor: 90,
       valorBruto: 100,
@@ -342,5 +357,199 @@ describe('SaquesService.extrato', () => {
       motivo: 'Chave PIX divergente',
     });
     expect(extrato.resumo).toMatchObject({ totalSacado: 0, emAnalise: 0 });
+  });
+});
+
+describe('SaquesService — notificações', () => {
+  function comNotificacoes() {
+    const notificacoes = {
+      notificar: jest.fn().mockResolvedValue(undefined),
+      notificarAdmins: jest.fn().mockResolvedValue(undefined),
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return notificacoes as any;
+  }
+
+  it('solicitar avisa os admins com o nome de quem pediu e o valor', async () => {
+    const prisma = buildPrismaMock();
+    comSaldoRecebido(prisma, 500);
+    prisma.solicitacaoSaque.create.mockResolvedValue(saquePendente);
+    const notificacoes = comNotificacoes();
+
+    await new SaquesService(prisma, notificacoes).solicitar(USER_ID, {
+      valor: 100,
+      chavePixUsada: 'user@pix.com',
+    });
+
+    expect(notificacoes.notificarAdmins).toHaveBeenCalledWith({
+      tipo: 'SAQUE_SOLICITADO',
+      titulo: 'Novo pedido de saque',
+      mensagem: 'Bruno Locatario pediu um saque de R$ 100,00.',
+      link: '/admin',
+    });
+  });
+
+  it('solicitar com saldo insuficiente não avisa ninguém', async () => {
+    const prisma = buildPrismaMock();
+    const notificacoes = comNotificacoes();
+
+    await expect(
+      new SaquesService(prisma, notificacoes).solicitar(USER_ID, {
+        valor: 100,
+        chavePixUsada: 'user@pix.com',
+      }),
+    ).rejects.toBeInstanceOf(AppError);
+    expect(notificacoes.notificarAdmins).not.toHaveBeenCalled();
+  });
+
+  it('aprovar avisa quem pediu o saque', async () => {
+    const prisma = buildPrismaMock();
+    prisma.solicitacaoSaque.findUnique.mockResolvedValue(saquePendente);
+    prisma.solicitacaoSaque.update.mockResolvedValue({ ...saquePendente, status: 'APROVADO' });
+    const notificacoes = comNotificacoes();
+
+    await new SaquesService(prisma, notificacoes).aprovar(SAQUE_ID, ADMIN_ID);
+
+    expect(notificacoes.notificar).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: USER_ID, tipo: 'SAQUE_APROVADO', link: '/saques' }),
+    );
+  });
+
+  it('rejeitar avisa quem pediu, com o motivo e a informação de que o valor voltou ao saldo', async () => {
+    const prisma = buildPrismaMock();
+    prisma.solicitacaoSaque.findUnique.mockResolvedValue(saquePendente);
+    prisma.solicitacaoSaque.update.mockResolvedValue({ ...saquePendente, status: 'REJEITADO' });
+    const notificacoes = comNotificacoes();
+
+    await new SaquesService(prisma, notificacoes).rejeitar(SAQUE_ID, ADMIN_ID, {
+      motivoRejeicao: 'Chave PIX divergente',
+    });
+
+    const chamada = notificacoes.notificar.mock.calls[0][0];
+    expect(chamada).toMatchObject({ userId: USER_ID, tipo: 'SAQUE_REJEITADO' });
+    expect(chamada.mensagem).toContain('Chave PIX divergente');
+    expect(chamada.mensagem).toContain('voltou para o seu saldo');
+  });
+});
+
+describe('SaquesService.marcarComoPago', () => {
+  const saqueAprovado = {
+    ...saquePendente,
+    status: 'APROVADO',
+    processadoEm: new Date('2026-10-02'),
+  };
+
+  it('Admin confirma o PIX transferido: vira PAGO com data, audita e devolve o nome de quem pediu', async () => {
+    const prisma = buildPrismaMock();
+    prisma.solicitacaoSaque.findUnique.mockResolvedValue(saqueAprovado);
+    prisma.solicitacaoSaque.update.mockResolvedValue({
+      ...saqueAprovado,
+      status: 'PAGO',
+      pagoEm: new Date('2026-10-03'),
+      user: { nome: 'Bruno Locatario', condominio: { nome: 'Residencial Jardim Europa' } },
+    });
+
+    const result = await new SaquesService(prisma).marcarComoPago(SAQUE_ID, ADMIN_ID);
+
+    expect(prisma.solicitacaoSaque.update).toHaveBeenCalledWith({
+      where: { id: SAQUE_ID },
+      data: { status: 'PAGO', pagoEm: expect.any(Date) },
+      include: { user: { include: { condominio: true } } },
+    });
+    expect(result).toMatchObject({
+      status: 'PAGO',
+      solicitanteNome: 'Bruno Locatario',
+      solicitanteCondominio: 'Residencial Jardim Europa',
+    });
+    expect(result.pagoEm).toEqual(new Date('2026-10-03'));
+    expect(prisma.logAuditoria.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ adminId: ADMIN_ID, acao: 'PAGAR_SAQUE', alvoId: SAQUE_ID }),
+      }),
+    );
+  });
+
+  it('só dá pra pagar um saque aprovado (pendente, rejeitado ou já pago respondem 409)', async () => {
+    for (const status of ['PENDENTE', 'REJEITADO', 'PAGO']) {
+      const prisma = buildPrismaMock();
+      prisma.solicitacaoSaque.findUnique.mockResolvedValue({ ...saquePendente, status });
+
+      await expect(
+        new SaquesService(prisma).marcarComoPago(SAQUE_ID, ADMIN_ID),
+      ).rejects.toBeInstanceOf(AppError);
+      expect(prisma.solicitacaoSaque.update).not.toHaveBeenCalled();
+    }
+  });
+
+  it('retorna 404 quando a solicitação não existe', async () => {
+    const prisma = buildPrismaMock();
+    prisma.solicitacaoSaque.findUnique.mockResolvedValue(null);
+
+    await expect(
+      new SaquesService(prisma).marcarComoPago('inexistente', ADMIN_ID),
+    ).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it('avisa quem pediu que o PIX foi enviado, com a chave mascarada', async () => {
+    const prisma = buildPrismaMock();
+    prisma.solicitacaoSaque.findUnique.mockResolvedValue(saqueAprovado);
+    prisma.solicitacaoSaque.update.mockResolvedValue({
+      ...saqueAprovado,
+      status: 'PAGO',
+      pagoEm: new Date(),
+      user: { nome: 'Bruno Locatario', condominio: null },
+    });
+    const notificacoes = { notificar: jest.fn().mockResolvedValue(undefined) };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await new SaquesService(prisma, notificacoes as any).marcarComoPago(SAQUE_ID, ADMIN_ID);
+
+    const chamada = notificacoes.notificar.mock.calls[0][0];
+    expect(chamada).toMatchObject({ userId: USER_ID, tipo: 'SAQUE_PAGO', link: '/saques' });
+    expect(chamada.mensagem).toContain('R$ 100,00');
+    expect(chamada.mensagem).toContain('u***@pix.com');
+    expect(chamada.mensagem).not.toContain('user@pix.com');
+  });
+});
+
+describe('SaquesService — saque pago continua fora do saldo', () => {
+  it('o saldo desconta saques APROVADO e PAGO (o valor sai do saldo já na aprovação)', async () => {
+    const prisma = buildPrismaMock();
+    comSaldoRecebido(prisma, 100);
+
+    await new SaquesService(prisma).calcularSaldo(USER_ID);
+
+    expect(prisma.solicitacaoSaque.aggregate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: USER_ID, status: { in: ['APROVADO', 'PAGO'] } },
+      }),
+    );
+  });
+
+  it('o extrato traz o período do aluguel pra montar o recibo', async () => {
+    const prisma = buildPrismaMock();
+    prisma.locacao.findMany
+      .mockResolvedValueOnce([
+        {
+          id: 'loc-1',
+          valorTotal: 100,
+          valorLiquido: 90,
+          taxaPlataforma: 10,
+          updatedAt: new Date('2026-10-02'),
+          dataInicio: new Date('2026-10-05'),
+          dataFim: new Date('2026-10-07'),
+          item: { titulo: 'Furadeira' },
+          locatario: { id: 'u-2', nome: 'Carla Locataria' },
+          pagamento: { pagoEm: new Date('2026-10-03') },
+        },
+      ])
+      .mockResolvedValueOnce([]);
+
+    const extrato = await new SaquesService(prisma).extrato(USER_ID);
+
+    expect(extrato.movimentos[0].periodo).toEqual({
+      inicio: new Date('2026-10-05'),
+      fim: new Date('2026-10-07'),
+    });
   });
 });

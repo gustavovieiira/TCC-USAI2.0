@@ -16,3 +16,35 @@ body {
 :focus-visible {
   @apply outline outline-2 outline-offset-2 outline-ink;
 }
+
+/* Recibo: ao imprimir (ou salvar em PDF), só o bloco `.recibo-print` do modal aparece. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .recibo-print,
+  .recibo-print * {
+    visibility: visible;
+  }
+
+  .modal-overlay,
+  .modal-painel {
+    position: static !important;
+    overflow: visible !important;
+    max-height: none !important;
+    background: transparent !important;
+  }
+
+  .recibo-print {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 24px;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}
