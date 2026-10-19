@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-// jsdom não implementa scrollIntoView — usado pelo scroll automático do chat (MensagensLocacaoPage).
+// jsdom não implementa scrollIntoView — usado pelo scroll automático do chat (ConversaPage).
 if (!Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = () => {};
 }

@@ -9,9 +9,16 @@ function buildPrismaMock() {
       findMany: jest.fn(),
       findUnique: jest.fn(),
       create: jest.fn(),
+      upsert: jest.fn(),
+      update: jest.fn(),
       deleteMany: jest.fn(),
     },
-    mensagemPrivada: { create: jest.fn(), findMany: jest.fn() },
+    mensagemPrivada: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      count: jest.fn().mockResolvedValue(0),
+    },
+    locacao: { findUnique: jest.fn() },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
 }
@@ -281,5 +288,250 @@ describe('ConversasService.verificarParticipante', () => {
     await expect(
       service.verificarParticipante('conversa-1', CONDOMINIO_ID, ESTRANHO_ID),
     ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+});
+
+describe('ConversasService.abrirPorLocacao (chat da locação)', () => {
+  const LOCATARIO_ID = BRUNO_ID;
+  const DONO_ID = ANA_ID;
+
+  const locacao = {
+    id: 'locacao-1',
+    locatarioId: LOCATARIO_ID,
+    status: 'APROVADA',
+    item: { id: 'item-1', titulo: 'Projetor', ownerId: DONO_ID, condominioId: CONDOMINIO_ID },
+  };
+
+  const conversaDaLocacao = {
+    ...conversaBase,
+    id: 'conversa-loc',
+    postOrigemId: null,
+    locacaoId: 'locacao-1',
+    participanteAId: LOCATARIO_ID,
+    participanteBId: DONO_ID,
+    participanteA: bruno,
+    participanteB: ana,
+    expiraEm: null,
+    participanteALidoEm: null,
+    participanteBLidoEm: null,
+    locacao,
+    mensagens: [],
+  };
+
+  it('o locatário abre o chat: cria (ou reaproveita) a conversa única da locação, sem expiração', async () => {
+    const prisma = buildPrismaMock();
+    prisma.locacao.findUnique.mockResolvedValue(locacao);
+    prisma.conversaPrivada.upsert.mockResolvedValue(conversaDaLocacao);
+
+    const result = await new ConversasService(prisma).abrirPorLocacao(
+      CONDOMINIO_ID,
+      LOCATARIO_ID,
+      'locacao-1',
+    );
+
+    expect(prisma.conversaPrivada.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { locacaoId: 'locacao-1' },
+        update: {},
+        create: expect.objectContaining({
+          locacaoId: 'locacao-1',
+          participanteAId: LOCATARIO_ID,
+          participanteBId: DONO_ID,
+          condominioId: CONDOMINIO_ID,
+          expiraEm: null,
+        }),
+      }),
+    );
+    expect(result.expiraEm).toBeNull();
+    expect(result.locacao).toEqual({ id: 'locacao-1', itemTitulo: 'Projetor', status: 'APROVADA' });
+    expect(result.outroParticipante.id).toBe(DONO_ID);
+  });
+
+  it('o dono do item também abre, e vê o locatário como o outro participante', async () => {
+    const prisma = buildPrismaMock();
+    prisma.locacao.findUnique.mockResolvedValue(locacao);
+    prisma.conversaPrivada.upsert.mockResolvedValue(conversaDaLocacao);
+
+    const result = await new ConversasService(prisma).abrirPorLocacao(
+      CONDOMINIO_ID,
+      DONO_ID,
+      'locacao-1',
+    );
+
+    expect(result.outroParticipante.id).toBe(LOCATARIO_ID);
+  });
+
+  it('rejeita quem não é nem locatário nem dono (403) sem criar nada', async () => {
+    const prisma = buildPrismaMock();
+    prisma.locacao.findUnique.mockResolvedValue(locacao);
+
+    await expect(
+      new ConversasService(prisma).abrirPorLocacao(CONDOMINIO_ID, ESTRANHO_ID, 'locacao-1'),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(prisma.conversaPrivada.upsert).not.toHaveBeenCalled();
+  });
+
+  it('locação inexistente ou de outro condomínio responde 404', async () => {
+    const prisma = buildPrismaMock();
+    const service = new ConversasService(prisma);
+
+    prisma.locacao.findUnique.mockResolvedValue(null);
+    await expect(service.abrirPorLocacao(CONDOMINIO_ID, ANA_ID, 'x')).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+
+    prisma.locacao.findUnique.mockResolvedValue({
+      ...locacao,
+      item: { ...locacao.item, condominioId: 'outro-condominio' },
+    });
+    await expect(
+      service.abrirPorLocacao(CONDOMINIO_ID, ANA_ID, 'locacao-1'),
+    ).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it('a conversa do Mural nunca reaproveita o chat de uma locação (filtra locacaoId: null)', async () => {
+    const prisma = buildPrismaMock();
+    prisma.user.findFirst.mockResolvedValue(bruno);
+    prisma.conversaPrivada.findFirst.mockResolvedValue(null);
+    prisma.conversaPrivada.create.mockResolvedValue(conversaBase);
+
+    await new ConversasService(prisma).abrirOuContinuar(CONDOMINIO_ID, ANA_ID, {
+      usuarioId: BRUNO_ID,
+    });
+
+    expect(prisma.conversaPrivada.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ locacaoId: null }) }),
+    );
+  });
+});
+
+describe('ConversasService — mensagens não lidas (persistidas)', () => {
+  it('conta só as mensagens do outro depois do "lido em" de quem pergunta', async () => {
+    const prisma = buildPrismaMock();
+    const lidoEm = new Date('2026-09-17T10:00:00Z');
+    prisma.conversaPrivada.findFirst.mockResolvedValue({
+      ...conversaBase,
+      participanteBLidoEm: lidoEm,
+    });
+    prisma.mensagemPrivada.count.mockResolvedValue(3);
+
+    const result = await new ConversasService(prisma).buscarPorId(
+      'conversa-1',
+      CONDOMINIO_ID,
+      BRUNO_ID,
+    );
+
+    expect(prisma.mensagemPrivada.count).toHaveBeenCalledWith({
+      where: {
+        conversaId: 'conversa-1',
+        remetenteId: { not: BRUNO_ID },
+        createdAt: { gt: lidoEm },
+      },
+    });
+    expect(result.naoLidas).toBe(3);
+  });
+
+  it('quem nunca leu (lidoEm nulo) tem todas as mensagens do outro como não lidas', async () => {
+    const prisma = buildPrismaMock();
+    prisma.conversaPrivada.findFirst.mockResolvedValue({
+      ...conversaBase,
+      participanteALidoEm: null,
+    });
+
+    await new ConversasService(prisma).buscarPorId('conversa-1', CONDOMINIO_ID, ANA_ID);
+
+    expect(prisma.mensagemPrivada.count).toHaveBeenCalledWith({
+      where: { conversaId: 'conversa-1', remetenteId: { not: ANA_ID } },
+    });
+  });
+
+  it('marcarComoLida grava o "lido em" do participante certo (A ou B) e de mais ninguém', async () => {
+    const prisma = buildPrismaMock();
+    prisma.conversaPrivada.findFirst.mockResolvedValue(conversaBase);
+    const service = new ConversasService(prisma);
+
+    await service.marcarComoLida('conversa-1', CONDOMINIO_ID, ANA_ID);
+    await service.marcarComoLida('conversa-1', CONDOMINIO_ID, BRUNO_ID);
+
+    expect(prisma.conversaPrivada.update).toHaveBeenNthCalledWith(1, {
+      where: { id: 'conversa-1' },
+      data: { participanteALidoEm: expect.any(Date) },
+    });
+    expect(prisma.conversaPrivada.update).toHaveBeenNthCalledWith(2, {
+      where: { id: 'conversa-1' },
+      data: { participanteBLidoEm: expect.any(Date) },
+    });
+  });
+
+  it('marcarComoLida bloqueia quem não participa', async () => {
+    const prisma = buildPrismaMock();
+    prisma.conversaPrivada.findFirst.mockResolvedValue(conversaBase);
+
+    await expect(
+      new ConversasService(prisma).marcarComoLida('conversa-1', CONDOMINIO_ID, ESTRANHO_ID),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(prisma.conversaPrivada.update).not.toHaveBeenCalled();
+  });
+
+  it('quem envia a mensagem já fica "lido" até ela', async () => {
+    const prisma = buildPrismaMock();
+    const enviadaEm = new Date('2026-09-17T12:00:00Z');
+    prisma.conversaPrivada.findFirst.mockResolvedValue(conversaBase);
+    prisma.mensagemPrivada.create.mockResolvedValue({
+      id: 'msg-1',
+      conversaId: 'conversa-1',
+      remetenteId: ANA_ID,
+      conteudo: 'Oi',
+      createdAt: enviadaEm,
+    });
+
+    await new ConversasService(prisma).enviarMensagem('conversa-1', CONDOMINIO_ID, ANA_ID, {
+      conteudo: 'Oi',
+    });
+
+    expect(prisma.conversaPrivada.update).toHaveBeenCalledWith({
+      where: { id: 'conversa-1' },
+      data: { participanteALidoEm: enviadaEm },
+    });
+  });
+
+  it('contarNaoLidas soma as não lidas de todas as conversas do usuário', async () => {
+    const prisma = buildPrismaMock();
+    prisma.conversaPrivada.findMany.mockResolvedValue([
+      conversaBase,
+      { ...conversaBase, id: 'conversa-2' },
+    ]);
+    prisma.mensagemPrivada.count.mockResolvedValueOnce(2).mockResolvedValueOnce(5);
+
+    const total = await new ConversasService(prisma).contarNaoLidas(CONDOMINIO_ID, ANA_ID);
+
+    expect(total).toBe(7);
+  });
+
+  it('listarMinhas junta Mural e locações, a mais recente primeiro, com a contagem de cada uma', async () => {
+    const prisma = buildPrismaMock();
+    prisma.conversaPrivada.findMany.mockResolvedValue([
+      {
+        ...conversaBase,
+        id: 'antiga',
+        mensagens: [{ conteudo: 'a', createdAt: new Date('2026-09-10') }],
+      },
+      {
+        ...conversaBase,
+        id: 'locacao',
+        locacaoId: 'locacao-1',
+        expiraEm: null,
+        locacao: { id: 'locacao-1', status: 'PAGA', item: { titulo: 'Projetor' } },
+        mensagens: [{ conteudo: 'b', createdAt: new Date('2026-09-20') }],
+      },
+    ]);
+    prisma.mensagemPrivada.count.mockResolvedValueOnce(0).mockResolvedValueOnce(4);
+
+    const result = await new ConversasService(prisma).listarMinhas(CONDOMINIO_ID, ANA_ID);
+
+    expect(result.map((c) => c.id)).toEqual(['locacao', 'antiga']);
+    expect(result[0]).toMatchObject({ naoLidas: 4, expiraEm: null });
+    expect(result[0].locacao?.itemTitulo).toBe('Projetor');
+    expect(result[1].locacao).toBeNull();
   });
 });

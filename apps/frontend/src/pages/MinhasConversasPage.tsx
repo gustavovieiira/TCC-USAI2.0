@@ -57,7 +57,8 @@ export function MinhasConversasPage() {
       <div>
         <h1 className="font-display text-2xl font-bold text-ink">Conversas</h1>
         <p className="text-sm text-ink-soft">
-          Chats privados abertos a partir do Mural. Ficam disponíveis por até 7 dias.
+          Seus chats num só lugar: o das suas locações (ficam enquanto a locação existir) e os
+          abertos a partir do Mural (ficam por até 7 dias).
         </p>
       </div>
 
@@ -136,6 +137,14 @@ export function MinhasConversasPage() {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-semibold text-ink">{conversa.outroParticipante.nome}</span>
+                  {conversa.naoLidas > 0 && (
+                    <span
+                      aria-label={`${conversa.naoLidas} ${conversa.naoLidas === 1 ? 'mensagem não lida' : 'mensagens não lidas'}`}
+                      className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-carmim-500 px-1.5 text-[11px] font-bold text-white"
+                    >
+                      {conversa.naoLidas}
+                    </span>
+                  )}
                   {conversa.ultimaMensagem && (
                     <span className="shrink-0 font-meta text-xs text-ink-faint">
                       {formatRelativeTime(conversa.ultimaMensagem.createdAt)}
@@ -146,7 +155,9 @@ export function MinhasConversasPage() {
                   {conversa.ultimaMensagem?.conteudo ?? 'Nenhuma mensagem ainda.'}
                 </p>
                 <p className="mt-1 font-meta text-xs text-ink-faint">
-                  {formatDiasRestantes(conversa.expiraEm)}
+                  {conversa.locacao
+                    ? `Locação · ${conversa.locacao.itemTitulo}`
+                    : conversa.expiraEm && formatDiasRestantes(conversa.expiraEm)}
                 </p>
               </div>
             </Link>

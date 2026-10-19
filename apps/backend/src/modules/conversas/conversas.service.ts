@@ -1,4 +1,11 @@
-import { ConversaPrivada, MensagemPrivada, PrismaClient, User } from '@prisma/client';
+import {
+  ConversaPrivada,
+  Item,
+  Locacao,
+  MensagemPrivada,
+  PrismaClient,
+  User,
+} from '@prisma/client';
 import { ForbiddenError, NotFoundError } from '@/common/errors';
 import {
   AbrirConversaInput,
@@ -12,6 +19,7 @@ type ConversaComParticipantes = ConversaPrivada & {
   participanteA: User;
   participanteB: User;
   mensagens?: MensagemPrivada[];
+  locacao?: (Locacao & { item: Item }) | null;
 };
 
 const DIAS_EXPIRACAO = 7;
@@ -21,7 +29,11 @@ function toParticipanteDTO(user: User) {
   return { id: user.id, nome: user.nome, papel: user.papel };
 }
 
-function toConversaDTO(conversa: ConversaComParticipantes, meuId: string): ConversaDTO {
+function toConversaDTO(
+  conversa: ConversaComParticipantes,
+  meuId: string,
+  naoLidas = 0,
+): ConversaDTO {
   const outro =
     conversa.participanteAId === meuId ? conversa.participanteB : conversa.participanteA;
   const ultimaMensagem = conversa.mensagens?.[0]
@@ -32,9 +44,17 @@ function toConversaDTO(conversa: ConversaComParticipantes, meuId: string): Conve
     id: conversa.id,
     outroParticipante: toParticipanteDTO(outro),
     postOrigemId: conversa.postOrigemId,
+    locacao: conversa.locacao
+      ? {
+          id: conversa.locacao.id,
+          itemTitulo: conversa.locacao.item.titulo,
+          status: conversa.locacao.status,
+        }
+      : null,
     createdAt: conversa.createdAt,
     expiraEm: conversa.expiraEm,
     ultimaMensagem,
+    naoLidas,
   };
 }
 
@@ -48,11 +68,22 @@ function toMensagemDTO(mensagem: MensagemPrivada): MensagemPrivadaDTO {
   };
 }
 
+/** Quando o participante leu a conversa pela última vez (nulo = nunca). */
+function lidoEmDe(conversa: ConversaPrivada, userId: string): Date | null {
+  return conversa.participanteAId === userId
+    ? conversa.participanteALidoEm
+    : conversa.participanteBLidoEm;
+}
+
 /**
- * Chat privado 1:1 aberto a partir do Mural (autor de um post ou de um comentário) — pra tirar uma
- * dúvida ou combinar algo direto com a pessoa, sem virar comentário público. Efêmero por design:
- * expira 7 dias depois de criado e é apagado de vez (não só ocultado) — daí a checagem de posts
- * expirados em toda operação (`expirarAntigas`), além da varredura periódica em `server.ts`.
+ * Chat 1:1 do condomínio, de dois tipos que aparecem juntos na página de Conversas:
+ * - **Mural**: aberto a partir do autor de um post/comentário, pra tirar uma dúvida sem virar
+ *   comentário público. Efêmero: expira 7 dias depois e é apagado de vez (não só ocultado) — daí a
+ *   checagem em toda operação (`expirarAntigas`), além da varredura periódica em `server.ts`.
+ * - **Locação**: o chat entre locatário e dono do item (`locacaoId` preenchido), sem expiração,
+ *   criado na primeira vez que alguém abre a conversa da locação.
+ * As mensagens não lidas ficam gravadas (`participante*LidoEm`), então sobrevivem a recarregar a
+ * página ou trocar de aparelho.
  */
 export class ConversasService {
   constructor(private readonly prisma: PrismaClient) {}
@@ -76,9 +107,11 @@ export class ConversasService {
 
     await this.expirarAntigas(condominioId);
 
+    // `locacaoId: null`: o chat de uma locação é só daquela locação, nunca reaproveitado aqui.
     const existente = await this.prisma.conversaPrivada.findFirst({
       where: {
         condominioId,
+        locacaoId: null,
         expiraEm: { gt: new Date() },
         OR: [
           { participanteAId: meuId, participanteBId: input.usuarioId },
@@ -89,7 +122,7 @@ export class ConversasService {
     });
 
     if (existente) {
-      return toConversaDTO(existente, meuId);
+      return toConversaDTO(existente, meuId, await this.contarNaoLidasDe(existente, meuId));
     }
 
     const criada = await this.prisma.conversaPrivada.create({
@@ -106,6 +139,49 @@ export class ConversasService {
     return toConversaDTO(criada, meuId);
   }
 
+  /**
+   * Abre (criando na primeira vez) o chat de uma locação. Só quem participa dela — o locatário e o
+   * dono do item — e só dentro do próprio condomínio. `upsert` por `locacaoId` (único) evita duas
+   * conversas se os dois lados clicarem ao mesmo tempo.
+   */
+  async abrirPorLocacao(
+    condominioId: string,
+    meuId: string,
+    locacaoId: string,
+  ): Promise<ConversaDTO> {
+    const locacao = await this.prisma.locacao.findUnique({
+      where: { id: locacaoId },
+      include: { item: true },
+    });
+
+    if (!locacao || locacao.item.condominioId !== condominioId) {
+      throw new NotFoundError('Locação não encontrada');
+    }
+    if (locacao.locatarioId !== meuId && locacao.item.ownerId !== meuId) {
+      throw new ForbiddenError('Você não participa desta locação');
+    }
+
+    const conversa = await this.prisma.conversaPrivada.upsert({
+      where: { locacaoId },
+      update: {},
+      create: {
+        locacaoId,
+        participanteAId: locacao.locatarioId,
+        participanteBId: locacao.item.ownerId,
+        condominioId,
+        expiraEm: null,
+      },
+      include: {
+        participanteA: true,
+        participanteB: true,
+        locacao: { include: { item: true } },
+        mensagens: { orderBy: { createdAt: 'desc' }, take: 1 },
+      },
+    });
+
+    return toConversaDTO(conversa, meuId, await this.contarNaoLidasDe(conversa, meuId));
+  }
+
   /** Pra busca de "com quem eu quero conversar" — todo mundo do condomínio, exceto eu mesmo. */
   async listarUsuariosDoCondominio(
     condominioId: string,
@@ -119,6 +195,7 @@ export class ConversasService {
     return usuarios.map(toParticipanteDTO);
   }
 
+  /** Mural e locações juntos, a mais recente (última mensagem ou criação) primeiro. */
   async listarMinhas(condominioId: string, meuId: string): Promise<ConversaDTO[]> {
     await this.expirarAntigas(condominioId);
 
@@ -127,17 +204,37 @@ export class ConversasService {
       include: {
         participanteA: true,
         participanteB: true,
+        locacao: { include: { item: true } },
         mensagens: { orderBy: { createdAt: 'desc' }, take: 1 },
       },
-      orderBy: { createdAt: 'desc' },
     });
 
-    return conversas.map((conversa) => toConversaDTO(conversa, meuId));
+    const dtos = await Promise.all(
+      conversas.map(async (conversa) =>
+        toConversaDTO(conversa, meuId, await this.contarNaoLidasDe(conversa, meuId)),
+      ),
+    );
+
+    const ultimaAtividade = (c: ConversaDTO) =>
+      (c.ultimaMensagem?.createdAt ?? c.createdAt).getTime();
+    return dtos.sort((a, b) => ultimaAtividade(b) - ultimaAtividade(a));
+  }
+
+  /** Total de mensagens não lidas em todas as conversas — alimenta a bolinha do menu. */
+  async contarNaoLidas(condominioId: string, meuId: string): Promise<number> {
+    await this.expirarAntigas(condominioId);
+
+    const conversas = await this.prisma.conversaPrivada.findMany({
+      where: { condominioId, OR: [{ participanteAId: meuId }, { participanteBId: meuId }] },
+    });
+    const contagens = await Promise.all(conversas.map((c) => this.contarNaoLidasDe(c, meuId)));
+
+    return contagens.reduce((total, n) => total + n, 0);
   }
 
   async buscarPorId(conversaId: string, condominioId: string, meuId: string): Promise<ConversaDTO> {
     const conversa = await this.buscarEVerificarOuFalhar(conversaId, condominioId, meuId);
-    return toConversaDTO(conversa, meuId);
+    return toConversaDTO(conversa, meuId, await this.contarNaoLidasDe(conversa, meuId));
   }
 
   async listarMensagens(
@@ -161,13 +258,22 @@ export class ConversasService {
     remetenteId: string,
     input: EnviarMensagemPrivadaInput,
   ): Promise<MensagemPrivadaDTO> {
-    await this.buscarEVerificarOuFalhar(conversaId, condominioId, remetenteId);
+    const conversa = await this.buscarEVerificarOuFalhar(conversaId, condominioId, remetenteId);
 
     const mensagem = await this.prisma.mensagemPrivada.create({
       data: { conversaId, remetenteId, conteudo: input.conteudo },
     });
 
+    // Quem acabou de escrever obviamente já leu tudo até aqui.
+    await this.gravarLidoEm(conversa, remetenteId, mensagem.createdAt);
+
     return toMensagemDTO(mensagem);
+  }
+
+  /** O usuário abriu (ou está com aberta) a conversa: tudo até agora conta como lido. */
+  async marcarComoLida(conversaId: string, condominioId: string, userId: string): Promise<void> {
+    const conversa = await this.buscarEVerificarOuFalhar(conversaId, condominioId, userId);
+    await this.gravarLidoEm(conversa, userId, new Date());
   }
 
   /** Usado pelo WebSocket antes de deixar um socket entrar na sala da conversa. */
@@ -193,6 +299,28 @@ export class ConversasService {
     return conversa.participanteAId === meuId ? conversa.participanteBId : conversa.participanteAId;
   }
 
+  private async contarNaoLidasDe(conversa: ConversaPrivada, meuId: string): Promise<number> {
+    const lidoEm = lidoEmDe(conversa, meuId);
+
+    return this.prisma.mensagemPrivada.count({
+      where: {
+        conversaId: conversa.id,
+        remetenteId: { not: meuId },
+        ...(lidoEm ? { createdAt: { gt: lidoEm } } : {}),
+      },
+    });
+  }
+
+  private async gravarLidoEm(conversa: ConversaPrivada, userId: string, quando: Date) {
+    await this.prisma.conversaPrivada.update({
+      where: { id: conversa.id },
+      data:
+        conversa.participanteAId === userId
+          ? { participanteALidoEm: quando }
+          : { participanteBLidoEm: quando },
+    });
+  }
+
   private async buscarEVerificarOuFalhar(
     conversaId: string,
     condominioId: string,
@@ -202,7 +330,7 @@ export class ConversasService {
 
     const conversa = await this.prisma.conversaPrivada.findFirst({
       where: { id: conversaId, condominioId },
-      include: { participanteA: true, participanteB: true },
+      include: { participanteA: true, participanteB: true, locacao: { include: { item: true } } },
     });
 
     if (!conversa) {
@@ -215,7 +343,7 @@ export class ConversasService {
     return conversa;
   }
 
-  /** Conversas são efêmeras por design (no máximo 7 dias) — apagadas de vez, não só ocultadas. */
+  /** Conversas do Mural são efêmeras (no máximo 7 dias) — apagadas de vez. Chat de locação não expira. */
   private async expirarAntigas(condominioId: string): Promise<void> {
     await this.prisma.conversaPrivada.deleteMany({
       where: { condominioId, expiraEm: { lt: new Date() } },

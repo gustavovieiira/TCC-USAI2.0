@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConversaPage } from './ConversaPage';
 import * as conversasApi from '@/features/conversas/conversas.api';
 import * as authStorage from '@/lib/authStorage';
@@ -44,6 +44,8 @@ const conversaBase: ConversaDTO = {
   createdAt: '2026-09-16T12:00:00.000Z',
   expiraEm: EXPIRA_EM,
   ultimaMensagem: null,
+  locacao: null,
+  naoLidas: 0,
 };
 
 const historico: MensagemPrivadaDTO[] = [
@@ -79,6 +81,10 @@ function renderPage(fakeSocket: ReturnType<typeof buildFakeSocket>) {
 }
 
 describe('ConversaPage', () => {
+  beforeEach(() => {
+    vi.spyOn(conversasApi, 'marcarConversaComoLida').mockResolvedValue(undefined);
+  });
+
   it('carrega os dados da conversa e o histórico, entrando na sala ao conectar', async () => {
     vi.spyOn(conversasApi, 'buscarConversa').mockResolvedValue(conversaBase);
     vi.spyOn(conversasApi, 'listarMensagens').mockResolvedValue(historico);
@@ -177,5 +183,52 @@ describe('ConversaPage', () => {
     unmount();
 
     expect(fakeSocket.disconnect).toHaveBeenCalled();
+  });
+
+  it('abrir a conversa grava que foi lida (a bolinha não volta ao recarregar)', async () => {
+    vi.spyOn(conversasApi, 'buscarConversa').mockResolvedValue(conversaBase);
+    vi.spyOn(conversasApi, 'listarMensagens').mockResolvedValue(historico);
+
+    renderPage(buildFakeSocket());
+    await screen.findByText('Ainda tem a furadeira?');
+
+    expect(conversasApi.marcarConversaComoLida).toHaveBeenCalledWith('conversa-1');
+  });
+
+  it('mensagem do outro que chega com a conversa aberta também é marcada como lida', async () => {
+    vi.spyOn(conversasApi, 'buscarConversa').mockResolvedValue(conversaBase);
+    vi.spyOn(conversasApi, 'listarMensagens').mockResolvedValue(historico);
+    const fakeSocket = buildFakeSocket();
+
+    renderPage(fakeSocket);
+    await screen.findByText('Ainda tem a furadeira?');
+    vi.mocked(conversasApi.marcarConversaComoLida).mockClear();
+
+    fakeSocket.trigger('conversa:mensagem:nova', {
+      id: 'msg-9',
+      conversaId: 'conversa-1',
+      remetenteId: 'user-bruno',
+      conteudo: 'Chego às 10h',
+      createdAt: '2026-09-16T12:20:00.000Z',
+    });
+
+    await screen.findByText('Chego às 10h');
+    expect(conversasApi.marcarConversaComoLida).toHaveBeenCalledWith('conversa-1');
+  });
+
+  it('chat de locação mostra o item, leva pra Locações e não tem prazo de expiração', async () => {
+    vi.spyOn(conversasApi, 'buscarConversa').mockResolvedValue({
+      ...conversaBase,
+      postOrigemId: null,
+      expiraEm: null,
+      locacao: { id: 'locacao-1', itemTitulo: 'Projetor M3 Teste', status: 'APROVADA' },
+    });
+    vi.spyOn(conversasApi, 'listarMensagens').mockResolvedValue([]);
+
+    renderPage(buildFakeSocket());
+
+    const link = await screen.findByRole('link', { name: 'Projetor M3 Teste' });
+    expect(link).toHaveAttribute('href', '/locacoes');
+    expect(screen.queryByText(/expira/)).not.toBeInTheDocument();
   });
 });

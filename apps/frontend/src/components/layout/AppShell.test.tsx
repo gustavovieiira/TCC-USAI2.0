@@ -32,6 +32,7 @@ describe('AppShell', () => {
       disconnect: vi.fn(),
     } as unknown as socketLib.ConversaSocket);
     vi.spyOn(conversasApi, 'listarMinhasConversas').mockResolvedValue([]);
+    vi.spyOn(conversasApi, 'contarMensagensNaoLidas').mockResolvedValue(0);
     vi.spyOn(notificacoesApi, 'listarNotificacoes').mockResolvedValue({
       notificacoes: [],
       naoLidas: 2,
@@ -87,5 +88,37 @@ describe('AppShell', () => {
 
     expect(await screen.findByTestId('notificacoes-contagem')).toHaveTextContent('2');
     expect(screen.getByRole('link', { name: 'Notificações (2 não lidas)' })).toBeInTheDocument();
+  });
+
+  it('mostra a bolinha em "Conversas" quando há mensagens não lidas gravadas no servidor', async () => {
+    vi.spyOn(conversasApi, 'contarMensagensNaoLidas').mockResolvedValue(2);
+    vi.spyOn(authStorage, 'getStoredUser').mockReturnValue({
+      id: 'user-1',
+      nome: 'Bruno Locatario',
+      email: 'bruno@example.com',
+      papel: 'MORADOR',
+      condominioId: 'cond-1',
+      apartamento: null,
+    });
+
+    renderShell('/catalogo');
+
+    expect((await screen.findAllByLabelText('Mensagens não lidas')).length).toBeGreaterThan(0);
+  });
+
+  it('sem mensagens não lidas, não mostra a bolinha', async () => {
+    vi.spyOn(authStorage, 'getStoredUser').mockReturnValue({
+      id: 'user-1',
+      nome: 'Bruno Locatario',
+      email: 'bruno@example.com',
+      papel: 'MORADOR',
+      condominioId: 'cond-1',
+      apartamento: null,
+    });
+
+    renderShell('/catalogo');
+    await screen.findByText('Página do catálogo');
+
+    expect(screen.queryByLabelText('Mensagens não lidas')).not.toBeInTheDocument();
   });
 });

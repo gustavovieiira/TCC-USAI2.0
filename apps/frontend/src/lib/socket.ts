@@ -1,22 +1,7 @@
 import { io, Socket } from 'socket.io-client';
 import { getAccessToken } from './authStorage';
-import { MensagemDTO } from '@/features/mensagens/mensagens.types';
 import { MensagemPrivadaDTO } from '@/features/conversas/conversas.types';
 import { NotificacaoDTO } from '@/features/notificacoes/notificacoes.types';
-
-interface ServerToClientEvents {
-  'mensagem:nova': (mensagem: MensagemDTO) => void;
-}
-
-interface ClientToServerEvents {
-  'locacao:entrar': (locacaoId: string, callback: (ok: boolean) => void) => void;
-  'mensagem:enviar': (
-    payload: { locacaoId: string; conteudo: string },
-    callback: (ack: { ok: true; mensagem: MensagemDTO } | { ok: false; erro: string }) => void,
-  ) => void;
-}
-
-export type LocacaoSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
 export interface LocacaoAtualizadaEvento {
   locacaoId: string;
@@ -52,13 +37,6 @@ const SOCKET_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api')
   /\/api\/?$/,
   '',
 );
-
-export function createLocacaoSocket(): LocacaoSocket {
-  return io(SOCKET_URL, {
-    auth: { token: getAccessToken() ?? undefined },
-    transports: ['websocket'],
-  });
-}
 
 export function createConversaSocket(): ConversaSocket {
   return io(SOCKET_URL, {

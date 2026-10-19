@@ -174,7 +174,6 @@ function AbaFinanceiro({ resumo, saques, erro, onMudou, onErro }: AbaFinanceiroP
   const pendentes = saques?.filter((s) => s.status === 'PENDENTE') ?? null;
   const aPagar = saques?.filter((s) => s.status === 'APROVADO') ?? [];
   const historico = saques?.filter((s) => s.status === 'PAGO' || s.status === 'REJEITADO') ?? [];
-  const parar = (e: { stopPropagation: () => void }) => e.stopPropagation();
 
   return (
     <div className="flex flex-col gap-5">
@@ -220,7 +219,6 @@ function AbaFinanceiro({ resumo, saques, erro, onMudou, onErro }: AbaFinanceiroP
                 {rejeitandoId === saque.id ? (
                   <form
                     onSubmit={(e) => handleRejeitar(e, saque.id)}
-                    onClick={parar}
                     className="flex flex-col gap-2"
                   >
                     <TextField
@@ -251,7 +249,7 @@ function AbaFinanceiro({ resumo, saques, erro, onMudou, onErro }: AbaFinanceiroP
                     </div>
                   </form>
                 ) : (
-                  <div className="flex gap-2" onClick={parar}>
+                  <div className="flex gap-2">
                     <Button
                       fullWidth={false}
                       isLoading={processandoId === saque.id}
@@ -297,7 +295,7 @@ function AbaFinanceiro({ resumo, saques, erro, onMudou, onErro }: AbaFinanceiroP
                   Chave PIX: {saque.chavePixUsada}
                   {saque.processadoEm && ` · aprovado em ${formatDateTime(saque.processadoEm)}`}
                 </p>
-                <div className="flex gap-2" onClick={parar}>
+                <div className="flex gap-2">
                   <Button
                     fullWidth={false}
                     isLoading={processandoId === saque.id}

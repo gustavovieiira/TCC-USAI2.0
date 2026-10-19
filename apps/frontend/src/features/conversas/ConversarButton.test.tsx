@@ -13,6 +13,8 @@ const conversa: ConversaDTO = {
   createdAt: '2026-09-16T12:00:00.000Z',
   expiraEm: '2026-09-23T12:00:00.000Z',
   ultimaMensagem: null,
+  locacao: null,
+  naoLidas: 0,
 };
 
 function renderButton(props: Partial<React.ComponentProps<typeof ConversarButton>> = {}) {

@@ -6,6 +6,30 @@
 
 ---
 
+## 2026-10-19 — Chat da locação unificado na página de Conversas
+
+**O que foi feito** (pedido: "mensagens de locação tudo centralizado na página de conversas"):
+
+- **Um só chat.** O chat da locação deixou de ser um módulo à parte (`Mensagem`, `/locacoes/:id/mensagens`,
+  eventos de socket próprios, `MensagensLocacaoPage`) e virou uma `ConversaPrivada` com `locacaoId`
+  único e sem expiração (`expiraEm` passou a ser opcional; a do Mural continua expirando em 7 dias).
+  Participante A = locatário, B = dono do item. A conversa é criada na primeira vez que alguém clica
+  em **Mensagens** na tela de Locações (`POST /api/conversas/locacao/:locacaoId`, `upsert` por
+  `locacaoId`, só locatário e dono, só dentro do condomínio). Mural e locações aparecem juntos em
+  Conversas, a mais recente primeiro, cada uma com a sua legenda ("Locação · Projetor" ou "expira em
+  X dias").
+- **Migration `chat_unificado`** converte o histórico: cria uma conversa por locação que tinha
+  mensagens, copia as mensagens com os mesmos ids/datas e só então apaga a tabela antiga. Conferido
+  no banco local (mensagens antigas aparecem na conversa nova).
+- **Não lidas gravadas no servidor** (`participanteALidoEm`/`participanteBLidoEm`): a bolinha do
+  menu e o contador por conversa não somem mais ao recarregar a página nem trocam de aparelho. Abrir
+  a conversa ou receber mensagem com ela aberta marca como lida; quem envia já fica "lido" até ali.
+  Novos: `GET /api/conversas/nao-lidas` e `POST /api/conversas/:id/lida`.
+- **Sonar S6848** (3 pontos): cliques em elementos que não são botões saíram — o card clicável
+  ignora cliques em controles internos e o fundo do modal só fecha quando o clique é nele mesmo.
+
+---
+
 ## 2026-10-19 — Saque em duas etapas (aprovar → marcar como pago), detalhes e recibo
 
 **O que foi feito** (feedback do uso do painel do Admin):

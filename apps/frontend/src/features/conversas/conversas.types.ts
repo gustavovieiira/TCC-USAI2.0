@@ -1,4 +1,5 @@
 import { Papel } from '@/lib/authStorage';
+import { StatusLocacao } from '@/features/locacoes/locacoes.types';
 
 export interface ParticipanteDTO {
   id: string;
@@ -10,9 +11,14 @@ export interface ConversaDTO {
   id: string;
   outroParticipante: ParticipanteDTO;
   postOrigemId: string | null;
+  /** Preenchido quando é o chat de uma locação (e não uma conversa aberta no Mural). */
+  locacao: { id: string; itemTitulo: string; status: StatusLocacao } | null;
   createdAt: string;
-  expiraEm: string;
+  /** Nulo no chat de locação, que não expira. */
+  expiraEm: string | null;
   ultimaMensagem: { conteudo: string; createdAt: string } | null;
+  /** Mensagens do outro participante que eu ainda não li. */
+  naoLidas: number;
 }
 
 export interface MensagemPrivadaDTO {

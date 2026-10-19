@@ -17,6 +17,8 @@ function buildConversa(overrides: Partial<ConversaDTO> = {}): ConversaDTO {
     createdAt: '2026-09-16T12:00:00.000Z',
     expiraEm: EXPIRA_EM,
     ultimaMensagem: null,
+    locacao: null,
+    naoLidas: 0,
     ...overrides,
   };
 }
@@ -131,5 +133,42 @@ describe('MinhasConversasPage', () => {
 
     expect(abrir).toHaveBeenCalledWith({ usuarioId: 'user-bruno' });
     expect(await screen.findByText('Tela da conversa')).toBeInTheDocument();
+  });
+
+  it('mostra juntas as conversas de locação e as do Mural, cada uma com a sua legenda', async () => {
+    vi.spyOn(conversasApi, 'listarUsuariosDoCondominio').mockResolvedValue([]);
+    vi.spyOn(conversasApi, 'listarMinhasConversas').mockResolvedValue([
+      buildConversa({
+        id: 'conversa-loc',
+        postOrigemId: null,
+        expiraEm: null,
+        locacao: { id: 'locacao-1', itemTitulo: 'Projetor M3 Teste', status: 'PAGA' },
+      }),
+      buildConversa({ id: 'conversa-mural' }),
+    ]);
+
+    renderPage();
+
+    expect(await screen.findByText('Locação · Projetor M3 Teste')).toBeInTheDocument();
+    expect(screen.getByText(formatDiasRestantes(EXPIRA_EM))).toBeInTheDocument();
+    // a conversa de locação não tem prazo de expiração
+    expect(screen.getAllByText(/expira/)).toHaveLength(1);
+  });
+
+  it('mostra quantas mensagens não lidas tem em cada conversa (só onde há)', async () => {
+    vi.spyOn(conversasApi, 'listarUsuariosDoCondominio').mockResolvedValue([]);
+    vi.spyOn(conversasApi, 'listarMinhasConversas').mockResolvedValue([
+      buildConversa({ id: 'c-1', naoLidas: 3 }),
+      buildConversa({
+        id: 'c-2',
+        naoLidas: 0,
+        outroParticipante: { id: 'user-carla', nome: 'Carla Sindica', papel: 'SINDICO' },
+      }),
+    ]);
+
+    renderPage();
+
+    expect(await screen.findByLabelText('3 mensagens não lidas')).toHaveTextContent('3');
+    expect(screen.getAllByLabelText(/não lidas?$/)).toHaveLength(1);
   });
 });

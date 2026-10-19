@@ -2,7 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { createConversaSocket } from '@/lib/socket';
 import { getStoredUser } from '@/lib/authStorage';
-import { listarMinhasConversas } from './conversas.api';
+import {
+  contarMensagensNaoLidas,
+  EVENTO_CONVERSAS_LIDAS,
+  listarMinhasConversas,
+} from './conversas.api';
 
 interface ToastState {
   conversaId: string;
@@ -12,7 +16,8 @@ interface ToastState {
 /**
  * Entra em todas as salas de conversa do usuário ao carregar o app (não só quando o chat está
  * aberto), pra poder avisar de mensagem nova em qualquer tela: bolinha no "Conversas" do menu +
- * toast com o nome de quem mandou. Ignorado pra Admin USAI, que não acessa Conversas.
+ * toast com o nome de quem mandou. A bolinha vem da contagem gravada no servidor (sobrevive a
+ * recarregar a página) e é reconferida a cada troca de tela. Ignorado pra Admin USAI, que não acessa Conversas.
  */
 export function useConversaNotifications(ativo: boolean) {
   const location = useLocation();
@@ -24,10 +29,25 @@ export function useConversaNotifications(ativo: boolean) {
 
   useEffect(() => {
     pathnameRef.current = location.pathname;
-    if (location.pathname.startsWith('/conversas')) {
-      setHasUnread(false);
-    }
-  }, [location.pathname]);
+    if (!ativo) return undefined;
+
+    let cancelado = false;
+    const conferir = () =>
+      contarMensagensNaoLidas()
+        .then((total) => {
+          if (!cancelado) setHasUnread(total > 0);
+        })
+        .catch(() => undefined);
+
+    void conferir();
+    // A tela da conversa avisa quando acabou de gravar que leu — reconfere a contagem.
+    window.addEventListener(EVENTO_CONVERSAS_LIDAS, conferir);
+
+    return () => {
+      cancelado = true;
+      window.removeEventListener(EVENTO_CONVERSAS_LIDAS, conferir);
+    };
+  }, [location.pathname, ativo]);
 
   useEffect(() => {
     const user = getStoredUser();

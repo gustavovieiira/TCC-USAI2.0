@@ -18,15 +18,18 @@ export function Modal({ titulo, onFechar, children }: PropsWithChildren<ModalPro
 
   return (
     <div
+      role="presentation"
       className="modal-overlay fixed inset-0 z-40 flex items-center justify-center bg-ink/50 p-4"
-      onClick={onFechar}
+      onClick={(e) => {
+        // Só fecha ao clicar no fundo escuro, não em algo de dentro da janela.
+        if (e.target === e.currentTarget) onFechar();
+      }}
     >
       <div
         role="dialog"
         aria-modal="true"
         aria-label={titulo}
         className="modal-painel notch relative max-h-[90vh] w-full max-w-md overflow-y-auto bg-paper-surface p-6 shadow-paper-2"
-        onClick={(e) => e.stopPropagation()}
       >
         <button
           type="button"

@@ -1,10 +1,11 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import { MinhasLocacoesPage } from './MinhasLocacoesPage';
 import * as locacoesApi from '@/features/locacoes/locacoes.api';
 import { LocacaoDTO } from '@/features/locacoes/locacoes.types';
+import * as conversasApi from '@/features/conversas/conversas.api';
 import * as pagamentosApi from '@/features/pagamentos/pagamentos.api';
 
 function buildLocacao(overrides: Partial<LocacaoDTO> = {}): LocacaoDTO {
@@ -24,8 +25,11 @@ function buildLocacao(overrides: Partial<LocacaoDTO> = {}): LocacaoDTO {
 
 function renderPage() {
   return render(
-    <MemoryRouter>
-      <MinhasLocacoesPage />
+    <MemoryRouter initialEntries={['/locacoes']}>
+      <Routes>
+        <Route path="/locacoes" element={<MinhasLocacoesPage />} />
+        <Route path="/conversas/:id" element={<p>Tela da conversa</p>} />
+      </Routes>
     </MemoryRouter>,
   );
 }
@@ -39,10 +43,42 @@ describe('MinhasLocacoesPage', () => {
 
     expect(await screen.findByText('Furadeira Bosch')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Aprovar' })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Mensagens' })).toHaveAttribute(
-      'href',
-      '/locacoes/locacao-1/mensagens',
-    );
+    expect(screen.getByRole('button', { name: 'Mensagens' })).toBeInTheDocument();
+  });
+
+  it('"Mensagens" abre o chat da locação na página de Conversas', async () => {
+    vi.spyOn(locacoesApi, 'listarComoLocatario').mockResolvedValue([buildLocacao()]);
+    vi.spyOn(locacoesApi, 'listarComoProprietario').mockResolvedValue([]);
+    const abrir = vi.spyOn(conversasApi, 'abrirConversaDaLocacao').mockResolvedValue({
+      id: 'conversa-loc',
+      outroParticipante: { id: 'user-1', nome: 'Ana Proprietaria', papel: 'MORADOR' },
+      postOrigemId: null,
+      locacao: { id: 'locacao-1', itemTitulo: 'Furadeira Bosch', status: 'PENDENTE' },
+      createdAt: '2026-09-15T00:00:00.000Z',
+      expiraEm: null,
+      ultimaMensagem: null,
+      naoLidas: 0,
+    });
+
+    renderPage();
+    await userEvent.click(await screen.findByRole('button', { name: 'Mensagens' }));
+
+    expect(abrir).toHaveBeenCalledWith('locacao-1');
+    expect(await screen.findByText('Tela da conversa')).toBeInTheDocument();
+  });
+
+  it('mostra o erro quando não consegue abrir o chat da locação', async () => {
+    vi.spyOn(locacoesApi, 'listarComoLocatario').mockResolvedValue([buildLocacao()]);
+    vi.spyOn(locacoesApi, 'listarComoProprietario').mockResolvedValue([]);
+    vi.spyOn(conversasApi, 'abrirConversaDaLocacao').mockRejectedValue({
+      isAxiosError: true,
+      response: { data: { error: { message: 'Você não participa desta locação' } } },
+    });
+
+    renderPage();
+    await userEvent.click(await screen.findByRole('button', { name: 'Mensagens' }));
+
+    expect(await screen.findByText('Você não participa desta locação')).toBeInTheDocument();
   });
 
   it('mostra aprovar/rejeitar para locações pendentes recebidas', async () => {

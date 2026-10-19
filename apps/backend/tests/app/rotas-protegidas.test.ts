@@ -49,13 +49,18 @@ describe('Rotas protegidas exigem autenticação (RNF08)', () => {
     expect(response.status).toBe(401);
   });
 
-  it('GET /api/locacoes/:id/mensagens sem token retorna 401', async () => {
-    const response = await request(app).get('/api/locacoes/qualquer-id/mensagens');
+  it('POST /api/conversas/locacao/:locacaoId sem token retorna 401', async () => {
+    const response = await request(app).post('/api/conversas/locacao/qualquer-id');
     expect(response.status).toBe(401);
   });
 
-  it('POST /api/locacoes/:id/mensagens sem token retorna 401', async () => {
-    const response = await request(app).post('/api/locacoes/qualquer-id/mensagens').send({});
+  it('GET /api/conversas/nao-lidas sem token retorna 401', async () => {
+    const response = await request(app).get('/api/conversas/nao-lidas');
+    expect(response.status).toBe(401);
+  });
+
+  it('POST /api/conversas/:id/lida sem token retorna 401', async () => {
+    const response = await request(app).post('/api/conversas/qualquer-id/lida');
     expect(response.status).toBe(401);
   });
 

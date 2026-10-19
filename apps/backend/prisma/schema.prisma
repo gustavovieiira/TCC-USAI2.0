@@ -75,7 +75,6 @@ model User {
   condominio            Condominio?        @relation(fields: [condominioId], references: [id])
   itens                 Item[]
   locacoesComoLocatario Locacao[]          @relation("Locatario")
-  mensagens             Mensagem[]
   solicitacoesSaque     SolicitacaoSaque[]
   logsAuditoria         LogAuditoria[]
   posts                 Post[]
@@ -140,7 +139,7 @@ model Locacao {
   item      Item       @relation(fields: [itemId], references: [id])
   locatario User       @relation("Locatario", fields: [locatarioId], references: [id])
   pagamento Pagamento?
-  mensagens Mensagem[]
+  conversa  ConversaPrivada?
 
   @@index([itemId])
   @@index([locatarioId])
@@ -161,20 +160,6 @@ model Pagamento {
   locacao Locacao @relation(fields: [locacaoId], references: [id])
 
   @@map("pagamentos")
-}
-
-model Mensagem {
-  id          String   @id @default(uuid())
-  locacaoId   String
-  remetenteId String
-  conteudo    String   @db.Text
-  createdAt   DateTime @default(now())
-
-  locacao   Locacao @relation(fields: [locacaoId], references: [id])
-  remetente User    @relation(fields: [remetenteId], references: [id])
-
-  @@index([locacaoId])
-  @@map("mensagens")
 }
 
 model SolicitacaoSaque {
@@ -233,16 +218,24 @@ model ComentarioPost {
 /// Chat privado 1:1 aberto a partir do Mural (autor de um post ou de um comentário). Efêmero por
 /// design: expira 7 dias depois de criado (`expiraEm`) e é apagado de vez — não reaproveita o
 /// padrão do chat de locação (que dura o ciclo todo da locação).
+/// Chat 1:1. Dois tipos: conversa aberta no Mural (efêmera, `expiraEm` = 7 dias) e o chat de uma
+/// locação (`locacaoId` preenchido, sem expiração — dura enquanto a locação existir). Participante A
+/// é quem abriu; no chat da locação, A = locatário e B = dono do item.
 model ConversaPrivada {
-  id              String   @id @default(uuid())
-  postOrigemId    String?
-  participanteAId String
-  participanteBId String
-  condominioId    String
-  createdAt       DateTime @default(now())
-  expiraEm        DateTime
+  id                  String    @id @default(uuid())
+  postOrigemId        String?
+  locacaoId           String?   @unique
+  participanteAId     String
+  participanteBId     String
+  condominioId        String
+  createdAt           DateTime  @default(now())
+  expiraEm            DateTime?
+  /// Até quando cada participante já leu (não lidas = mensagens do outro depois disso).
+  participanteALidoEm DateTime?
+  participanteBLidoEm DateTime?
 
   postOrigem    Post?             @relation(fields: [postOrigemId], references: [id], onDelete: SetNull)
+  locacao       Locacao?          @relation(fields: [locacaoId], references: [id])
   participanteA User              @relation("ConversaParticipanteA", fields: [participanteAId], references: [id])
   participanteB User              @relation("ConversaParticipanteB", fields: [participanteBId], references: [id])
   condominio    Condominio        @relation(fields: [condominioId], references: [id])

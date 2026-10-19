@@ -9,9 +9,12 @@ jest.mock('@/common/prisma', () => ({
       findFirst: jest.fn(),
       findMany: jest.fn(),
       create: jest.fn(),
+      upsert: jest.fn(),
+      update: jest.fn(),
       deleteMany: jest.fn(),
     },
-    mensagemPrivada: { create: jest.fn(), findMany: jest.fn() },
+    mensagemPrivada: { create: jest.fn(), findMany: jest.fn(), count: jest.fn() },
+    locacao: { findUnique: jest.fn() },
   },
 }));
 
@@ -30,6 +33,7 @@ beforeAll(() => {
 beforeEach(() => {
   jest.clearAllMocks();
   (prisma.conversaPrivada.deleteMany as jest.Mock).mockResolvedValue({ count: 0 });
+  (prisma.mensagemPrivada.count as jest.Mock).mockResolvedValue(0);
 });
 
 function token(userId: string): string {
@@ -292,6 +296,104 @@ describe('condominioDoUsuario: bloqueia com 403 em toda rota que depende de cond
     const response = await request(app)
       .get('/api/conversas')
       .set('Authorization', `Bearer ${tokenComClaimAusente('admin-1')}`);
+
+    expect(response.status).toBe(403);
+  });
+});
+
+describe('POST /api/conversas/locacao/:locacaoId', () => {
+  it('abre o chat da locação pro locatário e responde 200 com o contexto da locação', async () => {
+    (prisma.locacao.findUnique as jest.Mock).mockResolvedValue({
+      id: 'locacao-1',
+      locatarioId: BRUNO_ID,
+      item: { id: 'item-1', titulo: 'Projetor', ownerId: ANA_ID, condominioId: CONDOMINIO_ID },
+    });
+    (prisma.conversaPrivada.upsert as jest.Mock).mockResolvedValue({
+      ...conversaBase,
+      participanteAId: BRUNO_ID,
+      participanteBId: ANA_ID,
+      participanteA: bruno,
+      participanteB: ana,
+      locacaoId: 'locacao-1',
+      expiraEm: null,
+      locacao: {
+        id: 'locacao-1',
+        status: 'APROVADA',
+        item: { titulo: 'Projetor' },
+      },
+      mensagens: [],
+    });
+
+    const response = await request(createApp())
+      .post('/api/conversas/locacao/locacao-1')
+      .set('Authorization', `Bearer ${token(BRUNO_ID)}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.locacao.itemTitulo).toBe('Projetor');
+    expect(response.body.expiraEm).toBeNull();
+  });
+
+  it('quem não participa da locação recebe 403', async () => {
+    (prisma.locacao.findUnique as jest.Mock).mockResolvedValue({
+      id: 'locacao-1',
+      locatarioId: 'outro',
+      item: {
+        id: 'item-1',
+        titulo: 'Projetor',
+        ownerId: 'outro-dono',
+        condominioId: CONDOMINIO_ID,
+      },
+    });
+
+    const response = await request(createApp())
+      .post('/api/conversas/locacao/locacao-1')
+      .set('Authorization', `Bearer ${token(ANA_ID)}`);
+
+    expect(response.status).toBe(403);
+  });
+
+  it('Admin (sem condomínio) recebe 403', async () => {
+    const response = await request(createApp())
+      .post('/api/conversas/locacao/locacao-1')
+      .set('Authorization', `Bearer ${tokenSemCondominio(ANA_ID)}`);
+
+    expect(response.status).toBe(403);
+  });
+});
+
+describe('GET /api/conversas/nao-lidas e POST /api/conversas/:id/lida', () => {
+  it('devolve o total de mensagens não lidas do usuário', async () => {
+    (prisma.conversaPrivada.findMany as jest.Mock).mockResolvedValue([conversaBase]);
+    (prisma.mensagemPrivada.count as jest.Mock).mockResolvedValue(6);
+
+    const response = await request(createApp())
+      .get('/api/conversas/nao-lidas')
+      .set('Authorization', `Bearer ${token(ANA_ID)}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ total: 6 });
+  });
+
+  it('marca a conversa como lida (204) pro participante', async () => {
+    (prisma.conversaPrivada.findFirst as jest.Mock).mockResolvedValue(conversaBase);
+
+    const response = await request(createApp())
+      .post('/api/conversas/conversa-1/lida')
+      .set('Authorization', `Bearer ${token(ANA_ID)}`);
+
+    expect(response.status).toBe(204);
+    expect(prisma.conversaPrivada.update).toHaveBeenCalledWith({
+      where: { id: 'conversa-1' },
+      data: { participanteALidoEm: expect.any(Date) },
+    });
+  });
+
+  it('quem não participa recebe 403 ao marcar como lida', async () => {
+    (prisma.conversaPrivada.findFirst as jest.Mock).mockResolvedValue(conversaBase);
+
+    const response = await request(createApp())
+      .post('/api/conversas/conversa-1/lida')
+      .set('Authorization', `Bearer ${token('99999999-9999-9999-9999-999999999999')}`);
 
     expect(response.status).toBe(403);
   });

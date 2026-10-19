@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -13,6 +13,7 @@ import {
   listarComoProprietario,
   rejeitarLocacao,
 } from '@/features/locacoes/locacoes.api';
+import { abrirConversaDaLocacao } from '@/features/conversas/conversas.api';
 import { LocacaoDTO } from '@/features/locacoes/locacoes.types';
 import { useNotificacoesContext } from '@/features/notificacoes/useNotificacoes';
 import { useLocacaoAtualizada } from '@/features/locacoes/useLocacaoAtualizada';
@@ -21,6 +22,7 @@ import { criarCobranca } from '@/features/pagamentos/pagamentos.api';
 type Aba = 'locatario' | 'proprietario';
 
 export function MinhasLocacoesPage() {
+  const navigate = useNavigate();
   const [aba, setAba] = useState<Aba>('locatario');
   const [comoLocatario, setComoLocatario] = useState<LocacaoDTO[] | null>(null);
   const [comoProprietario, setComoProprietario] = useState<LocacaoDTO[] | null>(null);
@@ -48,6 +50,16 @@ export function MinhasLocacoesPage() {
     setComoLocatario(aplicar);
     setComoProprietario(aplicar);
   });
+
+  /** O chat da locação vive na página de Conversas: abre (criando se for a primeira vez) e vai pra lá. */
+  async function handleAbrirConversa(locacaoId: string) {
+    try {
+      const conversa = await abrirConversaDaLocacao(locacaoId);
+      navigate(`/conversas/${conversa.id}`);
+    } catch (err) {
+      setErro(extractErrorMessage(err));
+    }
+  }
 
   async function handleAprovar(locacao: LocacaoDTO) {
     setProcessandoId(locacao.id);
@@ -157,13 +169,13 @@ export function MinhasLocacoesPage() {
               </div>
 
               <div className="flex flex-col gap-2 sm:items-end">
-                <Link
-                  to={`/locacoes/${locacao.id}/mensagens`}
-                  state={{ itemTitulo: locacao.item.titulo }}
+                <button
+                  type="button"
+                  onClick={() => handleAbrirConversa(locacao.id)}
                   className="text-sm font-semibold text-barro-700 hover:underline"
                 >
                   Mensagens
-                </Link>
+                </button>
 
                 {aba === 'proprietario' && locacao.status === 'PENDENTE' && (
                   <div className="flex gap-2">

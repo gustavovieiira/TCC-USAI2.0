@@ -1,4 +1,4 @@
-import { Papel } from '@prisma/client';
+import { Papel, StatusLocacao } from '@prisma/client';
 
 export interface ParticipanteDTO {
   id: string;
@@ -10,9 +10,14 @@ export interface ConversaDTO {
   id: string;
   outroParticipante: ParticipanteDTO;
   postOrigemId: string | null;
+  /** Preenchido quando é o chat de uma locação (e não uma conversa aberta no Mural). */
+  locacao: { id: string; itemTitulo: string; status: StatusLocacao } | null;
   createdAt: Date;
-  expiraEm: Date;
+  /** Nulo no chat de locação, que não expira. */
+  expiraEm: Date | null;
   ultimaMensagem: { conteudo: string; createdAt: Date } | null;
+  /** Mensagens do outro participante que eu ainda não li. */
+  naoLidas: number;
 }
 
 export interface MensagemPrivadaDTO {

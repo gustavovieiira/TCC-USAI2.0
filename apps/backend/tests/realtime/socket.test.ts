@@ -6,8 +6,6 @@ import { io as ioClient, Socket as ClientSocket } from 'socket.io-client';
 import { createSocketServer } from '@/realtime/socket';
 import { ConversasService } from '@/modules/conversas/conversas.service';
 import { MensagemPrivadaDTO } from '@/modules/conversas/conversas.types';
-import { MensagensService } from '@/modules/mensagens/mensagens.service';
-import { MensagemDTO } from '@/modules/mensagens/mensagens.types';
 
 const ACCESS_SECRET = 'test-access-secret';
 
@@ -21,16 +19,6 @@ function signToken(userId: string): string {
   });
 }
 
-function buildMensagensServiceMock(): jest.Mocked<
-  Pick<MensagensService, 'verificarParticipante' | 'enviar' | 'listarPorLocacao'>
-> {
-  return {
-    verificarParticipante: jest.fn().mockResolvedValue(undefined),
-    enviar: jest.fn(),
-    listarPorLocacao: jest.fn(),
-  };
-}
-
 function buildConversasServiceMock(): jest.Mocked<
   Pick<ConversasService, 'verificarParticipante' | 'enviarMensagem' | 'buscarOutroParticipanteId'>
 > {
@@ -41,20 +29,17 @@ function buildConversasServiceMock(): jest.Mocked<
   };
 }
 
-describe('WebSocket de mensagens em tempo real (M4)', () => {
+describe('WebSocket do chat em tempo real (conversas do Mural e das locações)', () => {
   let httpServer: http.Server;
   let io: SocketIOServer;
   let port: number;
-  let mensagensService: ReturnType<typeof buildMensagensServiceMock>;
   let conversasService: ReturnType<typeof buildConversasServiceMock>;
   const clients: ClientSocket[] = [];
 
   beforeEach((done) => {
-    mensagensService = buildMensagensServiceMock();
     conversasService = buildConversasServiceMock();
     httpServer = http.createServer();
     io = createSocketServer(httpServer, {
-      mensagensService: mensagensService as unknown as MensagensService,
       conversasService: conversasService as unknown as ConversasService,
     });
     httpServer.listen(0, () => {
@@ -94,79 +79,6 @@ describe('WebSocket de mensagens em tempo real (M4)', () => {
       expect(error.message).toBe('Token de acesso ausente');
       done();
     });
-  });
-
-  it('entra na sala da locação quando participante', async () => {
-    const client = await connect('user-1');
-
-    const ok = await new Promise<boolean>((resolve) => {
-      client.emit('locacao:entrar', 'locacao-1', resolve);
-    });
-
-    expect(ok).toBe(true);
-    expect(mensagensService.verificarParticipante).toHaveBeenCalledWith('locacao-1', 'user-1');
-  });
-
-  it('nega entrada quando o usuário não participa da locação', async () => {
-    mensagensService.verificarParticipante.mockRejectedValue(new Error('sem acesso'));
-    const client = await connect('user-2');
-
-    const ok = await new Promise<boolean>((resolve) => {
-      client.emit('locacao:entrar', 'locacao-1', resolve);
-    });
-
-    expect(ok).toBe(false);
-  });
-
-  it('envia mensagem e todos os participantes da sala recebem em tempo real', async () => {
-    const remetente = await connect('user-locatario');
-    const outroParticipante = await connect('user-dono');
-
-    const mensagemPersistida: MensagemDTO = {
-      id: 'mensagem-1',
-      locacaoId: 'locacao-1',
-      remetenteId: 'user-locatario',
-      conteudo: 'Chega às 18h?',
-      createdAt: new Date('2026-09-15T12:00:00.000Z'),
-    };
-    mensagensService.enviar.mockResolvedValue(mensagemPersistida);
-
-    await Promise.all([
-      new Promise((resolve) => remetente.emit('locacao:entrar', 'locacao-1', resolve)),
-      new Promise((resolve) => outroParticipante.emit('locacao:entrar', 'locacao-1', resolve)),
-    ]);
-
-    const recebida = new Promise((resolve) => {
-      outroParticipante.on('mensagem:nova', resolve);
-    });
-
-    const ack = await new Promise((resolve) => {
-      remetente.emit(
-        'mensagem:enviar',
-        { locacaoId: 'locacao-1', conteudo: 'Chega às 18h?' },
-        resolve,
-      );
-    });
-
-    expect(mensagensService.enviar).toHaveBeenCalledWith('locacao-1', 'user-locatario', {
-      conteudo: 'Chega às 18h?',
-    });
-    expect(ack).toMatchObject({
-      ok: true,
-      mensagem: { id: 'mensagem-1', conteudo: 'Chega às 18h?' },
-    });
-    await expect(recebida).resolves.toMatchObject({ id: 'mensagem-1', conteudo: 'Chega às 18h?' });
-  });
-
-  it('retorna erro no ack quando o envio falha (ex.: quem não participa da locação)', async () => {
-    const client = await connect('user-estranho');
-    mensagensService.enviar.mockRejectedValue(new Error('Você não participa desta locação'));
-
-    const ack = await new Promise((resolve) => {
-      client.emit('mensagem:enviar', { locacaoId: 'locacao-1', conteudo: 'oi' }, resolve);
-    });
-
-    expect(ack).toEqual({ ok: false, erro: 'Você não participa desta locação' });
   });
 
   it('entra na sala da conversa privada quando participante', async () => {

@@ -21,6 +21,29 @@ export const conversasController = {
     res.status(201).json(conversa);
   },
 
+  /** Abre o chat da locação (criando na primeira vez); só locatário e dono da locação. */
+  async abrirPorLocacao(req: Request, res: Response) {
+    const condominioId = condominioDoUsuario(req);
+    const conversa = await conversasService.abrirPorLocacao(
+      condominioId,
+      req.auth!.userId,
+      req.params.locacaoId,
+    );
+    res.status(200).json(conversa);
+  },
+
+  async contarNaoLidas(req: Request, res: Response) {
+    const condominioId = condominioDoUsuario(req);
+    const total = await conversasService.contarNaoLidas(condominioId, req.auth!.userId);
+    res.status(200).json({ total });
+  },
+
+  async marcarComoLida(req: Request, res: Response) {
+    const condominioId = condominioDoUsuario(req);
+    await conversasService.marcarComoLida(req.params.id, condominioId, req.auth!.userId);
+    res.status(204).send();
+  },
+
   async listarUsuarios(req: Request, res: Response) {
     const condominioId = condominioDoUsuario(req);
     const usuarios = await conversasService.listarUsuariosDoCondominio(

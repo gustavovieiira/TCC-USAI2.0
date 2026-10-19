@@ -1,8 +1,12 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
-import { buscarConversa, listarMensagens } from '@/features/conversas/conversas.api';
+import {
+  buscarConversa,
+  listarMensagens,
+  marcarConversaComoLida,
+} from '@/features/conversas/conversas.api';
 import { ConversaDTO, MensagemPrivadaDTO } from '@/features/conversas/conversas.types';
 import { extractErrorMessage } from '@/lib/apiClient';
 import { getStoredUser } from '@/lib/authStorage';
@@ -27,6 +31,9 @@ export function ConversaPage() {
   useEffect(() => {
     if (!id) return;
     let ativo = true;
+
+    // Abrir a conversa conta como ler tudo até agora (fica gravado, não só na tela).
+    marcarConversaComoLida(id).catch(() => undefined);
 
     buscarConversa(id)
       .then((dados) => {
@@ -57,6 +64,8 @@ export function ConversaPage() {
     socket.on('conversa:mensagem:nova', (mensagem) => {
       if (!ativo || mensagem.conversaId !== id) return;
       setMensagens((atual) => (atual ? [...atual, mensagem] : [mensagem]));
+      // Chegou com a conversa aberta: já está lida.
+      if (mensagem.remetenteId !== user?.id) marcarConversaComoLida(id).catch(() => undefined);
     });
 
     return () => {
@@ -101,8 +110,16 @@ export function ConversaPage() {
           </h1>
           <p className="font-meta text-xs tracking-wide text-ink-faint">
             {conectado ? 'Conectado' : 'Conectando...'}
-            {conversa && ` · ${formatDiasRestantes(conversa.expiraEm)}`}
+            {conversa?.expiraEm && ` · ${formatDiasRestantes(conversa.expiraEm)}`}
           </p>
+          {conversa?.locacao && (
+            <p className="text-sm text-ink-soft">
+              Sobre a locação de{' '}
+              <Link to="/locacoes" className="font-semibold text-barro-700 hover:underline">
+                {conversa.locacao.itemTitulo}
+              </Link>
+            </p>
+          )}
         </div>
       </div>
 
