@@ -17,7 +17,9 @@ function condominioDoUsuario(req: Request): string {
 /** Promisifica o middleware do multer pra poder tratar o erro dele como um AppError normal. */
 function processarUpload(req: Request, res: Response): Promise<void> {
   return new Promise((resolve, reject) => {
-    uploadImagemItem(req, res, (err: unknown) => (err ? reject(err) : resolve()));
+    uploadImagemItem(req, res, (err: unknown) =>
+      err ? reject(err instanceof Error ? err : new Error(String(err))) : resolve(),
+    );
   });
 }
 

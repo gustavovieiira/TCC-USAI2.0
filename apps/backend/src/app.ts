@@ -1,5 +1,6 @@
 import cors from 'cors';
 import express, { Express } from 'express';
+import { origensPermitidas } from '@/common/cors';
 import { errorHandler } from '@/common/errorHandler';
 import { UPLOADS_DIR } from '@/common/uploads';
 import { metricsMiddleware } from '@/metrics/metricsMiddleware';
@@ -20,7 +21,7 @@ import { sindicoRouter } from '@/modules/sindico/sindico.routes';
 export function createApp(): Express {
   const app = express();
 
-  app.use(cors());
+  app.use(cors({ origin: origensPermitidas() }));
   app.use(express.json());
   app.use(metricsMiddleware);
 

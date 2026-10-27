@@ -1,6 +1,7 @@
 import { Server as HttpServer } from 'http';
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import { verifyAccessToken } from '@/common/authGuard';
+import { origensPermitidas } from '@/common/cors';
 import { logger } from '@/common/logger';
 import { prisma } from '@/common/prisma';
 import { ConversasService } from '@/modules/conversas/conversas.service';
@@ -38,7 +39,7 @@ export function createSocketServer(
   const conversasService = options.conversasService ?? new ConversasService(prisma);
 
   const io = new SocketIOServer(httpServer, {
-    cors: { origin: '*' },
+    cors: { origin: origensPermitidas() },
   });
 
   io.use((socket, next) => {

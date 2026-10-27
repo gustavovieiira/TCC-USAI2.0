@@ -1,5 +1,11 @@
 import { createHash } from 'crypto';
 
+/**
+ * Ordem por unidade de código (a mesma do `sort()` padrão), explícita pra não depender de locale:
+ * a impressão digital de um documento já assinado nunca pode mudar.
+ */
+const porPontoDeCodigo = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+
 /** JSON com as chaves em ordem fixa: o mesmo conteúdo sempre gera a mesma impressão digital. */
 export function canonicalizar(valor: unknown): string {
   if (valor === null || typeof valor !== 'object') {
@@ -12,7 +18,7 @@ export function canonicalizar(valor: unknown): string {
   const objeto = valor as Record<string, unknown>;
   const chaves = Object.keys(objeto)
     .filter((chave) => objeto[chave] !== undefined)
-    .sort();
+    .sort(porPontoDeCodigo);
 
   return `{${chaves.map((chave) => `${JSON.stringify(chave)}:${canonicalizar(objeto[chave])}`).join(',')}}`;
 }
@@ -50,5 +56,7 @@ export function calcularAssinatura(dados: {
   aceitoEm: string;
   declaracoes: string[];
 }): string {
-  return sha256(canonicalizar({ ...dados, declaracoes: [...dados.declaracoes].sort() }));
+  return sha256(
+    canonicalizar({ ...dados, declaracoes: [...dados.declaracoes].sort(porPontoDeCodigo) }),
+  );
 }

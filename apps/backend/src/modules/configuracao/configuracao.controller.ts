@@ -9,7 +9,9 @@ const configuracaoService = new ConfiguracaoService(prisma, MARCA_UPLOADS_DIR);
 
 function processarUpload(req: Request, res: Response): Promise<void> {
   return new Promise((resolve, reject) => {
-    uploadLogo(req, res, (err: unknown) => (err ? reject(err) : resolve()));
+    uploadLogo(req, res, (err: unknown) =>
+      err ? reject(err instanceof Error ? err : new Error(String(err))) : resolve(),
+    );
   });
 }
 
