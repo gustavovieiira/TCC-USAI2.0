@@ -10,10 +10,11 @@ function buildPrismaMock() {
       update: jest.fn(),
       aggregate: jest.fn().mockResolvedValue({ _sum: { valor: null } }),
     },
-    locacao: {
-      aggregate: jest.fn().mockResolvedValue({ _sum: { valorLiquido: null } }),
+    lancamento: {
+      aggregate: jest.fn().mockResolvedValue({ _sum: { valor: null } }),
       findMany: jest.fn().mockResolvedValue([]),
     },
+    locacao: { findMany: jest.fn().mockResolvedValue([]) },
     logAuditoria: { create: jest.fn() },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
@@ -24,9 +25,9 @@ function buildPrismaMock() {
   return prisma;
 }
 
-/** Ajuda os testes de `solicitar` a simular quanto a pessoa já recebeu em locações pagas. */
-function comSaldoRecebido(prisma: ReturnType<typeof buildPrismaMock>, valorLiquido: number) {
-  prisma.locacao.aggregate.mockResolvedValue({ _sum: { valorLiquido } });
+/** Ajuda os testes a simular quanto a pessoa já recebeu (soma dos lançamentos que mexem no saldo). */
+function comSaldoRecebido(prisma: ReturnType<typeof buildPrismaMock>, valor: number) {
+  prisma.lancamento.aggregate.mockResolvedValue({ _sum: { valor } });
 }
 
 const USER_ID = 'user-1';
@@ -234,22 +235,44 @@ describe('SaquesService.listarTodas', () => {
 });
 
 describe('SaquesService.extrato', () => {
-  const recebida = {
+  const locacaoOrigem = {
     id: 'loc-1',
-    valorTotal: 100,
-    valorLiquido: 90,
     taxaPlataforma: 10,
-    updatedAt: new Date('2026-10-02'),
-    item: { titulo: 'Furadeira' },
+    valorLiquido: 90,
+    dataInicio: new Date('2026-10-05'),
+    dataFim: new Date('2026-10-07'),
+    item: { titulo: 'Furadeira', owner: { id: 'dono-1', nome: 'Davi Dono', email: 'davi@x.com' } },
     locatario: { id: 'loc-user', nome: 'Carla Locataria', email: 'carla@x.com' },
-    pagamento: { pagoEm: new Date('2026-10-03') },
+  };
+
+  const recebimento = {
+    id: 'lanc-1',
+    tipo: 'ALUGUEL_RECEBIDO',
+    valor: 90,
+    afetaSaldo: true,
+    baseCalculo: 100,
+    taxaPercentual: 10,
+    divididoEntre: null,
+    descricao: 'Aluguel de "Furadeira"',
+    createdAt: new Date('2026-10-03'),
+    locacao: locacaoOrigem,
+  };
+
+  const comissao = {
+    ...recebimento,
+    id: 'lanc-2',
+    tipo: 'COMISSAO_CONDOMINIO',
+    valor: 5,
+    divididoEntre: 2,
+    descricao: 'Comissão do condomínio sobre o aluguel de "Furadeira"',
+    createdAt: new Date('2026-10-03T00:00:01Z'),
   };
 
   it('lista o que entrou (já com a taxa), o que saiu e o resumo batendo com o saldo', async () => {
     const prisma = buildPrismaMock();
-    prisma.locacao.findMany
-      .mockResolvedValueOnce([recebida]) // recebidas
-      .mockResolvedValueOnce([]); // pagas como locatário
+    prisma.lancamento.findMany
+      .mockResolvedValueOnce([recebimento]) // créditos
+      .mockResolvedValueOnce([]); // pagos como locatário
     prisma.solicitacaoSaque.findMany.mockResolvedValue([
       { ...saquePendente, valor: 30, createdAt: new Date('2026-10-05') },
       {
@@ -281,12 +304,18 @@ describe('SaquesService.extrato', () => {
     expect(extrato.resumo).toEqual({
       saldoDisponivel: 30,
       totalRecebido: 90,
+      totalComissoes: 0,
       totalSacado: 20,
       aPagar: 10,
       emAnalise: 30,
     });
     // Mais recente primeiro: pendente (05), pago (04), aprovado (03 às 12h), recebimento (03 às 0h).
-    expect(extrato.movimentos.map((m) => m.id)).toEqual(['saque-1', 'saque-2', 'saque-3', 'loc-1']);
+    expect(extrato.movimentos.map((m) => m.id)).toEqual([
+      'saque-1',
+      'saque-2',
+      'saque-3',
+      'lanc-1',
+    ]);
     expect(extrato.movimentos[2]).toMatchObject({ valor: -10, status: 'APROVADO' });
     expect(extrato.movimentos[0]).toMatchObject({ valor: -30, status: 'EM_ANALISE' });
     expect(extrato.movimentos[1]).toMatchObject({
@@ -299,46 +328,120 @@ describe('SaquesService.extrato', () => {
       valor: 90,
       valorBruto: 100,
       taxa: 10,
+      taxaPercentual: 10,
       contraparte: { id: 'loc-user', nome: 'Carla Locataria' },
+      periodo: { inicio: new Date('2026-10-05'), fim: new Date('2026-10-07') },
     });
+  });
+
+  it('cada entrada traz a origem: a locação, o item, o dono e quem pagou', async () => {
+    const prisma = buildPrismaMock();
+    prisma.lancamento.findMany.mockResolvedValueOnce([recebimento]).mockResolvedValueOnce([]);
+
+    const extrato = await new SaquesService(prisma).extrato(USER_ID);
+
+    expect(extrato.movimentos[0].origem).toEqual({
+      locacaoId: 'loc-1',
+      itemTitulo: 'Furadeira',
+      dono: { id: 'dono-1', nome: 'Davi Dono' },
+      locatario: { id: 'loc-user', nome: 'Carla Locataria' },
+    });
+  });
+
+  it('comissão do condomínio aparece como COMISSAO, com a base, a taxa, a divisão entre síndicos e o total no resumo', async () => {
+    const prisma = buildPrismaMock();
+    prisma.lancamento.findMany.mockResolvedValueOnce([comissao]).mockResolvedValueOnce([]);
+    comSaldoRecebido(prisma, 5);
+
+    const extrato = await new SaquesService(prisma).extrato(USER_ID);
+
+    expect(extrato.movimentos[0]).toMatchObject({
+      tipo: 'COMISSAO',
+      valor: 5,
+      valorBruto: 100,
+      taxa: 10,
+      taxaPercentual: 10,
+      divididoEntre: 2,
+      contraparte: null,
+    });
+    expect(extrato.resumo).toMatchObject({ totalComissoes: 5, totalRecebido: 0 });
   });
 
   it('nunca expõe e-mail da contraparte nem a chave PIX inteira', async () => {
     const prisma = buildPrismaMock();
-    prisma.locacao.findMany.mockResolvedValueOnce([recebida]).mockResolvedValueOnce([]);
+    prisma.lancamento.findMany.mockResolvedValueOnce([recebimento]).mockResolvedValueOnce([]);
     prisma.solicitacaoSaque.findMany.mockResolvedValue([saquePendente]);
 
     const extrato = await new SaquesService(prisma).extrato(USER_ID);
     const json = JSON.stringify(extrato);
 
     expect(json).not.toContain('carla@x.com');
+    expect(json).not.toContain('davi@x.com');
     expect(json).not.toContain('user@pix.com');
     // Chave e-mail: primeira letra + domínio, nada do meio.
     expect(extrato.movimentos.find((m) => m.tipo === 'SAQUE')?.chavePix).toBe('u***@pix.com');
   });
 
-  it('mostra o que a pessoa pagou como locatário, marcando reembolso pendente quando PAGO_ORFAO', async () => {
+  it('na visão do Admin a chave PIX sai inteira (ele precisa dela pra transferir)', async () => {
     const prisma = buildPrismaMock();
-    const paga = (id: string, status: string, pagoEm: string) => ({
-      id,
-      valorTotal: 50,
-      updatedAt: new Date(pagoEm),
-      item: { titulo: 'Escada', owner: { id: 'dono-1', nome: 'Davi Dono' } },
-      pagamento: { status, valor: 50, pagoEm: new Date(pagoEm) },
-    });
-    prisma.locacao.findMany
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([
-        paga('p-1', 'PAGO', '2026-10-01'),
-        paga('p-2', 'PAGO_ORFAO', '2026-10-02'),
-      ]);
+    prisma.solicitacaoSaque.findMany.mockResolvedValue([saquePendente]);
+
+    const extrato = await new SaquesService(prisma).extrato(USER_ID, { revelarChavePix: true });
+
+    expect(extrato.movimentos.find((m) => m.tipo === 'SAQUE')?.chavePix).toBe('user@pix.com');
+  });
+
+  it('o extrato é sempre do usuário pedido (filtra os lançamentos pelo userId)', async () => {
+    const prisma = buildPrismaMock();
+
+    await new SaquesService(prisma).extrato(USER_ID);
+
+    expect(prisma.lancamento.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { userId: USER_ID, afetaSaldo: true } }),
+    );
+    expect(prisma.lancamento.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { userId: USER_ID, tipo: 'ALUGUEL_PAGO' } }),
+    );
+  });
+
+  it('mostra o que a pessoa pagou como locatário, com a quebra taxa/repasse, e o pagamento órfão como "em reembolso"', async () => {
+    const prisma = buildPrismaMock();
+    const pago = {
+      id: 'lanc-pago',
+      tipo: 'ALUGUEL_PAGO',
+      valor: 50,
+      afetaSaldo: false,
+      baseCalculo: 50,
+      taxaPercentual: 10,
+      descricao: 'Aluguel de "Escada"',
+      createdAt: new Date('2026-10-01'),
+      locacao: {
+        ...locacaoOrigem,
+        taxaPlataforma: 5,
+        valorLiquido: 45,
+        item: { titulo: 'Escada', owner: { id: 'dono-1', nome: 'Davi Dono' } },
+      },
+    };
+    prisma.lancamento.findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([pago]);
+    prisma.locacao.findMany.mockResolvedValue([
+      {
+        id: 'p-orfao',
+        valorTotal: 50,
+        updatedAt: new Date('2026-10-02'),
+        dataInicio: new Date('2026-10-10'),
+        dataFim: new Date('2026-10-11'),
+        item: { titulo: 'Escada', owner: { id: 'dono-1', nome: 'Davi Dono' } },
+        pagamento: { status: 'PAGO_ORFAO', valor: 50, pagoEm: new Date('2026-10-02') },
+      },
+    ]);
 
     const extrato = await new SaquesService(prisma).extrato(USER_ID);
 
     expect(extrato.pagamentos.map((p) => [p.id, p.status])).toEqual([
-      ['p-2', 'EM_REEMBOLSO'],
-      ['p-1', 'CONFIRMADO'],
+      ['p-orfao', 'EM_REEMBOLSO'],
+      ['lanc-pago', 'CONFIRMADO'],
     ]);
+    expect(extrato.pagamentos[1]).toMatchObject({ valor: 50, taxa: 5, repasseDono: 45 });
     expect(extrato.pagamentos[0].contraparte).toEqual({ id: 'dono-1', nome: 'Davi Dono' });
     // Pagar como locatário não mexe no saldo nem no total recebido.
     expect(extrato.resumo.totalRecebido).toBe(0);
@@ -524,32 +627,5 @@ describe('SaquesService — saque pago continua fora do saldo', () => {
         where: { userId: USER_ID, status: { in: ['APROVADO', 'PAGO'] } },
       }),
     );
-  });
-
-  it('o extrato traz o período do aluguel pra montar o recibo', async () => {
-    const prisma = buildPrismaMock();
-    prisma.locacao.findMany
-      .mockResolvedValueOnce([
-        {
-          id: 'loc-1',
-          valorTotal: 100,
-          valorLiquido: 90,
-          taxaPlataforma: 10,
-          updatedAt: new Date('2026-10-02'),
-          dataInicio: new Date('2026-10-05'),
-          dataFim: new Date('2026-10-07'),
-          item: { titulo: 'Furadeira' },
-          locatario: { id: 'u-2', nome: 'Carla Locataria' },
-          pagamento: { pagoEm: new Date('2026-10-03') },
-        },
-      ])
-      .mockResolvedValueOnce([]);
-
-    const extrato = await new SaquesService(prisma).extrato(USER_ID);
-
-    expect(extrato.movimentos[0].periodo).toEqual({
-      inicio: new Date('2026-10-05'),
-      fim: new Date('2026-10-07'),
-    });
   });
 });

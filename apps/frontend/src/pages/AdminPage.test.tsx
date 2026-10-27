@@ -14,6 +14,7 @@ const resumo: ResumoFinanceiroDTO = {
     pago: { quantidade: 4, valorTotal: 500 },
     rejeitado: { quantidade: 0, valorTotal: 0 },
   },
+  taxas: { repassadoAosSindicos: 120, retidoPelaPlataforma: 80 },
   condominiosAtivos: 2,
 };
 
@@ -220,6 +221,39 @@ describe('AdminPage — aba Financeiro', () => {
 
     await userEvent.click(await screen.findByRole('button', { name: /Ver detalhes e recibo/ }));
     expect(screen.getByRole('button', { name: 'Imprimir detalhes' })).toBeInTheDocument();
+  });
+});
+
+describe('AdminPage — taxas e extratos', () => {
+  it('mostra pra onde foi a taxa dos aluguéis: síndicos e plataforma', async () => {
+    mockApis();
+
+    render(<AdminPage />);
+
+    expect((await screen.findByText('Taxa repassada aos síndicos')).nextSibling).toHaveTextContent(
+      /120,00/,
+    );
+    expect(screen.getByText('Taxa retida pela USAI').nextSibling).toHaveTextContent(/80,00/);
+  });
+
+  it('a aba Extratos abre a busca de usuários', async () => {
+    mockApis();
+    vi.spyOn(adminApi, 'listarUsuarios').mockResolvedValue([
+      {
+        id: 'u-1',
+        nome: 'Ana Proprietaria',
+        email: 'ana@example.com',
+        papel: 'MORADOR',
+        condominio: 'Residencial Jardim Europa',
+        ativo: true,
+      },
+    ]);
+
+    render(<AdminPage />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Extratos' }));
+
+    expect(await screen.findByRole('button', { name: /Ana Proprietaria/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Conta da USAI' })).toBeInTheDocument();
   });
 });
 

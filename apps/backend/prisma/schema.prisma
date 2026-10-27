@@ -83,6 +83,7 @@ model User {
   conversasComoB        ConversaPrivada[]  @relation("ConversaParticipanteB")
   mensagensPrivadas     MensagemPrivada[]
   notificacoes          Notificacao[]
+  lancamentos           Lancamento[]
 
   @@index([condominioId])
   @@map("users")
@@ -139,6 +140,7 @@ model Locacao {
   item      Item       @relation(fields: [itemId], references: [id])
   locatario User       @relation("Locatario", fields: [locatarioId], references: [id])
   pagamento Pagamento?
+  lancamentos Lancamento[]
   conversa  ConversaPrivada?
 
   @@index([itemId])
@@ -294,4 +296,38 @@ model Notificacao {
 
   @@index([userId, lida, createdAt])
   @@map("notificacoes")
+}
+
+/// Livro-razão: cada centavo que entra numa conta (ou é só registrado como informativo) vira um
+/// lançamento imutável, com a origem (locação), a base de cálculo e a taxa aplicada. O saldo
+/// sacável de alguém = soma dos lançamentos com `afetaSaldo` menos os saques; o extrato detalhado
+/// (do próprio usuário e, pro Admin, de qualquer um) é montado daqui. `userId` nulo = conta da USAI.
+///
+/// Tipos: ALUGUEL_RECEBIDO (dono, valor líquido), COMISSAO_CONDOMINIO (síndico, fatia dos 10%),
+/// TAXA_PLATAFORMA (USAI — condomínio sem síndico, ou aluguéis anteriores à comissão do síndico),
+/// ALUGUEL_PAGO (locatário, informativo: não mexe no saldo).
+model Lancamento {
+  id             String   @id @default(uuid())
+  userId         String?
+  tipo           String
+  /// Sempre positivo; o tipo diz se é entrada ou só informativo.
+  valor          Decimal  @db.Decimal(10, 2)
+  afetaSaldo     Boolean  @default(true)
+  locacaoId      String?
+  condominioId   String?
+  /// Valor sobre o qual a taxa incidiu (o aluguel pago) e o percentual aplicado.
+  baseCalculo    Decimal? @db.Decimal(10, 2)
+  taxaPercentual Decimal? @db.Decimal(5, 2)
+  /// Em quantos síndicos a comissão foi dividida.
+  divididoEntre  Int?
+  descricao      String
+  createdAt      DateTime @default(now())
+
+  user    User?    @relation(fields: [userId], references: [id])
+  locacao Locacao? @relation(fields: [locacaoId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([locacaoId])
+  @@index([tipo])
+  @@map("lancamentos")
 }

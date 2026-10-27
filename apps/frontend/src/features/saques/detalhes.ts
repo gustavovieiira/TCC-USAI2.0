@@ -1,5 +1,6 @@
 import { Detalhe } from '@/components/ui/DetalheModal';
 import { formatCurrency, formatDate, formatDateHora } from '@/lib/format';
+import { MovimentoPlataformaDTO } from '@/features/admin/admin.types';
 import { MovimentoExtratoDTO, PagamentoExtratoDTO, SaqueDTO, StatusSaque } from './saques.types';
 
 const ROTULO_STATUS_SAQUE: Record<StatusSaque, string> = {
@@ -50,7 +51,11 @@ export function detalheSaqueAdmin(saque: SaqueDTO): Detalhe {
   };
 }
 
-/** Linha do extrato do próprio usuário: aluguel recebido ou saque (chave PIX já vem mascarada). */
+function pct(valor: number | undefined): string {
+  return valor === undefined ? '' : ` (${String(valor).replace('.', ',')}%)`;
+}
+
+/** Linha do extrato: aluguel recebido, comissão do condomínio ou saque (chave PIX como veio do servidor). */
 export function detalheMovimento(movimento: MovimentoExtratoDTO): Detalhe {
   if (movimento.tipo === 'RECEBIMENTO') {
     return {
@@ -67,9 +72,53 @@ export function detalheMovimento(movimento: MovimentoExtratoDTO): Detalhe {
             ]
           : []),
         { rotulo: 'Valor do aluguel', valor: formatCurrency(movimento.valorBruto ?? 0) },
-        { rotulo: 'Taxa da plataforma', valor: `− ${formatCurrency(movimento.taxa ?? 0)}` },
+        {
+          rotulo: `Taxa${pct(movimento.taxaPercentual)}`,
+          valor: `− ${formatCurrency(movimento.taxa ?? 0)}`,
+        },
         { rotulo: 'Você recebeu', valor: formatCurrency(movimento.valor) },
         { rotulo: 'Pagamento confirmado em', valor: formatDateHora(movimento.data) },
+      ],
+      protocolo: movimento.id,
+      recibo: true,
+    };
+  }
+
+  if (movimento.tipo === 'COMISSAO') {
+    const origem = movimento.origem;
+
+    return {
+      titulo: 'Recibo de comissão do condomínio',
+      subtitulo: movimento.descricao,
+      linhas: [
+        ...(origem
+          ? [
+              { rotulo: 'Aluguel do item', valor: origem.itemTitulo },
+              { rotulo: 'Dono do item', valor: origem.dono.nome },
+              { rotulo: 'Pago por', valor: origem.locatario.nome },
+            ]
+          : []),
+        ...(movimento.periodo
+          ? [
+              {
+                rotulo: 'Período do aluguel',
+                valor: periodo(movimento.periodo.inicio, movimento.periodo.fim),
+              },
+            ]
+          : []),
+        {
+          rotulo: 'Base de cálculo (aluguel pago)',
+          valor: formatCurrency(movimento.valorBruto ?? 0),
+        },
+        {
+          rotulo: `Taxa do condomínio${pct(movimento.taxaPercentual)}`,
+          valor: formatCurrency(movimento.taxa ?? 0),
+        },
+        ...(movimento.divididoEntre && movimento.divididoEntre > 1
+          ? [{ rotulo: 'Dividida entre', valor: `${movimento.divididoEntre} síndicos` }]
+          : []),
+        { rotulo: 'Comissão recebida', valor: formatCurrency(movimento.valor) },
+        { rotulo: 'Creditada em', valor: formatDateHora(movimento.data) },
       ],
       protocolo: movimento.id,
       recibo: true,
@@ -113,6 +162,18 @@ export function detalhePagamento(pagamento: PagamentoExtratoDTO): Detalhe {
         valor: periodo(pagamento.periodo.inicio, pagamento.periodo.fim),
       },
       { rotulo: 'Valor pago', valor: formatCurrency(pagamento.valor) },
+      ...(pagamento.repasseDono !== undefined && pagamento.taxa !== undefined
+        ? [
+            {
+              rotulo: `Foi para ${pagamento.contraparte?.nome ?? 'o dono'}`,
+              valor: formatCurrency(pagamento.repasseDono),
+            },
+            {
+              rotulo: `Taxa do condomínio${pct(pagamento.taxaPercentual)}`,
+              valor: formatCurrency(pagamento.taxa),
+            },
+          ]
+        : []),
       { rotulo: 'Pagamento confirmado em', valor: formatDateHora(pagamento.data) },
       {
         rotulo: 'Situação',
@@ -123,5 +184,44 @@ export function detalhePagamento(pagamento: PagamentoExtratoDTO): Detalhe {
     ],
     protocolo: pagamento.id,
     recibo: confirmado,
+  };
+}
+
+/** Entrada na conta da USAI (Admin): taxa que ficou com a plataforma, com a origem e a base de cálculo. */
+export function detalheMovimentoPlataforma(movimento: MovimentoPlataformaDTO): Detalhe {
+  const origem = movimento.origem;
+
+  return {
+    titulo: 'Registro da conta da USAI',
+    subtitulo: movimento.descricao,
+    linhas: [
+      ...(origem
+        ? [
+            { rotulo: 'Aluguel do item', valor: origem.itemTitulo },
+            { rotulo: 'Dono do item', valor: origem.dono.nome },
+            { rotulo: 'Pago por', valor: origem.locatario.nome },
+          ]
+        : []),
+      ...(movimento.baseCalculo !== null
+        ? [
+            {
+              rotulo: 'Base de cálculo (aluguel pago)',
+              valor: formatCurrency(movimento.baseCalculo),
+            },
+          ]
+        : []),
+      ...(movimento.taxaPercentual !== null
+        ? [
+            {
+              rotulo: 'Taxa aplicada',
+              valor: pct(movimento.taxaPercentual).trim().replace(/[()]/g, ''),
+            },
+          ]
+        : []),
+      { rotulo: 'Valor retido pela USAI', valor: formatCurrency(movimento.valor) },
+      { rotulo: 'Registrado em', valor: formatDateHora(movimento.data) },
+    ],
+    protocolo: movimento.id,
+    recibo: false,
   };
 }

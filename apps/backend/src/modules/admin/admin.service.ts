@@ -1,5 +1,11 @@
 import bcrypt from 'bcryptjs';
 import { Condominio, PrismaClient, User } from '@prisma/client';
+import {
+  INCLUIR_ORIGEM,
+  TIPO_COMISSAO_CONDOMINIO,
+  TIPO_TAXA_PLATAFORMA,
+  toOrigemDTO,
+} from '@/modules/lancamentos/lancamentos.service';
 import { BCRYPT_ROUNDS } from '@/modules/auth/auth.service';
 import { ConflictError, NotFoundError } from '@/common/errors';
 import {
@@ -7,9 +13,11 @@ import {
   CondominioDTO,
   CriarCondominioInput,
   CriarSindicoInput,
+  ExtratoPlataformaDTO,
   ListarCondominiosFiltro,
   ResumoFinanceiroDTO,
   SindicoDTO,
+  UsuarioAdminDTO,
 } from './admin.types';
 
 function toCondominioDTO(condominio: Condominio): CondominioDTO {
@@ -97,29 +105,38 @@ export class AdminService {
 
   /** Financeiro global: totais de solicitações de saque por status + condomínios ativos. */
   async resumoFinanceiro(): Promise<ResumoFinanceiroDTO> {
-    const [pendente, aprovado, pago, rejeitado, condominiosAtivos] = await Promise.all([
-      this.prisma.solicitacaoSaque.aggregate({
-        where: { status: 'PENDENTE' },
-        _count: true,
-        _sum: { valor: true },
-      }),
-      this.prisma.solicitacaoSaque.aggregate({
-        where: { status: 'APROVADO' },
-        _count: true,
-        _sum: { valor: true },
-      }),
-      this.prisma.solicitacaoSaque.aggregate({
-        where: { status: 'PAGO' },
-        _count: true,
-        _sum: { valor: true },
-      }),
-      this.prisma.solicitacaoSaque.aggregate({
-        where: { status: 'REJEITADO' },
-        _count: true,
-        _sum: { valor: true },
-      }),
-      this.prisma.condominio.count({ where: { ativo: true } }),
-    ]);
+    const [pendente, aprovado, pago, rejeitado, condominiosAtivos, comissoes, retido] =
+      await Promise.all([
+        this.prisma.solicitacaoSaque.aggregate({
+          where: { status: 'PENDENTE' },
+          _count: true,
+          _sum: { valor: true },
+        }),
+        this.prisma.solicitacaoSaque.aggregate({
+          where: { status: 'APROVADO' },
+          _count: true,
+          _sum: { valor: true },
+        }),
+        this.prisma.solicitacaoSaque.aggregate({
+          where: { status: 'PAGO' },
+          _count: true,
+          _sum: { valor: true },
+        }),
+        this.prisma.solicitacaoSaque.aggregate({
+          where: { status: 'REJEITADO' },
+          _count: true,
+          _sum: { valor: true },
+        }),
+        this.prisma.condominio.count({ where: { ativo: true } }),
+        this.prisma.lancamento.aggregate({
+          where: { tipo: TIPO_COMISSAO_CONDOMINIO },
+          _sum: { valor: true },
+        }),
+        this.prisma.lancamento.aggregate({
+          where: { tipo: TIPO_TAXA_PLATAFORMA },
+          _sum: { valor: true },
+        }),
+      ]);
 
     return {
       saques: {
@@ -128,8 +145,81 @@ export class AdminService {
         pago: { quantidade: pago._count, valorTotal: Number(pago._sum.valor ?? 0) },
         rejeitado: { quantidade: rejeitado._count, valorTotal: Number(rejeitado._sum.valor ?? 0) },
       },
+      taxas: {
+        repassadoAosSindicos: Number(comissoes._sum.valor ?? 0),
+        retidoPelaPlataforma: Number(retido._sum.valor ?? 0),
+      },
       condominiosAtivos,
     };
+  }
+
+  /** Busca de usuários pra abrir o extrato de qualquer um (nome ou e-mail contém o termo). */
+  async listarUsuarios(busca?: string): Promise<UsuarioAdminDTO[]> {
+    const termo = busca?.trim();
+    const usuarios = await this.prisma.user.findMany({
+      where: termo
+        ? { OR: [{ nome: { contains: termo } }, { email: { contains: termo } }] }
+        : undefined,
+      include: { condominio: true },
+      orderBy: { nome: 'asc' },
+      take: 50,
+    });
+
+    return usuarios.map((usuario) => ({
+      id: usuario.id,
+      nome: usuario.nome,
+      email: usuario.email,
+      papel: usuario.papel,
+      condominio: usuario.condominio?.nome ?? null,
+      ativo: usuario.ativo,
+    }));
+  }
+
+  async buscarUsuarioOuFalhar(userId: string): Promise<UsuarioAdminDTO> {
+    const usuario = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { condominio: true },
+    });
+
+    if (!usuario) {
+      throw new NotFoundError('Usuário não encontrado');
+    }
+
+    return {
+      id: usuario.id,
+      nome: usuario.nome,
+      email: usuario.email,
+      papel: usuario.papel,
+      condominio: usuario.condominio?.nome ?? null,
+      ativo: usuario.ativo,
+    };
+  }
+
+  /**
+   * Conta da plataforma (USAI): tudo que ficou com ela — taxa de condomínio sem síndico ativo e a
+   * taxa dos aluguéis anteriores à comissão do síndico — cada linha com a origem e a taxa aplicada.
+   */
+  async extratoPlataforma(): Promise<ExtratoPlataformaDTO> {
+    const lancamentos = await this.prisma.lancamento.findMany({
+      where: { userId: null },
+      include: INCLUIR_ORIGEM,
+      orderBy: { createdAt: 'desc' },
+      take: 500,
+    });
+
+    const movimentos = lancamentos.map((lancamento) => ({
+      id: lancamento.id,
+      data: lancamento.createdAt,
+      descricao: lancamento.descricao,
+      valor: Number(lancamento.valor),
+      baseCalculo: lancamento.baseCalculo === null ? null : Number(lancamento.baseCalculo),
+      taxaPercentual: lancamento.taxaPercentual === null ? null : Number(lancamento.taxaPercentual),
+      origem: lancamento.locacao ? toOrigemDTO(lancamento.locacao) : null,
+    }));
+
+    const totalRetido = Math.round(movimentos.reduce((t, m) => t + m.valor, 0) * 100) / 100;
+
+    return { totalRetido, movimentos };
   }
 
   private async buscarCondominioOuFalhar(condominioId: string): Promise<Condominio> {

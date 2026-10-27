@@ -19,7 +19,8 @@ jest.mock('@/common/prisma', () => {
       findUnique: jest.fn(),
       update: jest.fn(),
     },
-    user: { update: jest.fn() },
+    user: { update: jest.fn(), findMany: jest.fn().mockResolvedValue([]) },
+    lancamento: { createMany: jest.fn().mockResolvedValue({ count: 0 }) },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
   mockPrisma.$transaction = jest.fn((callback: (tx: unknown) => unknown) => callback(mockPrisma));
@@ -78,7 +79,7 @@ describe('POST /api/webhooks/asaas', () => {
       locatarioId: 'locatario-1',
       dataInicio: new Date('2026-10-01'),
       dataFim: new Date('2026-10-03'),
-      item: { id: 'item-1', ownerId: 'owner-1' },
+      item: { id: 'item-1', titulo: 'Furadeira', ownerId: 'owner-1', condominioId: 'cond-1' },
     });
     const app = createApp();
 
@@ -91,6 +92,13 @@ describe('POST /api/webhooks/asaas', () => {
     expect(prisma.locacao.updateMany).toHaveBeenCalledWith({
       where: { id: 'locacao-1', status: 'APROVADA' },
       data: { status: 'PAGA', taxaPlataforma: 10, valorLiquido: 90 },
+    });
+    // Condomínio sem síndico no mock: a taxa vai pra conta da USAI, e o dono recebe o líquido.
+    expect(prisma.lancamento.createMany).toHaveBeenCalledWith({
+      data: expect.arrayContaining([
+        expect.objectContaining({ userId: 'owner-1', tipo: 'ALUGUEL_RECEBIDO', valor: 90 }),
+        expect.objectContaining({ userId: null, tipo: 'TAXA_PLATAFORMA', valor: 10 }),
+      ]),
     });
   });
 

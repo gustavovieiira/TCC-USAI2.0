@@ -10,8 +10,9 @@ function buildPrismaMock() {
       update: jest.fn(),
       count: jest.fn(),
     },
-    user: { findUnique: jest.fn(), create: jest.fn() },
+    user: { findUnique: jest.fn(), create: jest.fn(), findMany: jest.fn() },
     solicitacaoSaque: { aggregate: jest.fn() },
+    lancamento: { aggregate: jest.fn(), findMany: jest.fn() },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
 }
@@ -171,6 +172,9 @@ describe('AdminService.resumoFinanceiro', () => {
       .mockResolvedValueOnce({ _count: 4, _sum: { valor: 600 } })
       .mockResolvedValueOnce({ _count: 1, _sum: { valor: 50 } });
     prisma.condominio.count.mockResolvedValue(3);
+    prisma.lancamento.aggregate
+      .mockResolvedValueOnce({ _sum: { valor: 120 } }) // comissões dos síndicos
+      .mockResolvedValueOnce({ _sum: { valor: 80 } }); // retido pela plataforma
 
     const service = new AdminService(prisma);
     const result = await service.resumoFinanceiro();
@@ -182,7 +186,133 @@ describe('AdminService.resumoFinanceiro', () => {
         pago: { quantidade: 4, valorTotal: 600 },
         rejeitado: { quantidade: 1, valorTotal: 50 },
       },
+      taxas: { repassadoAosSindicos: 120, retidoPelaPlataforma: 80 },
       condominiosAtivos: 3,
     });
+  });
+});
+
+describe('AdminService.listarUsuarios', () => {
+  it('lista com nome, e-mail, papel e condomínio; busca por nome ou e-mail', async () => {
+    const prisma = buildPrismaMock();
+    prisma.user.findMany.mockResolvedValue([
+      {
+        id: 'u-1',
+        nome: 'Ana Proprietaria',
+        email: 'ana@example.com',
+        papel: 'MORADOR',
+        ativo: true,
+        condominio: { nome: 'Residencial Jardim Europa' },
+      },
+      {
+        id: 'u-2',
+        nome: 'Admin',
+        email: 'admin@usai.local',
+        papel: 'ADMIN',
+        ativo: true,
+        condominio: null,
+      },
+    ]);
+
+    const result = await new AdminService(prisma).listarUsuarios('  ana ');
+
+    expect(prisma.user.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { OR: [{ nome: { contains: 'ana' } }, { email: { contains: 'ana' } }] },
+        take: 50,
+      }),
+    );
+    expect(result[0]).toEqual({
+      id: 'u-1',
+      nome: 'Ana Proprietaria',
+      email: 'ana@example.com',
+      papel: 'MORADOR',
+      condominio: 'Residencial Jardim Europa',
+      ativo: true,
+    });
+    expect(result[1].condominio).toBeNull();
+  });
+
+  it('sem termo lista todos (limitado) e nunca devolve o hash da senha', async () => {
+    const prisma = buildPrismaMock();
+    prisma.user.findMany.mockResolvedValue([
+      {
+        id: 'u-1',
+        nome: 'Ana',
+        email: 'a@x.com',
+        papel: 'MORADOR',
+        ativo: true,
+        senhaHash: 'segredo',
+        condominio: null,
+      },
+    ]);
+
+    const result = await new AdminService(prisma).listarUsuarios();
+
+    expect(prisma.user.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: undefined }),
+    );
+    expect(JSON.stringify(result)).not.toContain('segredo');
+  });
+});
+
+describe('AdminService.buscarUsuarioOuFalhar', () => {
+  it('retorna 404 quando o usuário não existe', async () => {
+    const prisma = buildPrismaMock();
+    prisma.user.findUnique.mockResolvedValue(null);
+
+    await expect(new AdminService(prisma).buscarUsuarioOuFalhar('x')).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+  });
+});
+
+describe('AdminService.extratoPlataforma', () => {
+  it('lista o que ficou com a USAI, cada linha com origem, base de cálculo e taxa, e soma o total retido', async () => {
+    const prisma = buildPrismaMock();
+    const locacao = {
+      id: 'loc-1',
+      item: { titulo: 'Furadeira', owner: { id: 'dono-1', nome: 'Davi Dono' } },
+      locatario: { id: 'loc-user', nome: 'Carla Locataria' },
+    };
+    prisma.lancamento.findMany.mockResolvedValue([
+      {
+        id: 'l-1',
+        valor: 10,
+        baseCalculo: 100,
+        taxaPercentual: 10,
+        descricao: 'Taxa sobre o aluguel de "Furadeira"',
+        createdAt: new Date('2026-10-03'),
+        locacao,
+      },
+      {
+        id: 'l-2',
+        valor: 5.5,
+        baseCalculo: null,
+        taxaPercentual: null,
+        descricao: 'Ajuste',
+        createdAt: new Date('2026-10-02'),
+        locacao: null,
+      },
+    ]);
+
+    const result = await new AdminService(prisma).extratoPlataforma();
+
+    expect(prisma.lancamento.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { userId: null } }),
+    );
+    expect(result.totalRetido).toBe(15.5);
+    expect(result.movimentos[0]).toMatchObject({
+      valor: 10,
+      baseCalculo: 100,
+      taxaPercentual: 10,
+      origem: {
+        locacaoId: 'loc-1',
+        itemTitulo: 'Furadeira',
+        dono: { id: 'dono-1', nome: 'Davi Dono' },
+        locatario: { id: 'loc-user', nome: 'Carla Locataria' },
+      },
+    });
+    expect(result.movimentos[1].origem).toBeNull();
   });
 });

@@ -6,6 +6,41 @@
 
 ---
 
+## 2026-10-27 — Taxa de 10% para o síndico, livro-razão e extrato detalhado de qualquer usuário
+
+**O que foi feito** (ideia do usuário: "o valor de 10% do condomínio poderia ir tudo para a conta do
+síndico, tudo registrando de onde veio e pra que taxa; extrato detalhado de qualquer usuário").
+Decisões combinadas antes: síndicos ativos do condomínio **dividem** a taxa e, sem síndico ativo, ela
+fica com a USAI; aluguéis já pagos **não mudam** (taxa deles segue com a plataforma); o Admin vê o
+extrato de qualquer usuário e cada um vê o seu.
+
+- **Livro-razão (`Lancamento`, migration `lancamentos`):** cada centavo que entra numa conta vira um
+  lançamento imutável com origem (locação), base de cálculo, taxa aplicada (%) e, nas comissões, em
+  quantos síndicos foi dividida. Tipos: `ALUGUEL_RECEBIDO` (dono, líquido), `COMISSAO_CONDOMINIO`
+  (síndico), `TAXA_PLATAFORMA` (USAI — conta com `userId` nulo) e `ALUGUEL_PAGO` (locatário,
+  informativo, não mexe no saldo). A migration fez o backfill dos 9 aluguéis já pagos — conferido:
+  saldos de todas as contas **idênticos antes e depois**.
+- **Confirmação do pagamento** (`registrarPagamentoConfirmado`, dentro da MESMA transação que passa
+  a locação a PAGA — ou tudo é gravado, ou nada): dono recebe o líquido; síndicos ativos do
+  condomínio recebem os 10% divididos em centavos (o que sobra vai, um centavo por vez, pros
+  primeiros — a soma fecha sempre); sem síndico a taxa fica com a USAI e o texto do lançamento
+  diz isso. O síndico recebe a notificação "Você recebeu uma comissão do condomínio".
+- **Saldo e extrato agora vêm do livro-razão:** saldo = soma dos lançamentos que afetam saldo −
+  saques. O extrato mostra de onde veio cada entrada (item, dono, quem pagou), a base, o percentual,
+  a divisão entre síndicos e a parte de quem consulta; o locatário vê quanto do que pagou foi para o
+  dono e quanto foi taxa. O síndico passou a ter **Saques** no menu (pede saque da comissão no
+  mesmo fluxo: Admin aprova e paga) e o recibo de comissão.
+- **Admin:** nova aba **Extratos** — busca por nome/e-mail e abre o extrato completo de qualquer
+  usuário (chave PIX sem máscara, é o que ele precisa pra pagar) e a **Conta da USAI** (tudo que
+  ficou com a plataforma, linha a linha). O resumo financeiro ganhou "taxa repassada aos síndicos"
+  e "taxa retida pela USAI". Endpoints só do Admin: `GET /api/admin/usuarios`,
+  `/usuarios/:id/extrato` e `/plataforma/extrato` (síndico e morador recebem 403).
+- Roteiro E2E (`.scratch/e2e_usai.cjs`) ampliado: **92/92** verificações (inclui divisão entre os 2
+  síndicos do Jardim Europa, saldo do síndico, extrato do síndico, extrato de terceiros pelo Admin e
+  as permissões).
+
+---
+
 ## 2026-10-19 — Chat da locação unificado na página de Conversas
 
 **O que foi feito** (pedido: "mensagens de locação tudo centralizado na página de conversas"):

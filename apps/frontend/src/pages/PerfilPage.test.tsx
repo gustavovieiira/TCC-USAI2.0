@@ -135,6 +135,7 @@ describe('PerfilPage', () => {
         aprovado: { quantidade: 0, valorTotal: 0 },
         rejeitado: { quantidade: 0, valorTotal: 0 },
       },
+      taxas: { repassadoAosSindicos: 0, retidoPelaPlataforma: 0 },
       condominiosAtivos: 3,
     });
     vi.spyOn(adminApi, 'listarCondominios').mockResolvedValue([

@@ -1,3 +1,4 @@
+import type { OrigemDTO } from '@/modules/saques/saques.types';
 export interface CriarCondominioInput {
   nome: string;
   linkSlug: string;
@@ -42,6 +43,31 @@ export interface ResumoSaquesDTO {
   valorTotal: number;
 }
 
+export interface UsuarioAdminDTO {
+  id: string;
+  nome: string;
+  email: string;
+  papel: string;
+  condominio: string | null;
+  ativo: boolean;
+}
+
+/** Uma entrada na conta da plataforma (a USAI): de onde veio, base de cálculo e taxa. */
+export interface MovimentoPlataformaDTO {
+  id: string;
+  data: Date;
+  descricao: string;
+  valor: number;
+  baseCalculo: number | null;
+  taxaPercentual: number | null;
+  origem: OrigemDTO | null;
+}
+
+export interface ExtratoPlataformaDTO {
+  totalRetido: number;
+  movimentos: MovimentoPlataformaDTO[];
+}
+
 export interface ResumoFinanceiroDTO {
   saques: {
     pendente: ResumoSaquesDTO;
@@ -49,6 +75,11 @@ export interface ResumoFinanceiroDTO {
     aprovado: ResumoSaquesDTO;
     pago: ResumoSaquesDTO;
     rejeitado: ResumoSaquesDTO;
+  };
+  /** Pra onde foi a taxa dos alugueis: síndicos (comissão) ou plataforma (sem síndico / histórico). */
+  taxas: {
+    repassadoAosSindicos: number;
+    retidoPelaPlataforma: number;
   };
   condominiosAtivos: number;
 }

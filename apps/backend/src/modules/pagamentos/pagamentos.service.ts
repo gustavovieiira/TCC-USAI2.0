@@ -1,6 +1,7 @@
 import { Item, Locacao, PrismaClient } from '@prisma/client';
 import { AppError, ForbiddenError, NotFoundError } from '@/common/errors';
 import { logger } from '@/common/logger';
+import { registrarPagamentoConfirmado } from '@/modules/lancamentos/lancamentos.service';
 import { calcularRepasse } from '@/modules/locacoes/locacoes.service';
 import { formatarReais } from '@/modules/notificacoes/notificacoes.format';
 import { NotificacoesService } from '@/modules/notificacoes/notificacoes.service';
@@ -185,6 +186,18 @@ export class PagamentosService {
         include: { item: true, locatario: true },
       });
 
+      // Livro-razão: dono recebe o líquido, síndicos recebem os 10% (ou a USAI, sem síndico).
+      const registro = await registrarPagamentoConfirmado(tx, {
+        locacaoId: locacao.id,
+        itemTitulo: locacao.item.titulo,
+        condominioId: locacao.item.condominioId,
+        donoId: locacao.item.ownerId,
+        locatarioId: locacao.locatarioId,
+        valorBruto: Number(pagamento.valor),
+        taxa: repasse.taxaPlataforma,
+        valorLiquido: repasse.valorLiquido,
+      });
+
       const concorrentes = await tx.locacao.findMany({
         where: {
           itemId: locacao.itemId,
@@ -210,7 +223,7 @@ export class PagamentosService {
         });
       }
 
-      return { orfao: false as const, locacao, concorrentes, repasse };
+      return { orfao: false as const, locacao, concorrentes, repasse, registro };
     });
 
     if (!resultado) return;
@@ -220,7 +233,7 @@ export class PagamentosService {
       return;
     }
 
-    const { locacao, concorrentes, repasse } = resultado;
+    const { locacao, concorrentes, repasse, registro } = resultado;
 
     emitirParaUsuario(locacao.locatarioId, 'locacao:atualizada', {
       locacaoId: locacao.id,
@@ -245,6 +258,16 @@ export class PagamentosService {
       mensagem: `${locacao.locatario.nome} pagou "${locacao.item.titulo}". Entraram ${formatarReais(repasse.valorLiquido)} no seu saldo (já descontada a taxa de ${formatarReais(repasse.taxaPlataforma)}).`,
       link: '/saques',
     });
+
+    for (const comissao of registro.comissoes) {
+      await this.notificacoes?.notificar({
+        userId: comissao.userId,
+        tipo: 'COMISSAO_RECEBIDA',
+        titulo: 'Você recebeu uma comissão do condomínio',
+        mensagem: `${formatarReais(comissao.valor)} de comissão (${formatarReais(repasse.taxaPlataforma)} de taxa sobre o aluguel de "${locacao.item.titulo}"${registro.comissoes.length > 1 ? `, dividida entre ${registro.comissoes.length} síndicos` : ''}).`,
+        link: '/saques',
+      });
+    }
 
     await Promise.all(
       concorrentes.map(async (concorrente) => {

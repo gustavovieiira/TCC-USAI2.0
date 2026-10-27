@@ -24,6 +24,7 @@ const SINDICO_NAV: NavItem[] = [
   { to: '/sindico', label: 'Síndico', icon: IconSindico },
   { to: '/mural', label: 'Mural', icon: IconMural },
   { to: '/conversas', label: 'Conversas', icon: IconConversas },
+  { to: '/saques', label: 'Saques', icon: IconSaques },
 ];
 
 const ADMIN_NAV: NavItem[] = [{ to: '/admin', label: 'Admin', icon: IconAdmin }];

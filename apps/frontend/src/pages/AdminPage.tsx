@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { CardClicavel } from '@/components/ui/CardClicavel';
+import { AbaExtratos } from '@/features/admin/AbaExtratos';
 import { Detalhe, DetalheModal } from '@/components/ui/DetalheModal';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SaqueStatusBadge } from '@/components/ui/Badge';
@@ -27,7 +28,7 @@ import {
 } from '@/features/saques/saques.api';
 import { SaqueDTO } from '@/features/saques/saques.types';
 
-type Aba = 'financeiro' | 'condominios' | 'sindicos';
+type Aba = 'financeiro' | 'extratos' | 'condominios' | 'sindicos';
 
 export function AdminPage() {
   const [aba, setAba] = useState<Aba>('financeiro');
@@ -59,6 +60,7 @@ export function AdminPage() {
         {(
           [
             ['financeiro', 'Financeiro'],
+            ['extratos', 'Extratos'],
             ['condominios', 'Condomínios'],
             ['sindicos', 'Síndicos'],
           ] as const
@@ -95,6 +97,8 @@ export function AdminPage() {
           onErro={setErro}
         />
       )}
+
+      {aba === 'extratos' && <AbaExtratos />}
 
       {aba === 'condominios' && (
         <AbaCondominios
@@ -196,6 +200,21 @@ function AbaFinanceiro({ resumo, saques, erro, onMudou, onErro }: AbaFinanceiroP
           cor="text-carmim-500"
           resumo={resumo.saques.rejeitado}
         />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Card>
+          <p className="font-meta text-xs text-ink-faint">Taxa repassada aos síndicos</p>
+          <p className="mt-1 font-display text-xl font-bold text-jade-500">
+            {formatCurrency(resumo.taxas.repassadoAosSindicos)}
+          </p>
+        </Card>
+        <Card>
+          <p className="font-meta text-xs text-ink-faint">Taxa retida pela USAI</p>
+          <p className="mt-1 font-display text-xl font-bold text-ink">
+            {formatCurrency(resumo.taxas.retidoPelaPlataforma)}
+          </p>
+        </Card>
       </div>
 
       <div>

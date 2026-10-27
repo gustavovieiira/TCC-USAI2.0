@@ -7,7 +7,14 @@ import { ExtratoDTO, MovimentoExtratoDTO } from '@/features/saques/saques.types'
 
 function buildExtrato(overrides: Partial<ExtratoDTO> = {}): ExtratoDTO {
   return {
-    resumo: { saldoDisponivel: 0, totalRecebido: 0, totalSacado: 0, aPagar: 0, emAnalise: 0 },
+    resumo: {
+      saldoDisponivel: 0,
+      totalRecebido: 0,
+      totalComissoes: 0,
+      totalSacado: 0,
+      aPagar: 0,
+      emAnalise: 0,
+    },
     movimentos: [],
     pagamentos: [],
     ...overrides,
@@ -47,6 +54,7 @@ describe('SaquesPage — extrato', () => {
         resumo: {
           saldoDisponivel: 250.5,
           totalRecebido: 400,
+          totalComissoes: 0,
           totalSacado: 100,
           aPagar: 0,
           emAnalise: 49.5,
@@ -146,7 +154,14 @@ describe('SaquesPage — detalhes e recibo', () => {
   it('saque aprovado aparece como "PIX a caminho" e a soma vai pro card "Aprovado, a caminho"', async () => {
     vi.spyOn(saquesApi, 'buscarExtrato').mockResolvedValue(
       buildExtrato({
-        resumo: { saldoDisponivel: 0, totalRecebido: 40, totalSacado: 0, aPagar: 40, emAnalise: 0 },
+        resumo: {
+          saldoDisponivel: 0,
+          totalRecebido: 40,
+          totalComissoes: 0,
+          totalSacado: 0,
+          aPagar: 40,
+          emAnalise: 0,
+        },
         movimentos: [buildSaque({ valor: -40, status: 'APROVADO' })],
       }),
     );
@@ -166,7 +181,9 @@ describe('SaquesPage — detalhes e recibo', () => {
 
     render(<SaquesPage />);
 
-    expect(await screen.findByText('Pago na sua chave PIX')).toBeInTheDocument();
+    expect(
+      await screen.findByText('PIX enviado', { selector: 'span.notch-sm' }),
+    ).toBeInTheDocument();
     expect(screen.getByText(/PIX enviado em/)).toBeInTheDocument();
   });
 
@@ -232,6 +249,105 @@ describe('SaquesPage — detalhes e recibo', () => {
   });
 });
 
+describe('SaquesPage — síndico com comissões do condomínio', () => {
+  const comissao: MovimentoExtratoDTO = {
+    id: 'l-1',
+    tipo: 'COMISSAO',
+    data: '2026-10-03T12:00:00.000Z',
+    descricao: 'Comissão do condomínio sobre o aluguel de "Furadeira"',
+    contraparte: null,
+    valor: 5,
+    valorBruto: 100,
+    taxa: 10,
+    taxaPercentual: 10,
+    divididoEntre: 2,
+    origem: {
+      locacaoId: 'loc-1',
+      itemTitulo: 'Furadeira',
+      dono: { id: 'd-1', nome: 'Davi Dono' },
+      locatario: { id: 'c-1', nome: 'Carla Locataria' },
+    },
+    status: 'CONFIRMADO',
+  };
+
+  it('mostra a comissão como entrada, com a origem, a conta da taxa e a divisão entre síndicos', async () => {
+    vi.spyOn(saquesApi, 'buscarExtrato').mockResolvedValue(
+      buildExtrato({
+        resumo: {
+          saldoDisponivel: 5,
+          totalRecebido: 0,
+          totalComissoes: 5,
+          totalSacado: 0,
+          aPagar: 0,
+          emAnalise: 0,
+        },
+        movimentos: [comissao],
+      }),
+    );
+
+    render(<SaquesPage />);
+
+    expect(
+      await screen.findByText('Aluguel pago por Carla Locataria a Davi Dono'),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Taxa de 10% sobre/)).toHaveTextContent('dividida entre 2 síndicos');
+    expect(screen.getByText(/\+\s*R\$\s*5,00/)).toBeInTheDocument();
+    expect(screen.getByText('Comissões do condomínio').nextSibling).toHaveTextContent(/5,00/);
+  });
+
+  it('o card "Comissões do condomínio" só aparece pra quem recebe comissão', async () => {
+    vi.spyOn(saquesApi, 'buscarExtrato').mockResolvedValue(buildExtrato());
+
+    render(<SaquesPage />);
+    await screen.findByText('Nenhuma movimentação ainda');
+
+    expect(screen.queryByText('Comissões do condomínio')).not.toBeInTheDocument();
+  });
+
+  it('clicar na comissão abre o recibo com tudo: item, dono, quem pagou, base, taxa e a parte do síndico', async () => {
+    vi.spyOn(saquesApi, 'buscarExtrato').mockResolvedValue(
+      buildExtrato({ movimentos: [comissao] }),
+    );
+
+    render(<SaquesPage />);
+    await userEvent.click(await screen.findByText('Aluguel pago por Carla Locataria a Davi Dono'));
+
+    const dialogo = await screen.findByRole('dialog', { name: 'Recibo de comissão do condomínio' });
+    expect(dialogo).toHaveTextContent('Furadeira');
+    expect(dialogo).toHaveTextContent('Davi Dono');
+    expect(dialogo).toHaveTextContent('Carla Locataria');
+    expect(dialogo).toHaveTextContent('2 síndicos');
+    expect(screen.getByRole('button', { name: 'Gerar recibo' })).toBeInTheDocument();
+  });
+
+  it('o locatário vê no que pagou quanto foi pro dono e quanto foi taxa', async () => {
+    vi.spyOn(saquesApi, 'buscarExtrato').mockResolvedValue(
+      buildExtrato({
+        pagamentos: [
+          {
+            id: 'p-1',
+            data: '2026-10-02T12:00:00.000Z',
+            descricao: 'Aluguel de "Escada"',
+            contraparte: { id: 'u-3', nome: 'Davi Dono' },
+            valor: 100,
+            taxa: 10,
+            repasseDono: 90,
+            taxaPercentual: 10,
+            periodo: { inicio: '2026-10-10T00:00:00.000Z', fim: '2026-10-11T00:00:00.000Z' },
+            status: 'CONFIRMADO',
+          },
+        ],
+      }),
+    );
+
+    render(<SaquesPage />);
+
+    expect(await screen.findByText(/foi para Davi Dono e/)).toHaveTextContent(
+      /90,00.*10,00.*\(10%\).*taxa do condomínio/,
+    );
+  });
+});
+
 describe('SaquesPage — pedir saque', () => {
   async function abrirAbaPedirSaque() {
     await screen.findByText('Nenhuma movimentação ainda');
@@ -246,6 +362,7 @@ describe('SaquesPage — pedir saque', () => {
           resumo: {
             saldoDisponivel: 100,
             totalRecebido: 100,
+            totalComissoes: 0,
             totalSacado: 0,
             aPagar: 0,
             emAnalise: 0,

@@ -1,6 +1,11 @@
 import { Condominio, Prisma, PrismaClient, SolicitacaoSaque, User } from '@prisma/client';
 import { AppError, NotFoundError } from '@/common/errors';
-import { STATUS_QUE_GERAM_SALDO } from '@/modules/locacoes/locacoes.service';
+import {
+  INCLUIR_ORIGEM,
+  TIPO_ALUGUEL_PAGO,
+  TIPO_COMISSAO_CONDOMINIO,
+  toOrigemDTO,
+} from '@/modules/lancamentos/lancamentos.service';
 import { formatarReais } from '@/modules/notificacoes/notificacoes.format';
 import { NotificacoesService } from '@/modules/notificacoes/notificacoes.service';
 import {
@@ -77,9 +82,9 @@ export class SaquesService {
     userId: string,
   ): Promise<number> {
     const [recebido, aprovado, pendente] = await Promise.all([
-      cliente.locacao.aggregate({
-        where: { item: { ownerId: userId }, status: { in: STATUS_QUE_GERAM_SALDO } },
-        _sum: { valorLiquido: true },
+      cliente.lancamento.aggregate({
+        where: { userId, afetaSaldo: true },
+        _sum: { valor: true },
       }),
       cliente.solicitacaoSaque.aggregate({
         where: { userId, status: { in: ['APROVADO', 'PAGO'] } },
@@ -91,7 +96,7 @@ export class SaquesService {
       }),
     ]);
 
-    const totalLiquido = Number(recebido._sum.valorLiquido ?? 0);
+    const totalLiquido = Number(recebido._sum.valor ?? 0);
     const jaSacado = Number(aprovado._sum.valor ?? 0);
     const emAnalise = Number(pendente._sum.valor ?? 0);
 
@@ -140,41 +145,55 @@ export class SaquesService {
   }
 
   /**
-   * Extrato do usuário, sempre escopado por `userId` (vem do token, nunca de parâmetro). Separa
-   * duas coisas pra não confundir: o que mexe no SALDO (aluguéis recebidos já com a taxa
-   * descontada, e saques) e o que a pessoa PAGOU como locatário (informativo, não mexe no saldo).
-   * O `saldoDisponivel` vem do mesmo `calcularSaldo` da tela de Perfil, então os números batem.
-   * Da contraparte só saem id e nome — nunca e-mail, CPF ou chave PIX de outra pessoa.
+   * Extrato do usuário, sempre escopado por `userId` (vem do token, ou do parâmetro de rota na
+   * visão do Admin). Montado do livro-razão (`Lancamento`): cada entrada traz de onde veio (a
+   * locação, quem pagou, quem é o dono), a base de cálculo e a taxa aplicada. Separa duas coisas
+   * pra não confundir: o que mexe no SALDO (aluguéis recebidos, comissões do condomínio e saques)
+   * e o que a pessoa PAGOU como locatário (informativo, não mexe no saldo). O `saldoDisponivel`
+   * vem do mesmo `calcularSaldo`, então os números batem. Da contraparte só saem id e nome — nunca
+   * e-mail, CPF ou chave PIX de outra pessoa; a chave do próprio usuário sai mascarada, salvo na
+   * visão do Admin (que precisa dela pra transferir).
    */
-  async extrato(userId: string): Promise<ExtratoDTO> {
-    const [recebidas, saques, pagas, saldoDisponivel] = await Promise.all([
-      this.prisma.locacao.findMany({
-        where: { item: { ownerId: userId }, status: { in: STATUS_QUE_GERAM_SALDO } },
-        include: { item: true, locatario: true, pagamento: true },
+  async extrato(userId: string, opcoes: { revelarChavePix?: boolean } = {}): Promise<ExtratoDTO> {
+    const [creditos, saques, pagos, orfaos, saldoDisponivel] = await Promise.all([
+      this.prisma.lancamento.findMany({
+        where: { userId, afetaSaldo: true },
+        include: INCLUIR_ORIGEM,
       }),
       this.prisma.solicitacaoSaque.findMany({ where: { userId } }),
+      this.prisma.lancamento.findMany({
+        where: { userId, tipo: TIPO_ALUGUEL_PAGO },
+        include: INCLUIR_ORIGEM,
+      }),
       this.prisma.locacao.findMany({
-        where: {
-          locatarioId: userId,
-          pagamento: { is: { status: { in: ['PAGO', 'PAGO_ORFAO'] } } },
-        },
+        where: { locatarioId: userId, pagamento: { is: { status: 'PAGO_ORFAO' } } },
         include: { item: { include: { owner: true } }, pagamento: true },
       }),
       this.calcularSaldo(userId),
     ]);
 
-    const recebimentos: MovimentoExtratoDTO[] = recebidas.map((locacao) => ({
-      id: locacao.id,
-      tipo: 'RECEBIMENTO',
-      data: locacao.pagamento?.pagoEm ?? locacao.updatedAt,
-      descricao: `Aluguel de "${locacao.item.titulo}"`,
-      contraparte: { id: locacao.locatario.id, nome: locacao.locatario.nome },
-      valor: Number(locacao.valorLiquido ?? 0),
-      valorBruto: Number(locacao.valorTotal),
-      taxa: Number(locacao.taxaPlataforma ?? 0),
-      periodo: { inicio: locacao.dataInicio, fim: locacao.dataFim },
-      status: 'CONFIRMADO',
-    }));
+    const entradas: MovimentoExtratoDTO[] = creditos.map((lancamento) => {
+      const comissao = lancamento.tipo === TIPO_COMISSAO_CONDOMINIO;
+      const locacao = lancamento.locacao;
+
+      return {
+        id: lancamento.id,
+        tipo: comissao ? 'COMISSAO' : 'RECEBIMENTO',
+        data: lancamento.createdAt,
+        descricao: lancamento.descricao,
+        contraparte:
+          !comissao && locacao ? { id: locacao.locatario.id, nome: locacao.locatario.nome } : null,
+        valor: Number(lancamento.valor),
+        valorBruto: lancamento.baseCalculo === null ? undefined : Number(lancamento.baseCalculo),
+        taxa: locacao?.taxaPlataforma ? Number(locacao.taxaPlataforma) : undefined,
+        taxaPercentual:
+          lancamento.taxaPercentual === null ? undefined : Number(lancamento.taxaPercentual),
+        divididoEntre: lancamento.divididoEntre ?? undefined,
+        periodo: locacao ? { inicio: locacao.dataInicio, fim: locacao.dataFim } : undefined,
+        origem: locacao ? toOrigemDTO(locacao) : undefined,
+        status: 'CONFIRMADO',
+      };
+    });
 
     const retiradas: MovimentoExtratoDTO[] = saques.map((saque) => ({
       id: saque.id,
@@ -185,29 +204,53 @@ export class SaquesService {
       valor: -Number(saque.valor),
       status: STATUS_SAQUE_NO_EXTRATO[saque.status],
       motivo: saque.motivoRejeicao,
-      chavePix: mascararChavePix(saque.chavePixUsada),
+      chavePix: opcoes.revelarChavePix
+        ? saque.chavePixUsada
+        : mascararChavePix(saque.chavePixUsada),
       processadoEm: saque.processadoEm,
       pagoEm: saque.pagoEm,
     }));
 
-    const movimentos = [...recebimentos, ...retiradas].sort(
+    const movimentos = [...entradas, ...retiradas].sort(
       (a, b) => b.data.getTime() - a.data.getTime(),
     );
 
-    const pagamentos: PagamentoExtratoDTO[] = pagas
-      .map((locacao) => ({
-        id: locacao.id,
-        data: locacao.pagamento?.pagoEm ?? locacao.updatedAt,
-        descricao: `Aluguel de "${locacao.item.titulo}"`,
-        contraparte: { id: locacao.item.owner.id, nome: locacao.item.owner.nome },
-        valor: Number(locacao.pagamento?.valor ?? locacao.valorTotal),
-        periodo: { inicio: locacao.dataInicio, fim: locacao.dataFim },
-        status:
-          locacao.pagamento?.status === 'PAGO_ORFAO'
-            ? ('EM_REEMBOLSO' as const)
-            : ('CONFIRMADO' as const),
-      }))
-      .sort((a, b) => b.data.getTime() - a.data.getTime());
+    const pagamentosFeitos: PagamentoExtratoDTO[] = pagos.flatMap((lancamento) => {
+      const locacao = lancamento.locacao;
+      if (!locacao) return [];
+
+      return [
+        {
+          id: lancamento.id,
+          locacaoId: locacao.id,
+          data: lancamento.createdAt,
+          descricao: lancamento.descricao,
+          contraparte: { id: locacao.item.owner.id, nome: locacao.item.owner.nome },
+          valor: Number(lancamento.valor),
+          taxa: locacao.taxaPlataforma ? Number(locacao.taxaPlataforma) : undefined,
+          repasseDono: locacao.valorLiquido ? Number(locacao.valorLiquido) : undefined,
+          taxaPercentual:
+            lancamento.taxaPercentual === null ? undefined : Number(lancamento.taxaPercentual),
+          periodo: { inicio: locacao.dataInicio, fim: locacao.dataFim },
+          status: 'CONFIRMADO' as const,
+        },
+      ];
+    });
+
+    const pagamentosOrfaos: PagamentoExtratoDTO[] = orfaos.map((locacao) => ({
+      id: locacao.id,
+      locacaoId: locacao.id,
+      data: locacao.pagamento?.pagoEm ?? locacao.updatedAt,
+      descricao: `Aluguel de "${locacao.item.titulo}"`,
+      contraparte: { id: locacao.item.owner.id, nome: locacao.item.owner.nome },
+      valor: Number(locacao.pagamento?.valor ?? locacao.valorTotal),
+      periodo: { inicio: locacao.dataInicio, fim: locacao.dataFim },
+      status: 'EM_REEMBOLSO' as const,
+    }));
+
+    const pagamentos = [...pagamentosFeitos, ...pagamentosOrfaos].sort(
+      (a, b) => b.data.getTime() - a.data.getTime(),
+    );
 
     const somar = (itens: { valor: number }[]) =>
       arredondarCentavos(itens.reduce((total, item) => total + item.valor, 0));
@@ -215,7 +258,8 @@ export class SaquesService {
     return {
       resumo: {
         saldoDisponivel,
-        totalRecebido: somar(recebimentos),
+        totalRecebido: somar(entradas.filter((m) => m.tipo === 'RECEBIMENTO')),
+        totalComissoes: somar(entradas.filter((m) => m.tipo === 'COMISSAO')),
         totalSacado: Math.abs(somar(retiradas.filter((m) => m.status === 'PAGO'))),
         aPagar: Math.abs(somar(retiradas.filter((m) => m.status === 'APROVADO'))),
         emAnalise: Math.abs(somar(retiradas.filter((m) => m.status === 'EM_ANALISE'))),

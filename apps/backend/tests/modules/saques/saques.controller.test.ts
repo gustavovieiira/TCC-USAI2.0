@@ -13,10 +13,11 @@ jest.mock('@/common/prisma', () => {
       update: jest.fn(),
       aggregate: jest.fn().mockResolvedValue({ _sum: { valor: null } }),
     },
-    locacao: {
-      aggregate: jest.fn().mockResolvedValue({ _sum: { valorLiquido: null } }),
+    lancamento: {
+      aggregate: jest.fn().mockResolvedValue({ _sum: { valor: null } }),
       findMany: jest.fn().mockResolvedValue([]),
     },
+    locacao: { findMany: jest.fn().mockResolvedValue([]) },
     logAuditoria: { create: jest.fn() },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
@@ -63,7 +64,7 @@ const saqueBase = {
 describe('POST /api/saques', () => {
   it('solicita o saque e retorna 201 quando cabe no saldo disponível', async () => {
     // Líquido de 180 cobre o pedido de 100.
-    (prisma.locacao.aggregate as jest.Mock).mockResolvedValue({ _sum: { valorLiquido: 180 } });
+    (prisma.lancamento.aggregate as jest.Mock).mockResolvedValue({ _sum: { valor: 180 } });
     (prisma.solicitacaoSaque.create as jest.Mock).mockResolvedValue(saqueBase);
     const app = createApp();
 
@@ -88,7 +89,7 @@ describe('POST /api/saques', () => {
   });
 
   it('rejeita com 400 quando o valor pedido é maior que o saldo disponível', async () => {
-    (prisma.locacao.aggregate as jest.Mock).mockResolvedValue({ _sum: { valorLiquido: 50 } });
+    (prisma.lancamento.aggregate as jest.Mock).mockResolvedValue({ _sum: { valor: 50 } });
     const app = createApp();
 
     const response = await request(app)
@@ -103,7 +104,7 @@ describe('POST /api/saques', () => {
 
 describe('GET /api/saques/saldo', () => {
   it('retorna o saldo líquido disponível pro usuário autenticado', async () => {
-    (prisma.locacao.aggregate as jest.Mock).mockResolvedValue({ _sum: { valorLiquido: 270 } });
+    (prisma.lancamento.aggregate as jest.Mock).mockResolvedValue({ _sum: { valor: 270 } });
     (prisma.solicitacaoSaque.aggregate as jest.Mock)
       .mockResolvedValueOnce({ _sum: { valor: 100 } })
       .mockResolvedValueOnce({ _sum: { valor: 0 } });

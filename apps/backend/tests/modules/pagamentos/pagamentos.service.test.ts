@@ -21,7 +21,9 @@ function buildPrismaMock() {
     },
     user: {
       update: jest.fn(),
+      findMany: jest.fn().mockResolvedValue([]),
     },
+    lancamento: { createMany: jest.fn().mockResolvedValue({ count: 0 }) },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
   prisma.$transaction = jest.fn((callback: (tx: unknown) => unknown) => callback(prisma));
@@ -209,7 +211,7 @@ describe('PagamentosService.confirmarPagamento', () => {
       locatarioId: LOCATARIO_ID,
       dataInicio: new Date('2026-10-01'),
       dataFim: new Date('2026-10-03'),
-      item: { id: ITEM_ID, ownerId: OWNER_ID },
+      item: { id: ITEM_ID, titulo: 'Furadeira Bosch', ownerId: OWNER_ID, condominioId: 'cond-1' },
     });
     const concorrente = {
       id: 'locacao-concorrente',
@@ -362,7 +364,7 @@ describe('PagamentosService.confirmarPagamento — notificações', () => {
       locatarioId: LOCATARIO_ID,
       dataInicio: new Date('2026-10-01'),
       dataFim: new Date('2026-10-03'),
-      item: { id: ITEM_ID, titulo: 'Furadeira Bosch', ownerId: OWNER_ID },
+      item: { id: ITEM_ID, titulo: 'Furadeira Bosch', ownerId: OWNER_ID, condominioId: 'cond-1' },
       locatario: { nome: 'Bruno Locatario' },
     });
   }
@@ -436,5 +438,125 @@ describe('PagamentosService.confirmarPagamento — notificações', () => {
     expect(notificacoes.notificar).not.toHaveBeenCalledWith(
       expect.objectContaining({ tipo: 'PAGAMENTO_RECEBIDO' }),
     );
+  });
+});
+
+describe('PagamentosService.confirmarPagamento — livro-razão e comissão do síndico', () => {
+  function prepararConfirmacao(prisma: ReturnType<typeof buildPrismaMock>) {
+    prisma.pagamento.updateMany.mockResolvedValue({ count: 1 });
+    prisma.pagamento.findUnique.mockResolvedValue({
+      id: 'pagamento-1',
+      locacaoId: LOCACAO_ID,
+      asaasChargeId: 'pay_123',
+      valor: 100,
+    });
+    prisma.locacao.updateMany.mockResolvedValue({ count: 1 });
+    prisma.locacao.findUniqueOrThrow.mockResolvedValue({
+      id: LOCACAO_ID,
+      itemId: ITEM_ID,
+      locatarioId: LOCATARIO_ID,
+      dataInicio: new Date('2026-10-01'),
+      dataFim: new Date('2026-10-03'),
+      item: { id: ITEM_ID, titulo: 'Furadeira Bosch', ownerId: OWNER_ID, condominioId: 'cond-1' },
+      locatario: { nome: 'Bruno Locatario' },
+    });
+  }
+
+  it('grava no livro-razão: líquido pro dono, 10% pro síndico e o registro do que o locatário pagou — tudo na mesma transação', async () => {
+    const prisma = buildPrismaMock();
+    prepararConfirmacao(prisma);
+    prisma.user.findMany.mockResolvedValue([{ id: 'sindico-1' }]);
+
+    await new PagamentosService(prisma, buildAsaasMock()).confirmarPagamento('pay_123');
+
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    const dados = prisma.lancamento.createMany.mock.calls[0][0].data;
+    expect(
+      dados.map((l: { tipo: string; userId: string | null; valor: number }) => [
+        l.tipo,
+        l.userId,
+        l.valor,
+      ]),
+    ).toEqual([
+      ['ALUGUEL_RECEBIDO', OWNER_ID, 90],
+      ['ALUGUEL_PAGO', LOCATARIO_ID, 100],
+      ['COMISSAO_CONDOMINIO', 'sindico-1', 10],
+    ]);
+  });
+
+  it('se gravar o livro-razão falhar, a transação inteira falha (a locação não vira PAGA sem o dinheiro registrado)', async () => {
+    const prisma = buildPrismaMock();
+    prepararConfirmacao(prisma);
+    prisma.lancamento.createMany.mockRejectedValue(new Error('banco indisponível'));
+
+    await expect(
+      new PagamentosService(prisma, buildAsaasMock()).confirmarPagamento('pay_123'),
+    ).rejects.toThrow('banco indisponível');
+  });
+
+  it('avisa cada síndico do valor da comissão, dizendo quando foi dividida', async () => {
+    const prisma = buildPrismaMock();
+    prepararConfirmacao(prisma);
+    prisma.user.findMany.mockResolvedValue([{ id: 's-1' }, { id: 's-2' }]);
+    const notificacoes = {
+      notificar: jest.fn().mockResolvedValue(undefined),
+      notificarAdmins: jest.fn().mockResolvedValue(undefined),
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await new PagamentosService(prisma, buildAsaasMock(), notificacoes as any).confirmarPagamento(
+      'pay_123',
+    );
+
+    const avisos = notificacoes.notificar.mock.calls
+      .map(
+        (c: unknown[]) => c[0] as { userId: string; tipo: string; mensagem: string; link: string },
+      )
+      .filter((n) => n.tipo === 'COMISSAO_RECEBIDA');
+    expect(avisos.map((n) => n.userId)).toEqual(['s-1', 's-2']);
+    expect(avisos[0].mensagem).toContain('R$ 5,00');
+    expect(avisos[0].mensagem).toContain('dividida entre 2 síndicos');
+    expect(avisos[0].link).toBe('/saques');
+  });
+
+  it('sem síndico ativo ninguém recebe aviso de comissão (a taxa fica com a USAI)', async () => {
+    const prisma = buildPrismaMock();
+    prepararConfirmacao(prisma);
+    const notificacoes = {
+      notificar: jest.fn().mockResolvedValue(undefined),
+      notificarAdmins: jest.fn().mockResolvedValue(undefined),
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await new PagamentosService(prisma, buildAsaasMock(), notificacoes as any).confirmarPagamento(
+      'pay_123',
+    );
+
+    expect(notificacoes.notificar).not.toHaveBeenCalledWith(
+      expect.objectContaining({ tipo: 'COMISSAO_RECEBIDA' }),
+    );
+    expect(prisma.lancamento.createMany.mock.calls[0][0].data).toContainEqual(
+      expect.objectContaining({ tipo: 'TAXA_PLATAFORMA', userId: null, valor: 10 }),
+    );
+  });
+
+  it('pagamento órfão e reentrega do webhook não gravam nada no livro-razão', async () => {
+    const prisma = buildPrismaMock();
+    prisma.pagamento.updateMany.mockResolvedValue({ count: 0 });
+    await new PagamentosService(prisma, buildAsaasMock()).confirmarPagamento('pay_123');
+
+    const orfao = buildPrismaMock();
+    orfao.pagamento.updateMany.mockResolvedValue({ count: 1 });
+    orfao.pagamento.findUnique.mockResolvedValue({
+      id: 'p',
+      locacaoId: LOCACAO_ID,
+      asaasChargeId: 'pay_123',
+      valor: 100,
+    });
+    orfao.locacao.updateMany.mockResolvedValue({ count: 0 });
+    await new PagamentosService(orfao, buildAsaasMock()).confirmarPagamento('pay_123');
+
+    expect(prisma.lancamento.createMany).not.toHaveBeenCalled();
+    expect(orfao.lancamento.createMany).not.toHaveBeenCalled();
   });
 });

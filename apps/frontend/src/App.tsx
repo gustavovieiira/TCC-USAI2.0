@@ -36,10 +36,10 @@ export default function App() {
             <Route path="/itens/novo" element={<PublicarItemPage />} />
             <Route path="/itens/:id" element={<ItemDetalhePage />} />
             <Route path="/locacoes" element={<MinhasLocacoesPage />} />
-            <Route path="/saques" element={<SaquesPage />} />
           </Route>
 
           <Route element={<RoleRoute allow={['MORADOR', 'SINDICO']} />}>
+            <Route path="/saques" element={<SaquesPage />} />
             <Route path="/mural" element={<MuralPage />} />
             <Route path="/mural/:id" element={<PostDetalhePage />} />
             <Route path="/conversas" element={<MinhasConversasPage />} />

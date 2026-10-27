@@ -121,4 +121,19 @@ describe('AppShell', () => {
 
     expect(screen.queryByLabelText('Mensagens não lidas')).not.toBeInTheDocument();
   });
+
+  it('síndico tem Saques no menu (recebe a comissão do condomínio); admin não', async () => {
+    vi.spyOn(authStorage, 'getStoredUser').mockReturnValue({
+      id: 'user-sindico',
+      nome: 'Carla Síndica',
+      email: 'carla@example.com',
+      papel: 'SINDICO',
+      condominioId: 'cond-1',
+      apartamento: null,
+    });
+
+    renderShell('/catalogo');
+
+    expect(await screen.findAllByRole('link', { name: 'Saques' })).toHaveLength(2);
+  });
 });
