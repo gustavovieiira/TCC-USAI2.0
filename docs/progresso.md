@@ -6,6 +6,28 @@
 
 ---
 
+## 2026-10-27 — Logo da USAI e tela inicial redesenhada
+
+**O que foi feito.** A tela inicial parecia "básica" e o sistema ainda usava o logo padrão do Vite no
+favicon. Foi criada uma marca própria e a landing foi refeita.
+
+- **Marca:** quadrado terracota com o canto recortado (assinatura visual do sistema), uma casa (o
+  condomínio) e um "U" (USAI) que acolhe um ponto verde (o item compartilhado). Componente
+  `components/ui/MarcaUsai.tsx` (SVG, cores fixas pra funcionar no claro, no escuro e na impressão).
+- **`Logo.tsx`** passou a mostrar a logo oficial enviada pelo Admin (Identidade) **ou**, enquanto não
+  houver, símbolo + nome "USAI". Vale pro cabeçalho, login, landing e documentos.
+- **Favicon** (`public/favicon.svg`) trocado pelo símbolo.
+- **Landing** (`pages/LandingPage.tsx`): hero com cartões de exemplo (marcados como "Exemplo
+  ilustrativo"), "Como funciona" em 4 passos, 6 recursos com ícones, faixa de chamada final e rodapé
+  com o texto institucional configurável.
+- **Arquivos de logo** em `docs/identidade/` (símbolo SVG/PNG e versões completas claro/escuro) pra
+  subir em Admin → Identidade, se quiser, ou usar nos slides do TCC.
+
+**Testes:** `Logo.test.tsx` cobre a marca padrão, o nome acessível e a landing (247 testes no front,
+build/lint/prettier limpos).
+
+---
+
 ## 2026-10-27 — Retirada e devolução com termo de responsabilidade, aceite, documento e logo oficial
 
 **O que foi feito** (pedido de "versão corporativa" do sistema, adaptado ao que a USAI é: aluguel de
