@@ -15,6 +15,11 @@ export function PublicarItemPage() {
   const [categoria, setCategoria] = useState('');
   const [descricao, setDescricao] = useState('');
   const [valorDiaria, setValorDiaria] = useState('');
+  const [fabricante, setFabricante] = useState('');
+  const [modelo, setModelo] = useState('');
+  const [numeroSerie, setNumeroSerie] = useState('');
+  const [acessorios, setAcessorios] = useState<string[]>([]);
+  const [novoAcessorio, setNovoAcessorio] = useState('');
   const [imagemArquivo, setImagemArquivo] = useState<File | null>(null);
   const [imagemPreview, setImagemPreview] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -44,6 +49,18 @@ export function PublicarItemPage() {
     });
   }
 
+  function adicionarAcessorio() {
+    const nome = novoAcessorio.trim();
+    if (!nome) return;
+    if (acessorios.some((a) => a.toLowerCase() === nome.toLowerCase())) {
+      setErro('Este acessório já está na lista.');
+      return;
+    }
+    setErro(null);
+    setAcessorios((atual) => [...atual, nome]);
+    setNovoAcessorio('');
+  }
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setErro(null);
@@ -61,6 +78,10 @@ export function PublicarItemPage() {
         categoria,
         descricao,
         valorDiaria: Number(valorDiaria),
+        fabricante: fabricante.trim() || undefined,
+        modelo: modelo.trim() || undefined,
+        numeroSerie: numeroSerie.trim() || undefined,
+        acessorios: acessorios.length > 0 ? acessorios : undefined,
         imagens,
       });
       navigate(`/itens/${item.id}`);
@@ -118,6 +139,89 @@ export function PublicarItemPage() {
             value={valorDiaria}
             onChange={(e) => setValorDiaria(e.target.value)}
           />
+
+          <fieldset className="flex flex-col gap-3 border border-paper-line p-3">
+            <legend className="px-1 text-sm font-medium text-ink">
+              Identificação do bem (opcional)
+            </legend>
+            <p className="text-xs text-ink-faint">
+              O que você souber informar. Aparece no documento de retirada e devolução, e ajuda a
+              identificar o item sem dúvida.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <TextField
+                label="Fabricante"
+                name="fabricante"
+                maxLength={120}
+                value={fabricante}
+                onChange={(e) => setFabricante(e.target.value)}
+              />
+              <TextField
+                label="Modelo"
+                name="modelo"
+                maxLength={120}
+                value={modelo}
+                onChange={(e) => setModelo(e.target.value)}
+              />
+            </div>
+            <TextField
+              label="Número de série"
+              name="numeroSerie"
+              maxLength={120}
+              value={numeroSerie}
+              onChange={(e) => setNumeroSerie(e.target.value)}
+            />
+
+            <div className="flex flex-col gap-2">
+              <span className="text-sm font-medium text-ink">Acessórios que acompanham</span>
+              {acessorios.length > 0 && (
+                <ul className="flex flex-wrap gap-2">
+                  {acessorios.map((nome) => (
+                    <li
+                      key={nome}
+                      className="notch-sm flex items-center gap-1 bg-paper px-2 py-1 text-sm text-ink"
+                    >
+                      {nome}
+                      <button
+                        type="button"
+                        aria-label={`Remover ${nome}`}
+                        onClick={() => setAcessorios((atual) => atual.filter((a) => a !== nome))}
+                        className="text-ink-faint hover:text-carmim-700"
+                      >
+                        ✕
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div className="flex items-end gap-2">
+                <div className="flex-1">
+                  <TextField
+                    label="Novo acessório"
+                    name="novoAcessorio"
+                    maxLength={80}
+                    placeholder="Ex.: Maleta, jogo de brocas…"
+                    value={novoAcessorio}
+                    onChange={(e) => setNovoAcessorio(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        adicionarAcessorio();
+                      }
+                    }}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  fullWidth={false}
+                  onClick={adicionarAcessorio}
+                >
+                  Adicionar
+                </Button>
+              </div>
+            </div>
+          </fieldset>
 
           <div className="flex flex-col gap-1">
             <span className="text-sm font-medium text-ink">Foto (opcional)</span>

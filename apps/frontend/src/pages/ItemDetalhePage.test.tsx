@@ -94,3 +94,64 @@ describe('ItemDetalhePage', () => {
     expect(await screen.findByText('Solicitação enviada!')).toBeInTheDocument();
   });
 });
+
+describe('ItemDetalhePage — identificação do bem e finalidade', () => {
+  const morador = {
+    id: 'user-locatario',
+    nome: 'Bruno',
+    email: 'bruno@example.com',
+    papel: 'MORADOR' as const,
+    condominioId: 'cond-1',
+    apartamento: null,
+  };
+
+  it('mostra fabricante, modelo, nº de série e acessórios quando informados', async () => {
+    vi.spyOn(itensApi, 'buscarItem').mockResolvedValue({
+      ...itemBase,
+      fabricante: 'Bosch',
+      modelo: 'GSB 13 RE',
+      numeroSerie: 'SN-123',
+      acessorios: ['Maleta', 'Jogo de brocas'],
+    });
+    vi.spyOn(authStorage, 'getStoredUser').mockReturnValue(morador);
+
+    renderPage();
+
+    expect(await screen.findByText('Identificação do bem')).toBeInTheDocument();
+    expect(screen.getByText('Bosch')).toBeInTheDocument();
+    expect(screen.getByText('GSB 13 RE')).toBeInTheDocument();
+    expect(screen.getByText('SN-123')).toBeInTheDocument();
+    expect(screen.getByText('Maleta')).toBeInTheDocument();
+    expect(screen.getByText('Jogo de brocas')).toBeInTheDocument();
+  });
+
+  it('item sem identificação não mostra o bloco vazio', async () => {
+    vi.spyOn(itensApi, 'buscarItem').mockResolvedValue(itemBase);
+    vi.spyOn(authStorage, 'getStoredUser').mockReturnValue(morador);
+
+    renderPage();
+
+    await screen.findByText('Furadeira Bosch');
+    expect(screen.queryByText('Identificação do bem')).not.toBeInTheDocument();
+  });
+
+  it('envia a finalidade informada no pedido; em branco, não envia nada', async () => {
+    vi.spyOn(itensApi, 'buscarItem').mockResolvedValue(itemBase);
+    vi.spyOn(authStorage, 'getStoredUser').mockReturnValue(morador);
+    const solicitar = vi.spyOn(locacoesApi, 'solicitarLocacao').mockResolvedValue({} as never);
+
+    renderPage();
+    await screen.findByText('Furadeira Bosch');
+    await userEvent.type(screen.getByLabelText('De'), '2030-05-10');
+    await userEvent.type(screen.getByLabelText('Até'), '2030-05-12');
+    await userEvent.type(screen.getByLabelText(/Finalidade do uso/), '  Pendurar quadros  ');
+    await userEvent.click(screen.getByRole('button', { name: 'Solicitar locação' }));
+
+    expect(solicitar).toHaveBeenCalledWith({
+      itemId: 'item-1',
+      dataInicio: '2030-05-10',
+      dataFim: '2030-05-12',
+      finalidade: 'Pendurar quadros',
+    });
+  });
+});

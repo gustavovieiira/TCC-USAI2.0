@@ -6,6 +6,56 @@
 
 ---
 
+## 2026-10-27 — Retirada e devolução com termo de responsabilidade, aceite, documento e logo oficial
+
+**O que foi feito** (pedido de "versão corporativa" do sistema, adaptado ao que a USAI é: aluguel de
+itens entre vizinhos). Decidido com o usuário: o termo e o aceite entram **na retirada e na
+devolução** do item; campos que não existem aqui (matrícula, setor, filial, cargo, patrimônio) **não
+foram inventados** — usamos o que o sistema realmente tem (nome, unidade, condomínio, CPF
+mascarado; item, fabricante, modelo, nº de série, acessórios).
+
+- **Retirada e devolução (`Movimentacao`)**: quem ENTREGA registra (estado de conservação, conferência
+  dos acessórios, observações); quem RECEBE confere e aceita. Retirada: o dono entrega e o locatário
+  aceita → locação `EM_ANDAMENTO`. Devolução: o locatário entrega e o dono aceita → `CONCLUIDA` (os
+  dois estados que antes não tinham transição). A mudança da locação e o aceite acontecem na mesma
+  transação, com compare-and-swap: falhou um passo, nada é gravado. Cada documento tem número
+  sequencial (`USAI-2026-000123`) e guarda uma **foto** (snapshot) de item, partes e locação no
+  momento do registro — o documento não muda se o perfil ou o item mudarem depois.
+- **Termos configuráveis e versionados (`TermoResponsabilidade`)**: um por tipo de operação, com
+  cláusulas e declarações de aceite. Editar cria uma NOVA versão (as anteriores ficam intactas
+  porque os aceites apontam pra elas). Todo termo nasce como **modelo, pendente de revisão
+  jurídica** — o documento imprime esse aviso — e só passa a "aprovado" quando o Admin registra a
+  revisão (quem e quando, auditado). Os textos iniciais são modelos, não cláusulas validadas.
+- **Aceite obrigatório (`AceiteTermo`)**: nenhuma caixa vem marcada; só conclui com TODAS as
+  declarações marcadas e a **senha reconfirmada** (assinatura eletrônica simples). Fica gravado o
+  texto exato de cada declaração, a versão do termo, data/hora, quem aceitou, uma assinatura
+  SHA-256 e IP/navegador (esses dois só o Admin vê, na auditoria). Senha errada responde 403, não
+  401, porque o cliente HTTP trata 401 como sessão expirada e derrubaria o login.
+- **Imutabilidade e rastreabilidade**: concluído, o documento não muda. Correção = **retificação**
+  (evento no histórico, com autor e data, a outra parte é avisada). Um **hash de integridade**
+  (SHA-256 do documento inteiro + aceite) é gravado ao concluir e reverificado a cada abertura:
+  adulterar o banco "em silêncio" faz o documento mostrar "divergência" (testado). Histórico só
+  acrescenta (criada, aceite, cancelada, retificação). Permissões: só as duas partes veem; o Admin
+  audita (lista de documentos recentes); síndico e estranhos recebem 403.
+- **Documento (`/movimentacoes/:id`)**: logo, nº, partes, item identificado, locação (período,
+  valor, finalidade), operação (data/hora, estado, acessórios), termo completo com status de
+  revisão, declarações aceitas, assinaturas, histórico e integridade, com CSS de impressão A4
+  (paginação "Página X de Y" no canto e rodapé institucional). Imprime/salva em PDF pelo navegador.
+- **Identificação do bem e finalidade**: o item ganhou fabricante, modelo, nº de série e lista de
+  acessórios (todos opcionais, sem quebrar os itens existentes); o pedido de locação ganhou a
+  finalidade do uso.
+- **Logo e identidade**: o Admin envia a **logo oficial** (PNG/JPEG/WebP, até 2 MB, SVG recusado por
+  poder carregar script; guardada como veio, sem recompressão, proporção preservada) e edita nome e
+  rodapé institucionais. Aparece no cabeçalho, na tela inicial, no login e nos documentos/recibos;
+  sem logo, vale a marca padrão da USAI. Trocar vale pro app inteiro na hora.
+- Painel do Admin ganhou as abas **Documentos** (auditoria), **Termos** e **Identidade**.
+- A migration `movimentacoes_termos` cria as tabelas e já semeia o termo v1 de retirada e de
+  devolução; outra migration corrigiu um desvio de chave estrangeira do chat (drift zerado).
+- Roteiro E2E ampliado: **139/139** verificações (inclui adulteração no banco detectada, aceite
+  incompleto/senha errada, permissões, retificação, cancelamento, logo e termos).
+
+---
+
 ## 2026-10-27 — Taxa de 10% para o síndico, livro-razão e extrato detalhado de qualquer usuário
 
 **O que foi feito** (ideia do usuário: "o valor de 10% do condomínio poderia ir tudo para a conta do

@@ -8,6 +8,8 @@ export interface LocacaoDTO {
   dataInicio: string;
   dataFim: string;
   valorTotal: number;
+  /** Para que o locatário vai usar o item (informado no pedido). */
+  finalidade?: string | null;
   status: StatusLocacao;
   createdAt: string;
   item: {
@@ -15,6 +17,8 @@ export interface LocacaoDTO {
     titulo: string;
     valorDiaria: number;
     ownerId: string;
+    /** Acessórios que acompanham o item (conferidos na retirada e na devolução). */
+    acessorios?: string[];
   };
 }
 
@@ -22,4 +26,5 @@ export interface CriarLocacaoInput {
   itemId: string;
   dataInicio: string;
   dataFim: string;
+  finalidade?: string;
 }

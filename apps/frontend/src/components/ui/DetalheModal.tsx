@@ -1,5 +1,7 @@
 import { Button } from '@/components/ui/Button';
+import { Logo } from '@/components/ui/Logo';
 import { Modal } from '@/components/ui/Modal';
+import { useConfiguracao } from '@/features/configuracao/ConfiguracaoContext';
 import { formatDateHora } from '@/lib/format';
 
 export interface LinhaDetalhe {
@@ -28,12 +30,15 @@ interface DetalheModalProps {
  * (ver `@media print` em index.css) — no diálogo de impressão do navegador dá pra salvar em PDF.
  */
 export function DetalheModal({ detalhe, onFechar }: DetalheModalProps) {
+  const { configuracao } = useConfiguracao();
+
   return (
     <Modal titulo={detalhe.titulo} onFechar={onFechar}>
       <section className="recibo-print flex flex-col gap-4">
         <header className="border-b border-paper-line pb-3">
-          <p className="font-meta text-[10px] uppercase tracking-wide text-ink-faint">
-            USAI — Compartilhamento entre vizinhos
+          <Logo altura={36} className="text-ink" />
+          <p className="mt-1 font-meta text-[10px] uppercase tracking-wide text-ink-faint">
+            {configuracao.nomeInstitucional}
           </p>
           <h2 className="mt-1 pr-6 font-display text-xl font-bold text-ink">{detalhe.titulo}</h2>
           {detalhe.subtitulo && <p className="text-sm text-ink-soft">{detalhe.subtitulo}</p>}
@@ -51,9 +56,8 @@ export function DetalheModal({ detalhe, onFechar }: DetalheModalProps) {
         <footer className="border-t border-paper-line pt-3 text-xs text-ink-faint">
           <p>Protocolo: {detalhe.protocolo}</p>
           <p>Emitido em {formatDateHora(new Date().toISOString())}</p>
-          <p className="mt-1">
-            Documento informativo gerado pela plataforma USAI, sem valor fiscal.
-          </p>
+          <p className="mt-1">{configuracao.rodapeInstitucional}</p>
+          <p>Documento informativo, sem valor fiscal.</p>
         </footer>
       </section>
 

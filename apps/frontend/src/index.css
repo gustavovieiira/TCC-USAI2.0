@@ -48,3 +48,42 @@ body {
     display: none !important;
   }
 }
+
+/*
+ * Documento de retirada/devolução (classe `documento-print`): imprime em A4 só o documento, no
+ * fluxo normal da página (pode ter várias páginas), com a paginação no canto e o rodapé
+ * institucional repetido em todas elas. A barra do app e os botões saem (`.no-print`).
+ */
+@page {
+  size: A4;
+  margin: 16mm 14mm 22mm;
+
+  @bottom-right {
+    content: 'Página ' counter(page) ' de ' counter(pages);
+    font-size: 9pt;
+    color: #6b6258;
+  }
+}
+
+@media print {
+  .documento-print {
+    position: static !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    width: 100%;
+    background: transparent !important;
+  }
+
+  .documento-print .doc-rodape {
+    position: fixed;
+    bottom: -14mm;
+    left: 0;
+    right: 0;
+    background: #fff;
+  }
+
+  .doc-secao {
+    break-inside: avoid;
+  }
+}

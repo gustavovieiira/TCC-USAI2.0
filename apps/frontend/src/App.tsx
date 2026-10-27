@@ -11,6 +11,7 @@ import { LandingPage } from '@/pages/LandingPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { MinhasConversasPage } from '@/pages/MinhasConversasPage';
 import { MinhasLocacoesPage } from '@/pages/MinhasLocacoesPage';
+import { MovimentacaoPage } from '@/pages/MovimentacaoPage';
 import { MuralPage } from '@/pages/MuralPage';
 import { PerfilPage } from '@/pages/PerfilPage';
 import { PostDetalhePage } from '@/pages/PostDetalhePage';
@@ -30,6 +31,7 @@ export default function App() {
         <Route element={<AppShell />}>
           <Route path="/perfil" element={<PerfilPage />} />
           <Route path="/notificacoes" element={<NotificacoesPage />} />
+          <Route path="/movimentacoes/:id" element={<MovimentacaoPage />} />
 
           <Route element={<RoleRoute allow={['MORADOR']} />}>
             <Route path="/catalogo" element={<CatalogoPage />} />

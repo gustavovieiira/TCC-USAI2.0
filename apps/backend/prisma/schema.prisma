@@ -84,6 +84,10 @@ model User {
   mensagensPrivadas     MensagemPrivada[]
   notificacoes          Notificacao[]
   lancamentos           Lancamento[]
+  movimentacoesEntregues Movimentacao[] @relation("MovimentacaoEntregue")
+  movimentacoesRecebidas Movimentacao[] @relation("MovimentacaoRecebida")
+  aceitesTermo          AceiteTermo[]
+  eventosMovimentacao   EventoMovimentacao[]
 
   @@index([condominioId])
   @@map("users")
@@ -95,6 +99,12 @@ model Item {
   descricao    String   @db.Text
   categoria    String
   valorDiaria  Decimal  @db.Decimal(10, 2)
+  /// Identificação do bem, opcionais: o que o dono souber informar (ex.: furadeira Bosch GSB 13 RE).
+  fabricante   String?  @db.VarChar(120)
+  modelo       String?  @db.VarChar(120)
+  numeroSerie  String?  @db.VarChar(120)
+  /// Lista de acessórios que acompanham o item (string[]), conferida na retirada e na devolução.
+  acessorios   Json?
   ativo        Boolean  @default(true)
   ownerId      String
   condominioId String
@@ -129,6 +139,8 @@ model Locacao {
   dataInicio  DateTime
   dataFim     DateTime
   valorTotal  Decimal       @db.Decimal(10, 2)
+  /// Para que o locatário vai usar o item (informado no pedido).
+  finalidade  String?       @db.Text
   /// Preenchidos quando o pagamento é confirmado (M3): a taxa da plataforma e o que o dono recebe,
   /// gravados pra o histórico e o extrato não mudarem se a taxa mudar um dia.
   taxaPlataforma Decimal?   @db.Decimal(10, 2)
@@ -141,6 +153,7 @@ model Locacao {
   locatario User       @relation("Locatario", fields: [locatarioId], references: [id])
   pagamento Pagamento?
   lancamentos Lancamento[]
+  movimentacoes Movimentacao[]
   conversa  ConversaPrivada?
 
   @@index([itemId])
@@ -330,4 +343,137 @@ model Lancamento {
   @@index([locacaoId])
   @@index([tipo])
   @@map("lancamentos")
+}
+
+/// Configurações da plataforma editáveis pelo Admin (logo oficial, nome e rodapé institucionais).
+model Configuracao {
+  chave          String   @id @db.VarChar(64)
+  valor          String   @db.Text
+  atualizadoPorId String?
+  updatedAt      DateTime @updatedAt
+
+  @@map("configuracoes")
+}
+
+enum TipoMovimentacao {
+  RETIRADA
+  DEVOLUCAO
+}
+
+enum StatusMovimentacao {
+  AGUARDANDO_ACEITE
+  CONCLUIDA
+  CANCELADA
+}
+
+enum EstadoConservacao {
+  OTIMO
+  BOM
+  REGULAR
+  COM_AVARIAS
+}
+
+/// Texto do termo de responsabilidade de um tipo de operação. Cada alteração cria uma NOVA versão
+/// (as anteriores nunca mudam — os aceites já dados apontam pra elas). `statusRevisao` deixa claro
+/// que o texto é um modelo até a empresa/condomínio aprovar; a USAI não o apresenta como validado
+/// juridicamente antes disso.
+model TermoResponsabilidade {
+  id           String           @id @default(uuid())
+  tipo         TipoMovimentacao
+  versao       Int
+  titulo       String
+  /// string[] — cláusulas, em ordem.
+  clausulas    Json
+  /// { id, texto }[] — declarações que o usuário precisa marcar (todas obrigatórias).
+  declaracoes  Json
+  /// MODELO (pendente de revisão) ou APROVADO.
+  statusRevisao String          @default("MODELO")
+  aprovadoPorId String?
+  aprovadoEm   DateTime?
+  criadoPorId  String?
+  createdAt    DateTime         @default(now())
+
+  movimentacoes Movimentacao[]
+  aceites       AceiteTermo[]
+
+  @@unique([tipo, versao])
+  @@map("termos_responsabilidade")
+}
+
+/// Retirada (dono entrega, locatário recebe) ou devolução (locatário entrega, dono recebe) de um
+/// item numa locação. Quem entrega registra; quem recebe confere e aceita o termo. Concluída, não
+/// muda mais: correções entram como eventos (`EventoMovimentacao`) e a integridade é verificável
+/// pelo `hashIntegridade`.
+model Movimentacao {
+  id              String             @id @default(uuid())
+  /// Número sequencial do documento (exibido como USAI-AAAA-000123).
+  numero          Int                @unique @default(autoincrement())
+  locacaoId       String
+  tipo            TipoMovimentacao
+  status          StatusMovimentacao @default(AGUARDANDO_ACEITE)
+  entreguePorId   String
+  recebidoPorId   String
+  ocorridoEm      DateTime
+  estadoConservacao EstadoConservacao
+  /// { nome, conferido }[] — acessórios relacionados e se acompanham a operação.
+  acessorios      Json
+  observacoes     String?            @db.Text
+  termoId         String
+  /// Foto dos dados do documento no momento do registro (partes, item, locação) — o documento
+  /// continua igual mesmo que o item ou o perfil mudem depois.
+  snapshot        Json
+  hashIntegridade String?            @db.VarChar(64)
+  concluidaEm     DateTime?
+  createdAt       DateTime           @default(now())
+
+  locacao     Locacao               @relation(fields: [locacaoId], references: [id])
+  entreguePor User                  @relation("MovimentacaoEntregue", fields: [entreguePorId], references: [id])
+  recebidoPor User                  @relation("MovimentacaoRecebida", fields: [recebidoPorId], references: [id])
+  termo       TermoResponsabilidade @relation(fields: [termoId], references: [id])
+  aceites     AceiteTermo[]
+  eventos     EventoMovimentacao[]
+
+  @@index([locacaoId])
+  @@index([entreguePorId])
+  @@index([recebidoPorId])
+  @@map("movimentacoes")
+}
+
+/// Aceite expresso do termo por quem recebeu: declarações marcadas (texto congelado), versão do
+/// termo, data/hora, e uma assinatura eletrônica simples (senha reconfirmada + impressão digital
+/// SHA-256 do aceite). IP e navegador ficam registrados pra rastreabilidade.
+model AceiteTermo {
+  id            String   @id @default(uuid())
+  movimentacaoId String
+  userId        String
+  termoId       String
+  /// { id, texto }[] — o texto exato que foi marcado.
+  declaracoes   Json
+  aceitoEm      DateTime @default(now())
+  ip            String?  @db.VarChar(64)
+  userAgent     String?  @db.VarChar(255)
+  assinatura    String   @db.VarChar(64)
+
+  movimentacao Movimentacao          @relation(fields: [movimentacaoId], references: [id])
+  user         User                  @relation(fields: [userId], references: [id])
+  termo        TermoResponsabilidade @relation(fields: [termoId], references: [id])
+
+  @@unique([movimentacaoId, userId])
+  @@map("aceites_termo")
+}
+
+/// Histórico (só acrescenta, nunca altera): criação, aceite, cancelamento e retificações.
+model EventoMovimentacao {
+  id             String   @id @default(uuid())
+  movimentacaoId String
+  userId         String
+  acao           String   @db.VarChar(40)
+  detalhe        String?  @db.Text
+  createdAt      DateTime @default(now())
+
+  movimentacao Movimentacao @relation(fields: [movimentacaoId], references: [id])
+  user         User         @relation(fields: [userId], references: [id])
+
+  @@index([movimentacaoId, createdAt])
+  @@map("eventos_movimentacao")
 }

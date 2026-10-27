@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { asyncHandler } from '@/common/asyncHandler';
 import { authGuard } from '@/common/authGuard';
+import { locacaoMovimentacoesRouter } from '@/modules/movimentacoes/movimentacoes.routes';
 import { pagamentosRouter } from '@/modules/pagamentos/pagamentos.routes';
 import { locacoesController } from './locacoes.controller';
 
@@ -16,3 +17,6 @@ locacoesRouter.post('/:id/rejeitar', asyncHandler(locacoesController.rejeitar));
 
 /** M3 — gera/recupera o link de pagamento PIX (Asaas) de uma locação aprovada. */
 locacoesRouter.use('/:id/pagamento', pagamentosRouter);
+
+/** Retirada e devolução do item, com termo de responsabilidade e aceite. */
+locacoesRouter.use('/:id/movimentacoes', locacaoMovimentacoesRouter);

@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Spinner } from '@/components/ui/Spinner';
+import { Textarea } from '@/components/ui/Textarea';
 import { extractErrorMessage } from '@/lib/apiClient';
 import { getStoredUser } from '@/lib/authStorage';
 import { calcularDias, formatCurrency } from '@/lib/format';
@@ -24,6 +25,7 @@ export function ItemDetalhePage() {
 
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
+  const [finalidade, setFinalidade] = useState('');
   const [erroSolicitacao, setErroSolicitacao] = useState<string | null>(null);
   const [sucesso, setSucesso] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -58,7 +60,12 @@ export function ItemDetalhePage() {
     setIsLoading(true);
 
     try {
-      await solicitarLocacao({ itemId: item.id, dataInicio, dataFim });
+      await solicitarLocacao({
+        itemId: item.id,
+        dataInicio,
+        dataFim,
+        finalidade: finalidade.trim() || undefined,
+      });
       setSucesso(true);
     } catch (err) {
       setErroSolicitacao(extractErrorMessage(err));
@@ -97,6 +104,41 @@ export function ItemDetalhePage() {
         <h2 className="mb-2 font-display font-semibold text-ink">Descrição</h2>
         <p className="whitespace-pre-line text-sm text-ink-soft">{item.descricao}</p>
       </Card>
+
+      {(item.fabricante ||
+        item.modelo ||
+        item.numeroSerie ||
+        (item.acessorios?.length ?? 0) > 0) && (
+        <Card>
+          <h2 className="mb-2 font-display font-semibold text-ink">Identificação do bem</h2>
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-3">
+            {[
+              ['Fabricante', item.fabricante],
+              ['Modelo', item.modelo],
+              ['Número de série', item.numeroSerie],
+            ]
+              .filter(([, valor]) => valor)
+              .map(([rotulo, valor]) => (
+                <div key={rotulo}>
+                  <dt className="font-meta text-[11px] uppercase tracking-wide text-ink-faint">
+                    {rotulo}
+                  </dt>
+                  <dd className="text-ink">{valor}</dd>
+                </div>
+              ))}
+          </dl>
+          {(item.acessorios?.length ?? 0) > 0 && (
+            <>
+              <p className="mt-3 text-sm font-semibold text-ink">Acessórios que acompanham</p>
+              <ul className="mt-1 list-disc pl-5 text-sm text-ink-soft">
+                {item.acessorios!.map((acessorio) => (
+                  <li key={acessorio}>{acessorio}</li>
+                ))}
+              </ul>
+            </>
+          )}
+        </Card>
+      )}
 
       {ehDono ? (
         <Card className="bg-paper text-sm text-ink-soft">
@@ -156,6 +198,16 @@ export function ItemDetalhePage() {
                 />
               </div>
             </div>
+
+            <Textarea
+              label="Finalidade do uso (opcional)"
+              name="finalidade"
+              rows={2}
+              maxLength={500}
+              placeholder="Ex.: pendurar quadros na sala"
+              value={finalidade}
+              onChange={(e) => setFinalidade(e.target.value)}
+            />
 
             {dias > 0 && (
               <p className="text-sm text-ink-soft">

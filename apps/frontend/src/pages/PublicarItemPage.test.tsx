@@ -157,3 +157,84 @@ describe('PublicarItemPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Dados inválidos');
   });
 });
+
+describe('PublicarItemPage — identificação do bem', () => {
+  const itemCriado = {
+    id: 'item-novo',
+    titulo: 'Furadeira Bosch',
+    descricao: 'Furadeira de impacto em ótimo estado',
+    categoria: 'Ferramentas',
+    valorDiaria: 20,
+    ativo: true,
+    ownerId: 'user-1',
+    condominioId: 'cond-1',
+    imagens: [],
+    createdAt: '2026-09-15T00:00:00.000Z',
+  };
+
+  async function preencherBasico() {
+    await userEvent.type(screen.getByLabelText('Título'), 'Furadeira Bosch');
+    await userEvent.type(screen.getByLabelText('Categoria'), 'Ferramentas');
+    await userEvent.type(
+      screen.getByLabelText('Descrição'),
+      'Furadeira de impacto em ótimo estado',
+    );
+    await userEvent.type(screen.getByLabelText('Valor por diária (R$)'), '20');
+  }
+
+  it('fabricante, modelo, nº de série e acessórios são opcionais — sem eles o item publica como sempre', async () => {
+    const criar = vi.spyOn(itensApi, 'criarItem').mockResolvedValue(itemCriado);
+    renderPage();
+
+    await preencherBasico();
+    await userEvent.click(screen.getByRole('button', { name: 'Publicar' }));
+
+    expect(criar.mock.calls[0][0]).toMatchObject({
+      fabricante: undefined,
+      modelo: undefined,
+      numeroSerie: undefined,
+      acessorios: undefined,
+    });
+  });
+
+  it('envia a identificação e os acessórios informados (sem espaços sobrando)', async () => {
+    const criar = vi.spyOn(itensApi, 'criarItem').mockResolvedValue(itemCriado);
+    renderPage();
+
+    await preencherBasico();
+    await userEvent.type(screen.getByLabelText('Fabricante'), '  Bosch ');
+    await userEvent.type(screen.getByLabelText('Modelo'), 'GSB 13 RE');
+    await userEvent.type(screen.getByLabelText('Número de série'), 'SN-123');
+    await userEvent.type(screen.getByLabelText('Novo acessório'), 'Maleta{Enter}');
+    await userEvent.type(screen.getByLabelText('Novo acessório'), 'Jogo de brocas');
+    await userEvent.click(screen.getByRole('button', { name: 'Adicionar' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Publicar' }));
+
+    expect(criar).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fabricante: 'Bosch',
+        modelo: 'GSB 13 RE',
+        numeroSerie: 'SN-123',
+        acessorios: ['Maleta', 'Jogo de brocas'],
+      }),
+    );
+  });
+
+  it('acessório repetido é recusado e dá pra remover um da lista', async () => {
+    const criar = vi.spyOn(itensApi, 'criarItem').mockResolvedValue(itemCriado);
+    renderPage();
+
+    await preencherBasico();
+    await userEvent.type(screen.getByLabelText('Novo acessório'), 'Maleta{Enter}');
+    await userEvent.type(screen.getByLabelText('Novo acessório'), 'maleta{Enter}');
+    expect(await screen.findByRole('alert')).toHaveTextContent('já está na lista');
+
+    // o texto repetido fica no campo pra ser corrigido; aqui trocamos por outro acessório
+    await userEvent.clear(screen.getByLabelText('Novo acessório'));
+    await userEvent.type(screen.getByLabelText('Novo acessório'), 'Brocas{Enter}');
+    await userEvent.click(screen.getByRole('button', { name: 'Remover Maleta' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Publicar' }));
+
+    expect(criar.mock.calls[0][0].acessorios).toEqual(['Brocas']);
+  });
+});

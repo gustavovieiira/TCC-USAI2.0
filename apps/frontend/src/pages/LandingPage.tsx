@@ -1,13 +1,11 @@
 import { Link } from 'react-router-dom';
+import { Logo } from '@/components/ui/Logo';
 
 export function LandingPage() {
   return (
     <div className="min-h-screen bg-paper bg-cortica bg-cortica-grid">
       <header className="mx-auto flex max-w-5xl items-center justify-between px-6 py-6">
-        <span className="inline-flex items-center gap-2 font-display text-2xl font-bold text-ink">
-          <span className="notch-sm h-5 w-5 bg-barro-500" aria-hidden="true" />
-          USAI
-        </span>
+        <Logo altura={36} className="text-ink" />
         <nav className="flex gap-3">
           <Link to="/login" className="px-4 py-2 font-semibold text-ink-soft hover:text-ink">
             Entrar

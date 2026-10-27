@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useConversaNotifications } from '@/features/conversas/useConversaNotifications';
+import { Logo } from '@/components/ui/Logo';
 import { NotificacoesContext, useNotificacoes } from '@/features/notificacoes/useNotificacoes';
 import { getStoredUser, homeRouteFor, Papel } from '@/lib/authStorage';
 import { NotificacoesBell } from './NotificacoesBell';
@@ -55,14 +56,13 @@ export function AppShell() {
   return (
     <NotificacoesContext.Provider value={notificacoes}>
       <div className="min-h-screen bg-paper">
-        <header className="sticky top-0 z-20 bg-ink text-ink-inverse">
+        <header className="no-print sticky top-0 z-20 bg-ink text-ink-inverse">
           <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3 md:px-6">
             <NavLink
               to={homeRouteFor(user?.papel)}
               className="flex items-center gap-2 font-display text-xl font-bold text-ink-inverse"
             >
-              <span className="notch-sm h-5 w-5 bg-barro-400" aria-hidden="true" />
-              USAI
+              <Logo altura={30} className="text-ink-inverse" />
             </NavLink>
 
             <nav className="hidden items-center gap-1 md:flex">
@@ -99,7 +99,7 @@ export function AppShell() {
         </main>
 
         <nav
-          className="fixed inset-x-0 bottom-0 z-20 flex items-stretch justify-around border-t
+          className="no-print fixed inset-x-0 bottom-0 z-20 flex items-stretch justify-around border-t
           border-paper-line bg-paper-surface pb-[env(safe-area-inset-bottom)] md:hidden"
         >
           {navItems.map(({ to, label, icon: Icon }) => (

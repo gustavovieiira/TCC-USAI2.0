@@ -6,6 +6,8 @@ import { MinhasLocacoesPage } from './MinhasLocacoesPage';
 import * as locacoesApi from '@/features/locacoes/locacoes.api';
 import { LocacaoDTO } from '@/features/locacoes/locacoes.types';
 import * as conversasApi from '@/features/conversas/conversas.api';
+import * as movimentacoesApi from '@/features/movimentacoes/movimentacoes.api';
+import * as authStorage from '@/lib/authStorage';
 import * as pagamentosApi from '@/features/pagamentos/pagamentos.api';
 
 function buildLocacao(overrides: Partial<LocacaoDTO> = {}): LocacaoDTO {
@@ -151,5 +153,53 @@ describe('MinhasLocacoesPage', () => {
     await screen.findByText('Furadeira Bosch');
 
     expect(screen.queryByRole('button', { name: 'Pagar agora' })).not.toBeInTheDocument();
+  });
+});
+
+describe('MinhasLocacoesPage — finalidade e retirada/devolução', () => {
+  it('mostra a finalidade do uso informada no pedido', async () => {
+    vi.spyOn(locacoesApi, 'listarComoLocatario').mockResolvedValue([]);
+    vi.spyOn(locacoesApi, 'listarComoProprietario').mockResolvedValue([
+      buildLocacao({ finalidade: 'Sessão de cinema no salão de festas' }),
+    ]);
+
+    renderPage();
+    await userEvent.click(await screen.findByRole('button', { name: 'Recebidas' }));
+
+    expect(await screen.findByText(/Sessão de cinema no salão de festas/)).toBeInTheDocument();
+  });
+
+  it('locação paga mostra a seção de retirada e devolução (o dono vê o botão de registrar a entrega)', async () => {
+    vi.spyOn(authStorage, 'getStoredUser').mockReturnValue({
+      id: 'user-1',
+      nome: 'Dono',
+      email: 'dono@example.com',
+      papel: 'MORADOR',
+      condominioId: 'cond-1',
+      apartamento: null,
+    });
+    vi.spyOn(movimentacoesApi, 'listarMovimentacoesDaLocacao').mockResolvedValue([]);
+    vi.spyOn(locacoesApi, 'listarComoLocatario').mockResolvedValue([]);
+    vi.spyOn(locacoesApi, 'listarComoProprietario').mockResolvedValue([
+      buildLocacao({ status: 'PAGA' }),
+    ]);
+
+    renderPage();
+    await userEvent.click(await screen.findByRole('button', { name: 'Recebidas' }));
+
+    expect(await screen.findByText('Retirada e devolução')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Registrar entrega' })).toBeInTheDocument();
+  });
+
+  it('locação pendente não mostra a seção de retirada e devolução', async () => {
+    vi.spyOn(locacoesApi, 'listarComoLocatario').mockResolvedValue([
+      buildLocacao({ status: 'PENDENTE' }),
+    ]);
+    vi.spyOn(locacoesApi, 'listarComoProprietario').mockResolvedValue([]);
+
+    renderPage();
+
+    await screen.findByText('Furadeira Bosch');
+    expect(screen.queryByText('Retirada e devolução')).not.toBeInTheDocument();
   });
 });

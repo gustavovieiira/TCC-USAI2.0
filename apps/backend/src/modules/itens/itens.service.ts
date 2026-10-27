@@ -4,6 +4,11 @@ import { AtualizarItemInput, CriarItemInput, ItemDTO, ListarItensFiltro } from '
 
 type ItemComImagens = Item & { imagens: ItemImagem[] };
 
+/** `acessorios` é JSON no banco; só passa adiante o que for lista de textos. */
+export function lerAcessorios(valor: unknown): string[] {
+  return Array.isArray(valor) ? valor.filter((a): a is string => typeof a === 'string') : [];
+}
+
 function toItemDTO(item: ItemComImagens): ItemDTO {
   return {
     id: item.id,
@@ -11,6 +16,10 @@ function toItemDTO(item: ItemComImagens): ItemDTO {
     descricao: item.descricao,
     categoria: item.categoria,
     valorDiaria: Number(item.valorDiaria),
+    fabricante: item.fabricante,
+    modelo: item.modelo,
+    numeroSerie: item.numeroSerie,
+    acessorios: lerAcessorios(item.acessorios),
     ativo: item.ativo,
     ownerId: item.ownerId,
     condominioId: item.condominioId,
@@ -30,6 +39,10 @@ export class ItensService {
         descricao: input.descricao,
         categoria: input.categoria,
         valorDiaria: input.valorDiaria,
+        fabricante: input.fabricante,
+        modelo: input.modelo,
+        numeroSerie: input.numeroSerie,
+        acessorios: input.acessorios,
         ownerId,
         condominioId,
         imagens: input.imagens ? { create: input.imagens.map((url) => ({ url })) } : undefined,

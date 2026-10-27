@@ -2,7 +2,10 @@ import { FormEvent, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { CardClicavel } from '@/components/ui/CardClicavel';
+import { AbaDocumentos } from '@/features/admin/AbaDocumentos';
 import { AbaExtratos } from '@/features/admin/AbaExtratos';
+import { AbaIdentidade } from '@/features/admin/AbaIdentidade';
+import { AbaTermos } from '@/features/admin/AbaTermos';
 import { Detalhe, DetalheModal } from '@/components/ui/DetalheModal';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SaqueStatusBadge } from '@/components/ui/Badge';
@@ -28,7 +31,8 @@ import {
 } from '@/features/saques/saques.api';
 import { SaqueDTO } from '@/features/saques/saques.types';
 
-type Aba = 'financeiro' | 'extratos' | 'condominios' | 'sindicos';
+type Aba =
+  'financeiro' | 'extratos' | 'documentos' | 'termos' | 'identidade' | 'condominios' | 'sindicos';
 
 export function AdminPage() {
   const [aba, setAba] = useState<Aba>('financeiro');
@@ -61,6 +65,9 @@ export function AdminPage() {
           [
             ['financeiro', 'Financeiro'],
             ['extratos', 'Extratos'],
+            ['documentos', 'Documentos'],
+            ['termos', 'Termos'],
+            ['identidade', 'Identidade'],
             ['condominios', 'Condomínios'],
             ['sindicos', 'Síndicos'],
           ] as const
@@ -99,6 +106,9 @@ export function AdminPage() {
       )}
 
       {aba === 'extratos' && <AbaExtratos />}
+      {aba === 'documentos' && <AbaDocumentos />}
+      {aba === 'termos' && <AbaTermos />}
+      {aba === 'identidade' && <AbaIdentidade />}
 
       {aba === 'condominios' && (
         <AbaCondominios

@@ -15,6 +15,8 @@ import {
 } from '@/features/locacoes/locacoes.api';
 import { abrirConversaDaLocacao } from '@/features/conversas/conversas.api';
 import { LocacaoDTO } from '@/features/locacoes/locacoes.types';
+import { MovimentacoesLocacao } from '@/features/movimentacoes/MovimentacoesLocacao';
+import { getStoredUser } from '@/lib/authStorage';
 import { useNotificacoesContext } from '@/features/notificacoes/useNotificacoes';
 import { useLocacaoAtualizada } from '@/features/locacoes/useLocacaoAtualizada';
 import { criarCobranca } from '@/features/pagamentos/pagamentos.api';
@@ -23,6 +25,7 @@ type Aba = 'locatario' | 'proprietario';
 
 export function MinhasLocacoesPage() {
   const navigate = useNavigate();
+  const usuario = getStoredUser();
   const [aba, setAba] = useState<Aba>('locatario');
   const [comoLocatario, setComoLocatario] = useState<LocacaoDTO[] | null>(null);
   const [comoProprietario, setComoProprietario] = useState<LocacaoDTO[] | null>(null);
@@ -32,7 +35,9 @@ export function MinhasLocacoesPage() {
   // Notificação ao vivo de locação/pagamento (pedido novo, aprovação...) → recarrega as listas.
   const { ultimaRecebida } = useNotificacoesContext();
   const recarregarComNotificacao =
-    ultimaRecebida && /^(LOCACAO|PAGAMENTO)_/.test(ultimaRecebida.tipo) ? ultimaRecebida.id : null;
+    ultimaRecebida && /^(LOCACAO|PAGAMENTO|MOVIMENTACAO)_/.test(ultimaRecebida.tipo)
+      ? ultimaRecebida.id
+      : null;
 
   useEffect(() => {
     Promise.all([listarComoLocatario(), listarComoProprietario()])
@@ -154,61 +159,70 @@ export function MinhasLocacoesPage() {
       {lista && lista.length > 0 && (
         <div className="flex flex-col gap-3">
           {lista.map((locacao) => (
-            <Card key={locacao.id} className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-display font-semibold text-ink">{locacao.item.titulo}</h3>
-                  <StatusBadge status={locacao.status} />
+            <Card key={locacao.id} className="flex flex-col">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-display font-semibold text-ink">{locacao.item.titulo}</h3>
+                    <StatusBadge status={locacao.status} />
+                  </div>
+                  <p className="mt-1 text-sm text-ink-soft">
+                    {formatDate(locacao.dataInicio)} → {formatDate(locacao.dataFim)}
+                  </p>
+                  <p className="mt-1 font-display text-sm font-semibold text-ink">
+                    {formatCurrency(locacao.valorTotal)}
+                  </p>
+                  {locacao.finalidade && (
+                    <p className="mt-1 text-sm text-ink-soft">
+                      <span className="font-semibold text-ink">Finalidade:</span>{' '}
+                      {locacao.finalidade}
+                    </p>
+                  )}
                 </div>
-                <p className="mt-1 text-sm text-ink-soft">
-                  {formatDate(locacao.dataInicio)} → {formatDate(locacao.dataFim)}
-                </p>
-                <p className="mt-1 font-display text-sm font-semibold text-ink">
-                  {formatCurrency(locacao.valorTotal)}
-                </p>
-              </div>
 
-              <div className="flex flex-col gap-2 sm:items-end">
-                <button
-                  type="button"
-                  onClick={() => handleAbrirConversa(locacao.id)}
-                  className="text-sm font-semibold text-barro-700 hover:underline"
-                >
-                  Mensagens
-                </button>
+                <div className="flex flex-col gap-2 sm:items-end">
+                  <button
+                    type="button"
+                    onClick={() => handleAbrirConversa(locacao.id)}
+                    className="text-sm font-semibold text-barro-700 hover:underline"
+                  >
+                    Mensagens
+                  </button>
 
-                {aba === 'proprietario' && locacao.status === 'PENDENTE' && (
-                  <div className="flex gap-2">
+                  {aba === 'proprietario' && locacao.status === 'PENDENTE' && (
+                    <div className="flex gap-2">
+                      <Button
+                        fullWidth={false}
+                        isLoading={processandoId === locacao.id}
+                        onClick={() => handleAprovar(locacao)}
+                        className="flex-1 sm:flex-none"
+                      >
+                        Aprovar
+                      </Button>
+                      <Button
+                        variant="danger"
+                        fullWidth={false}
+                        disabled={processandoId === locacao.id}
+                        onClick={() => handleRejeitar(locacao)}
+                        className="flex-1 sm:flex-none"
+                      >
+                        Rejeitar
+                      </Button>
+                    </div>
+                  )}
+
+                  {aba === 'locatario' && locacao.status === 'APROVADA' && (
                     <Button
                       fullWidth={false}
                       isLoading={processandoId === locacao.id}
-                      onClick={() => handleAprovar(locacao)}
-                      className="flex-1 sm:flex-none"
+                      onClick={() => handlePagar(locacao)}
                     >
-                      Aprovar
+                      Pagar agora
                     </Button>
-                    <Button
-                      variant="danger"
-                      fullWidth={false}
-                      disabled={processandoId === locacao.id}
-                      onClick={() => handleRejeitar(locacao)}
-                      className="flex-1 sm:flex-none"
-                    >
-                      Rejeitar
-                    </Button>
-                  </div>
-                )}
-
-                {aba === 'locatario' && locacao.status === 'APROVADA' && (
-                  <Button
-                    fullWidth={false}
-                    isLoading={processandoId === locacao.id}
-                    onClick={() => handlePagar(locacao)}
-                  >
-                    Pagar agora
-                  </Button>
-                )}
+                  )}
+                </div>
               </div>
+              <MovimentacoesLocacao locacao={locacao} userId={usuario?.id} />
             </Card>
           ))}
         </div>

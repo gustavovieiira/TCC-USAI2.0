@@ -2,6 +2,7 @@ import { Item, Locacao, PrismaClient, StatusLocacao } from '@prisma/client';
 import { AppError, ForbiddenError, NotFoundError } from '@/common/errors';
 import { formatarReais } from '@/modules/notificacoes/notificacoes.format';
 import { NotificacoesService } from '@/modules/notificacoes/notificacoes.service';
+import { lerAcessorios } from '@/modules/itens/itens.service';
 import { CriarLocacaoInput, LocacaoDTO } from './locacoes.types';
 
 const MS_POR_DIA = 1000 * 60 * 60 * 24;
@@ -58,6 +59,7 @@ function toLocacaoDTO(locacao: LocacaoComItem): LocacaoDTO {
     dataInicio: locacao.dataInicio,
     dataFim: locacao.dataFim,
     valorTotal: Number(locacao.valorTotal),
+    finalidade: locacao.finalidade,
     status: locacao.status,
     createdAt: locacao.createdAt,
     item: {
@@ -65,6 +67,7 @@ function toLocacaoDTO(locacao: LocacaoComItem): LocacaoDTO {
       titulo: locacao.item.titulo,
       valorDiaria: Number(locacao.item.valorDiaria),
       ownerId: locacao.item.ownerId,
+      acessorios: lerAcessorios(locacao.item.acessorios),
     },
   };
 }
@@ -130,6 +133,7 @@ export class LocacoesService {
         dataInicio: input.dataInicio,
         dataFim: input.dataFim,
         valorTotal,
+        finalidade: input.finalidade,
         status: 'PENDENTE',
       },
       include: { item: true, locatario: true },
