@@ -1,6 +1,16 @@
 import bcrypt from 'bcryptjs';
 import { AssinaturasService } from '@/modules/assinaturas/assinaturas.service';
-import { PLANOS, buscarPlano } from '@/modules/assinaturas/planos';
+import {
+  PERIODOS,
+  PLANOS,
+  buscarPeriodo,
+  buscarPlano,
+  buscarPlanoDisponivel,
+  planosDisponiveis,
+  planoTesteAtivo,
+  precoDoPeriodo,
+  precosDoPlano,
+} from '@/modules/assinaturas/planos';
 
 jest.mock('bcryptjs', () => ({
   __esModule: true,
@@ -8,6 +18,16 @@ jest.mock('bcryptjs', () => ({
 }));
 
 const UM_DIA = 86_400_000;
+
+// Os testes não podem depender do .env de quem roda: o plano de teste começa desligado.
+const planoTesteOriginal = process.env.PLANO_TESTE_ATIVO;
+beforeEach(() => {
+  delete process.env.PLANO_TESTE_ATIVO;
+});
+afterAll(() => {
+  if (planoTesteOriginal === undefined) delete process.env.PLANO_TESTE_ATIVO;
+  else process.env.PLANO_TESTE_ATIVO = planoTesteOriginal;
+});
 
 function buildPrismaMock() {
   const prisma: any = {
@@ -58,6 +78,7 @@ function buildAsaasMock() {
       .fn()
       .mockResolvedValue({ id: 'pay_1', invoiceUrl: 'https://asaas/pay_1', status: 'PENDING' }),
     buscarCobranca: jest.fn(),
+    cancelarCobranca: jest.fn().mockResolvedValue(undefined),
   } as any;
 }
 
@@ -65,6 +86,7 @@ const mailerVazio = () => ({ enviar: jest.fn().mockResolvedValue(undefined) });
 
 const input = {
   planoCodigo: 'CONDOMINIO',
+  periodoCodigo: 'MENSAL',
   nomeCondominio: 'Residencial Aurora',
   nomeSindico: 'Sílvia Souza',
   email: 'silvia@exemplo.com',
@@ -94,6 +116,133 @@ describe('planos', () => {
     expect([...valores].sort((a, b) => a - b)).toEqual(valores);
     expect(buscarPlano('CONDOMINIO')?.destaque).toBe(true);
     expect(buscarPlano('NAO_EXISTE')).toBeUndefined();
+  });
+
+  it('quanto mais longo o período, maior o desconto e menor o valor por mês', () => {
+    const descontos = PERIODOS.map((p) => p.desconto);
+    expect([...descontos].sort((a, b) => a - b)).toEqual(descontos);
+    expect(PERIODOS.map((p) => p.codigo)).toEqual(['MENSAL', 'TRIMESTRAL', 'SEMESTRAL', 'ANUAL']);
+    expect(buscarPeriodo('MENSAL')).toMatchObject({ meses: 1, dias: 30, desconto: 0 });
+    expect(buscarPeriodo('ANUAL')).toMatchObject({ meses: 12, dias: 365, desconto: 20 });
+    expect(buscarPeriodo('QUINZENAL')).toBeUndefined();
+
+    for (const plano of PLANOS) {
+      const precos = precosDoPlano(plano);
+      const porMes = precos.map((p) => p.valorMensalEquivalente);
+      expect([...porMes].sort((a, b) => b - a)).toEqual(porMes);
+      // o mensal é o mais caro por mês e não dá desconto
+      expect(precos[0]).toMatchObject({ valorTotal: plano.valorMensal, economia: 0 });
+    }
+  });
+
+  it('calcula o valor de cada período com o desconto, arredondado em reais', () => {
+    const condominio = buscarPlano('CONDOMINIO')!;
+    const preco = (codigo: string) => precoDoPeriodo(condominio, buscarPeriodo(codigo)!);
+
+    expect(condominio.valorMensal).toBe(299);
+    expect(preco('MENSAL')).toMatchObject({ valorTotal: 299, economia: 0 });
+    // 299 x 3 = 897, menos 5% = 852,15
+    expect(preco('TRIMESTRAL')).toMatchObject({ valorTotal: 852, economia: 45 });
+    // 299 x 6 = 1794, menos 10% = 1614,60
+    expect(preco('SEMESTRAL')).toMatchObject({ valorTotal: 1615, economia: 179 });
+    // 299 x 12 = 3588, menos 20% = 2870,40
+    expect(preco('ANUAL')).toMatchObject({
+      valorTotal: 2870,
+      valorMensalEquivalente: 239.17,
+      economia: 718,
+    });
+  });
+});
+
+describe('plano de teste (R$ 5,00, o mínimo do Asaas)', () => {
+  const original = process.env.PLANO_TESTE_ATIVO;
+
+  afterEach(() => {
+    if (original === undefined) delete process.env.PLANO_TESTE_ATIVO;
+    else process.env.PLANO_TESTE_ATIVO = original;
+  });
+
+  it('fica fora da vitrine e da contratação por padrão', async () => {
+    delete process.env.PLANO_TESTE_ATIVO;
+    const service = new AssinaturasService(buildPrismaMock(), buildAsaasMock(), mailerVazio());
+
+    expect(service.listarPlanos().planos.map((p) => p.codigo)).not.toContain('TESTE');
+    expect(planosDisponiveis().every((p) => !p.teste)).toBe(true);
+    expect(buscarPlanoDisponivel('TESTE')).toBeUndefined();
+
+    const prisma = buildPrismaMock();
+    const comTeste = new AssinaturasService(prisma, buildAsaasMock(), mailerVazio());
+    await expect(comTeste.contratar({ ...input, planoCodigo: 'TESTE' })).rejects.toMatchObject({
+      code: 'PLANO_INVALIDO',
+    });
+    expect(prisma.condominio.create).not.toHaveBeenCalled();
+  });
+
+  it('só liga com PLANO_TESTE_ATIVO=true (qualquer outro valor mantém desligado)', () => {
+    process.env.PLANO_TESTE_ATIVO = '1';
+    expect(planoTesteAtivo()).toBe(false);
+    process.env.PLANO_TESTE_ATIVO = 'true';
+    expect(planoTesteAtivo()).toBe(true);
+  });
+
+  it('ligado, aparece na lista com R$ 5,00 e limite de 3 contas, marcado como teste', () => {
+    process.env.PLANO_TESTE_ATIVO = 'true';
+    const service = new AssinaturasService(buildPrismaMock(), buildAsaasMock(), mailerVazio());
+
+    const { planos } = service.listarPlanos();
+    const teste = planos.find((p) => p.codigo === 'TESTE');
+
+    expect(planos.map((p) => p.codigo)).toEqual([
+      'ESSENCIAL',
+      'CONDOMINIO',
+      'GRANDE',
+      'PREMIUM',
+      'TESTE',
+    ]);
+    expect(teste).toMatchObject({ valorMensal: 5, limiteMoradores: 3, teste: true });
+    expect(teste?.precos[0]).toMatchObject({ periodoCodigo: 'MENSAL', valorTotal: 5 });
+    expect(planos.filter((p) => p.teste)).toHaveLength(1);
+  });
+
+  it('ligado, dá pra contratar e o PIX sai de R$ 5,00', async () => {
+    process.env.PLANO_TESTE_ATIVO = 'true';
+    const prisma = buildPrismaMock();
+    prepararCriacao(prisma);
+    const asaas = buildAsaasMock();
+    const service = new AssinaturasService(prisma, asaas, mailerVazio());
+
+    const resultado = await service.contratar({ ...input, planoCodigo: 'TESTE' });
+
+    expect(prisma.assinatura.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        planoCodigo: 'TESTE',
+        valorMensal: 5,
+        limiteMoradores: 3,
+        valorCiclo: 5,
+      }),
+    });
+    expect(asaas.criarCobrancaPix).toHaveBeenCalledWith(expect.objectContaining({ valor: 5 }));
+    expect(resultado).toMatchObject({ plano: { codigo: 'TESTE', nome: 'Teste' }, valorCiclo: 5 });
+  });
+
+  it('desligado depois, uma assinatura de teste que já existe continua mostrando o nome do plano', async () => {
+    delete process.env.PLANO_TESTE_ATIVO;
+    const prisma = buildPrismaMock();
+    prisma.assinatura.findUnique.mockResolvedValue({
+      planoCodigo: 'TESTE',
+      valorMensal: 5,
+      limiteMoradores: 3,
+      periodoCodigo: 'MENSAL',
+      valorCiclo: 5,
+      status: 'ATIVA',
+      ativaAte: new Date(Date.now() + 5 * UM_DIA),
+      cobrancas: [],
+    });
+    const service = new AssinaturasService(prisma, buildAsaasMock(), mailerVazio());
+
+    const painel = await service.obterPainel('cond-teste');
+
+    expect(painel?.planoNome).toBe('Teste');
   });
 });
 
@@ -125,8 +274,10 @@ describe('AssinaturasService.contratar', () => {
     expect(prisma.assinatura.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         planoCodigo: 'CONDOMINIO',
-        valorMensal: 99,
-        limiteMoradores: 100,
+        valorMensal: 299,
+        limiteMoradores: 60,
+        periodoCodigo: 'MENSAL',
+        valorCiclo: 299,
         status: 'AGUARDANDO_PAGAMENTO',
       }),
     });
@@ -138,18 +289,58 @@ describe('AssinaturasService.contratar', () => {
     expect(asaas.criarCobrancaPix).toHaveBeenCalledWith(
       expect.objectContaining({
         customerId: 'cus_1',
-        valor: 99,
+        valor: 299,
         externalReference: 'assinatura:assin-1',
       }),
     );
+    expect(prisma.cobrancaAssinatura.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ valor: 299, periodoCodigo: 'MENSAL', dias: 30 }),
+    });
     expect(resultado).toMatchObject({
       assinaturaId: 'assin-1',
       status: 'AGUARDANDO_PAGAMENTO',
       invoiceUrl: 'https://asaas/pay_1',
       emailMascarado: 's***@exemplo.com',
-      plano: { codigo: 'CONDOMINIO', valorMensal: 99, limiteMoradores: 100 },
+      plano: { codigo: 'CONDOMINIO', valorMensal: 299, limiteMoradores: 60 },
+      periodo: { codigo: 'MENSAL', meses: 1, desconto: 0 },
+      valorCiclo: 299,
     });
     expect(bcrypt.hash).toHaveBeenCalled();
+  });
+
+  it('cobra o período escolhido com desconto: o PIX e a cobrança levam o valor e os dias do período', async () => {
+    const prisma = buildPrismaMock();
+    prepararCriacao(prisma);
+    const asaas = buildAsaasMock();
+    const service = new AssinaturasService(prisma, asaas, mailerVazio());
+
+    const resultado = await service.contratar({ ...input, periodoCodigo: 'ANUAL' });
+
+    expect(prisma.assinatura.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ periodoCodigo: 'ANUAL', valorCiclo: 2870 }),
+    });
+    expect(asaas.criarCobrancaPix).toHaveBeenCalledWith(
+      expect.objectContaining({ valor: 2870, descricao: expect.stringContaining('anual') }),
+    );
+    expect(prisma.cobrancaAssinatura.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ valor: 2870, periodoCodigo: 'ANUAL', dias: 365 }),
+    });
+    expect(resultado).toMatchObject({
+      valorCiclo: 2870,
+      periodo: { codigo: 'ANUAL', nome: 'Anual', meses: 12, desconto: 20 },
+    });
+  });
+
+  it('recusa período que não existe', async () => {
+    const prisma = buildPrismaMock();
+    const service = new AssinaturasService(prisma, buildAsaasMock(), mailerVazio());
+
+    await expect(service.contratar({ ...input, periodoCodigo: 'QUINZENAL' })).rejects.toMatchObject(
+      {
+        code: 'PERIODO_INVALIDO',
+      },
+    );
+    expect(prisma.condominio.create).not.toHaveBeenCalled();
   });
 
   it('recusa plano que não existe', async () => {
@@ -185,9 +376,11 @@ describe('AssinaturasService.contratar', () => {
       assinaturasContratadas: [
         {
           id: 'assin-1',
-          planoCodigo: 'ESSENCIAL',
-          valorMensal: 49,
-          limiteMoradores: 30,
+          planoCodigo: 'CONDOMINIO',
+          valorMensal: 299,
+          limiteMoradores: 60,
+          periodoCodigo: 'MENSAL',
+          valorCiclo: 299,
           status: 'AGUARDANDO_PAGAMENTO',
           condominio: { nome: 'Residencial Aurora' },
           cobrancas: [{ invoiceUrl: 'https://asaas/pay_antiga' }],
@@ -203,6 +396,73 @@ describe('AssinaturasService.contratar', () => {
     expect(resultado.assinaturaId).toBe('assin-1');
     expect(asaas.criarCobrancaPix).not.toHaveBeenCalled();
     expect(prisma.condominio.create).not.toHaveBeenCalled();
+  });
+
+  it('se volta antes de pagar escolhendo outro período, cancela o PIX antigo e abre um novo', async () => {
+    const prisma = buildPrismaMock();
+    const antiga = {
+      id: 'cob-antiga',
+      asaasChargeId: 'pay_antiga',
+      invoiceUrl: 'https://asaas/pay_antiga',
+      periodoCodigo: 'MENSAL',
+    };
+    const pendente = {
+      id: 'assin-1',
+      planoCodigo: 'CONDOMINIO',
+      valorMensal: 299,
+      limiteMoradores: 60,
+      periodoCodigo: 'MENSAL',
+      valorCiclo: 299,
+      status: 'AGUARDANDO_PAGAMENTO',
+      condominio: { nome: 'Residencial Aurora' },
+      cobrancas: [antiga],
+    };
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'sindico-1',
+      email: 'silvia@exemplo.com',
+      nome: 'Sílvia Souza',
+      cpf: '52998224725',
+      asaasCustomerId: 'cus_1',
+      ativo: false,
+      assinaturasContratadas: [pendente],
+    });
+    prisma.assinatura.update.mockImplementation(({ data }: any) =>
+      Promise.resolve({ ...pendente, ...data }),
+    );
+    prisma.cobrancaAssinatura.create.mockImplementation(({ data }: any) =>
+      Promise.resolve({ id: 'cob-nova', ...data }),
+    );
+    const asaas = buildAsaasMock();
+    const service = new AssinaturasService(prisma, asaas, mailerVazio());
+
+    const resultado = await service.contratar({
+      ...input,
+      planoCodigo: 'GRANDE',
+      periodoCodigo: 'SEMESTRAL',
+    });
+
+    expect(prisma.assinatura.update).toHaveBeenCalledWith({
+      where: { id: 'assin-1' },
+      data: expect.objectContaining({
+        planoCodigo: 'GRANDE',
+        valorMensal: 499,
+        limiteMoradores: 150,
+        periodoCodigo: 'SEMESTRAL',
+        valorCiclo: 2695,
+      }),
+    });
+    expect(prisma.cobrancaAssinatura.updateMany).toHaveBeenCalledWith({
+      where: { id: 'cob-antiga', status: 'PENDENTE' },
+      data: { status: 'CANCELADO' },
+    });
+    expect(asaas.cancelarCobranca).toHaveBeenCalledWith('pay_antiga');
+    expect(asaas.criarCobrancaPix).toHaveBeenCalledWith(expect.objectContaining({ valor: 2695 }));
+    expect(prisma.condominio.create).not.toHaveBeenCalled();
+    expect(resultado).toMatchObject({
+      invoiceUrl: 'https://asaas/pay_1',
+      plano: { codigo: 'GRANDE' },
+      periodo: { codigo: 'SEMESTRAL' },
+    });
   });
 
   it('desfaz o cadastro quando o Asaas falha, sem deixar condomínio pendente órfão', async () => {
@@ -247,6 +507,9 @@ describe('AssinaturasService.confirmarCobranca', () => {
     prisma.cobrancaAssinatura.findUnique.mockResolvedValue({
       id: 'cob-1',
       assinaturaId: 'assin-1',
+      periodoCodigo: 'MENSAL',
+      dias: 30,
+      valor: 299,
     });
     prisma.cobrancaAssinatura.updateMany.mockResolvedValue({ count: 1 });
     prisma.assinatura.findUniqueOrThrow.mockResolvedValue(assinaturaPaga());
@@ -257,7 +520,12 @@ describe('AssinaturasService.confirmarCobranca', () => {
 
     expect(prisma.assinatura.update).toHaveBeenCalledWith({
       where: { id: 'assin-1' },
-      data: { status: 'ATIVA', ativaAte: expect.any(Date) },
+      data: {
+        status: 'ATIVA',
+        ativaAte: expect.any(Date),
+        periodoCodigo: 'MENSAL',
+        valorCiclo: 299,
+      },
     });
     const { ativaAte } = prisma.assinatura.update.mock.calls[0][0].data;
     const dias = (ativaAte.getTime() - Date.now()) / UM_DIA;
@@ -286,6 +554,9 @@ describe('AssinaturasService.confirmarCobranca', () => {
     prisma.cobrancaAssinatura.findUnique.mockResolvedValue({
       id: 'cob-1',
       assinaturaId: 'assin-1',
+      periodoCodigo: 'MENSAL',
+      dias: 30,
+      valor: 299,
     });
     prisma.cobrancaAssinatura.updateMany.mockResolvedValue({ count: 0 });
     const mailer = mailerVazio();
@@ -303,6 +574,9 @@ describe('AssinaturasService.confirmarCobranca', () => {
     prisma.cobrancaAssinatura.findUnique.mockResolvedValue({
       id: 'cob-2',
       assinaturaId: 'assin-1',
+      periodoCodigo: 'MENSAL',
+      dias: 30,
+      valor: 299,
     });
     prisma.cobrancaAssinatura.updateMany.mockResolvedValue({ count: 1 });
     prisma.assinatura.findUniqueOrThrow.mockResolvedValue(
@@ -323,11 +597,35 @@ describe('AssinaturasService.confirmarCobranca', () => {
     );
   });
 
+  it('libera os dias do período pago: o anual vale 365 dias e vira o período da assinatura', async () => {
+    const prisma = buildPrismaMock();
+    prisma.cobrancaAssinatura.findUnique.mockResolvedValue({
+      id: 'cob-3',
+      assinaturaId: 'assin-1',
+      periodoCodigo: 'ANUAL',
+      dias: 365,
+      valor: 2870,
+    });
+    prisma.cobrancaAssinatura.updateMany.mockResolvedValue({ count: 1 });
+    prisma.assinatura.findUniqueOrThrow.mockResolvedValue(assinaturaPaga());
+    const service = new AssinaturasService(prisma, buildAsaasMock(), mailerVazio());
+
+    await service.confirmarCobranca('pay_anual');
+
+    const dados = prisma.assinatura.update.mock.calls[0][0].data;
+    expect(dados).toMatchObject({ periodoCodigo: 'ANUAL', valorCiclo: 2870 });
+    expect((dados.ativaAte.getTime() - Date.now()) / UM_DIA).toBeGreaterThan(364.9);
+    expect((dados.ativaAte.getTime() - Date.now()) / UM_DIA).toBeLessThan(365.1);
+  });
+
   it('mantém o condomínio ativo mesmo se o e-mail falhar', async () => {
     const prisma = buildPrismaMock();
     prisma.cobrancaAssinatura.findUnique.mockResolvedValue({
       id: 'cob-1',
       assinaturaId: 'assin-1',
+      periodoCodigo: 'MENSAL',
+      dias: 30,
+      valor: 299,
     });
     prisma.cobrancaAssinatura.updateMany.mockResolvedValue({ count: 1 });
     prisma.assinatura.findUniqueOrThrow.mockResolvedValue(assinaturaPaga());
@@ -388,7 +686,7 @@ describe('AssinaturasService.suspenderVencidas', () => {
   });
 });
 
-describe('AssinaturasService.obterPainel e gerarCobrancaMensalidade', () => {
+describe('AssinaturasService.obterPainel e gerarCobrancaRenovacao', () => {
   it('devolve null para condomínio antigo, sem assinatura', async () => {
     const prisma = buildPrismaMock();
     prisma.assinatura.findUnique.mockResolvedValue(null);
@@ -401,11 +699,20 @@ describe('AssinaturasService.obterPainel e gerarCobrancaMensalidade', () => {
     const prisma = buildPrismaMock();
     prisma.assinatura.findUnique.mockResolvedValue({
       planoCodigo: 'ESSENCIAL',
-      valorMensal: 49,
-      limiteMoradores: 30,
+      valorMensal: 149,
+      limiteMoradores: 20,
+      periodoCodigo: 'TRIMESTRAL',
+      valorCiclo: 425,
       status: 'ATIVA',
       ativaAte: new Date(Date.now() + 5 * UM_DIA - 60_000),
-      cobrancas: [{ invoiceUrl: 'https://asaas/pay_2', valor: 49, referencia: '2026-12' }],
+      cobrancas: [
+        {
+          invoiceUrl: 'https://asaas/pay_2',
+          valor: 425,
+          referencia: '2026-12',
+          periodoCodigo: 'TRIMESTRAL',
+        },
+      ],
     });
     prisma.user.count.mockResolvedValue(12);
     const service = new AssinaturasService(prisma, buildAsaasMock(), mailerVazio());
@@ -414,12 +721,27 @@ describe('AssinaturasService.obterPainel e gerarCobrancaMensalidade', () => {
 
     expect(painel).toMatchObject({
       planoNome: 'Essencial',
-      limiteMoradores: 30,
+      periodoCodigo: 'TRIMESTRAL',
+      periodoNome: 'Trimestral',
+      valorCiclo: 425,
+      limiteMoradores: 20,
       moradoresAtivos: 12,
       status: 'ATIVA',
       diasRestantes: 5,
-      cobrancaPendente: { invoiceUrl: 'https://asaas/pay_2', valor: 49, referencia: '2026-12' },
+      cobrancaPendente: {
+        invoiceUrl: 'https://asaas/pay_2',
+        valor: 425,
+        referencia: '2026-12',
+        periodoCodigo: 'TRIMESTRAL',
+      },
     });
+    // renovar por qualquer período, sempre sobre o preço contratado (149/mês)
+    expect(painel?.opcoesRenovacao.map((o) => [o.periodoCodigo, o.valorTotal])).toEqual([
+      ['MENSAL', 149],
+      ['TRIMESTRAL', 425],
+      ['SEMESTRAL', 805],
+      ['ANUAL', 1430],
+    ]);
     expect(prisma.user.count).toHaveBeenCalledWith({
       where: { condominioId: 'cond-1', papel: 'MORADOR', ativo: true },
     });
@@ -430,13 +752,14 @@ describe('AssinaturasService.obterPainel e gerarCobrancaMensalidade', () => {
     prisma.assinatura.findUnique.mockResolvedValue({
       id: 'assin-1',
       status: 'ATIVA',
+      periodoCodigo: 'MENSAL',
       responsavel: { id: 'sindico-1' },
-      cobrancas: [{ invoiceUrl: 'https://asaas/ja_aberta' }],
+      cobrancas: [{ invoiceUrl: 'https://asaas/ja_aberta', periodoCodigo: 'MENSAL' }],
     });
     const asaas = buildAsaasMock();
     const service = new AssinaturasService(prisma, asaas, mailerVazio());
 
-    expect(await service.gerarCobrancaMensalidade('cond-1')).toEqual({
+    expect(await service.gerarCobrancaRenovacao('cond-1')).toEqual({
       invoiceUrl: 'https://asaas/ja_aberta',
     });
     expect(asaas.criarCobrancaPix).not.toHaveBeenCalled();
@@ -447,7 +770,8 @@ describe('AssinaturasService.obterPainel e gerarCobrancaMensalidade', () => {
     prisma.assinatura.findUnique.mockResolvedValue({
       id: 'assin-1',
       planoCodigo: 'ESSENCIAL',
-      valorMensal: 49,
+      valorMensal: 149,
+      periodoCodigo: 'MENSAL',
       status: 'ATIVA',
       ativaAte: new Date(Date.now() + 3 * UM_DIA),
       responsavel: {
@@ -465,13 +789,78 @@ describe('AssinaturasService.obterPainel e gerarCobrancaMensalidade', () => {
     const asaas = buildAsaasMock();
     const service = new AssinaturasService(prisma, asaas, mailerVazio());
 
-    expect(await service.gerarCobrancaMensalidade('cond-1')).toEqual({
+    expect(await service.gerarCobrancaRenovacao('cond-1')).toEqual({
       invoiceUrl: 'https://asaas/pay_1',
     });
     expect(asaas.criarCliente).not.toHaveBeenCalled();
     expect(asaas.criarCobrancaPix).toHaveBeenCalledWith(
-      expect.objectContaining({ customerId: 'cus_1', valor: 49 }),
+      expect.objectContaining({ customerId: 'cus_1', valor: 149 }),
     );
+  });
+
+  it('o síndico pode trocar de período ao renovar: o PIX em aberto de outro período é cancelado', async () => {
+    const prisma = buildPrismaMock();
+    prisma.assinatura.findUnique.mockResolvedValue({
+      id: 'assin-1',
+      planoCodigo: 'ESSENCIAL',
+      valorMensal: 149,
+      periodoCodigo: 'MENSAL',
+      status: 'ATIVA',
+      ativaAte: new Date(Date.now() + 3 * UM_DIA),
+      responsavel: { id: 'sindico-1', asaasCustomerId: 'cus_1', cpf: '52998224725' },
+      cobrancas: [
+        {
+          id: 'cob-mensal',
+          asaasChargeId: 'pay_mensal',
+          invoiceUrl: 'https://asaas/mensal',
+          periodoCodigo: 'MENSAL',
+        },
+      ],
+    });
+    prisma.cobrancaAssinatura.create.mockImplementation(({ data }: any) =>
+      Promise.resolve({ id: 'c', ...data }),
+    );
+    const asaas = buildAsaasMock();
+    const service = new AssinaturasService(prisma, asaas, mailerVazio());
+
+    await service.gerarCobrancaRenovacao('cond-1', 'ANUAL');
+
+    expect(prisma.cobrancaAssinatura.updateMany).toHaveBeenCalledWith({
+      where: { id: 'cob-mensal', status: 'PENDENTE' },
+      data: { status: 'CANCELADO' },
+    });
+    expect(asaas.cancelarCobranca).toHaveBeenCalledWith('pay_mensal');
+    expect(asaas.criarCobrancaPix).toHaveBeenCalledWith(expect.objectContaining({ valor: 1430 }));
+    expect(prisma.cobrancaAssinatura.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ periodoCodigo: 'ANUAL', dias: 365, valor: 1430 }),
+    });
+  });
+
+  it('recusa período inexistente na renovação', async () => {
+    const prisma = buildPrismaMock();
+    prisma.assinatura.findUnique.mockResolvedValue({
+      id: 'assin-1',
+      periodoCodigo: 'MENSAL',
+      status: 'ATIVA',
+      responsavel: {},
+      cobrancas: [],
+    });
+    const service = new AssinaturasService(prisma, buildAsaasMock(), mailerVazio());
+
+    await expect(service.gerarCobrancaRenovacao('cond-1', 'QUINZENAL')).rejects.toMatchObject({
+      code: 'PERIODO_INVALIDO',
+    });
+  });
+
+  it('a lista pública traz os períodos e o preço de cada plano em cada período', () => {
+    const service = new AssinaturasService(buildPrismaMock(), buildAsaasMock(), mailerVazio());
+
+    const { periodos, planos } = service.listarPlanos();
+
+    expect(periodos.map((p) => p.codigo)).toEqual(['MENSAL', 'TRIMESTRAL', 'SEMESTRAL', 'ANUAL']);
+    expect(planos.map((p) => p.codigo)).toEqual(['ESSENCIAL', 'CONDOMINIO', 'GRANDE', 'PREMIUM']);
+    expect(planos[0].precos).toHaveLength(4);
+    expect(planos[1].precos.find((p) => p.periodoCodigo === 'ANUAL')?.valorTotal).toBe(2870);
   });
 });
 

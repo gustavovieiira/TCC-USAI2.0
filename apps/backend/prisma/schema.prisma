@@ -492,6 +492,9 @@ model Assinatura {
   planoCodigo     String
   valorMensal     Decimal   @db.Decimal(10, 2)
   limiteMoradores Int
+  /// Período de cobrança escolhido (MENSAL | TRIMESTRAL | SEMESTRAL | ANUAL) e o valor de cada cobrança.
+  periodoCodigo   String    @default("MENSAL")
+  valorCiclo      Decimal   @default(0) @db.Decimal(10, 2)
   status          String
   ativaAte        DateTime?
   createdAt       DateTime  @default(now())
@@ -512,6 +515,9 @@ model CobrancaAssinatura {
   asaasChargeId String    @unique
   invoiceUrl    String
   valor         Decimal   @db.Decimal(10, 2)
+  /// Período que esta cobrança paga e quantos dias de uso ela libera.
+  periodoCodigo String    @default("MENSAL")
+  dias          Int       @default(30)
   status        String
   referencia    String
   pagoEm        DateTime?

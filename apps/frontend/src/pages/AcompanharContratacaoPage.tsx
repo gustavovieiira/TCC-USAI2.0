@@ -92,11 +92,16 @@ export function AcompanharContratacaoPage() {
       >
         <div className="notch-sm border border-paper-line bg-paper p-4 text-center">
           <p className="font-meta text-xs uppercase tracking-wide text-ink-faint">
-            Primeira mensalidade
+            Primeiro pagamento · {contratacao.periodo.nome}
           </p>
           <p className="font-display text-3xl font-bold text-ink">
-            {formatCurrency(plano.valorMensal)}
+            {formatCurrency(contratacao.valorCiclo)}
           </p>
+          {contratacao.periodo.desconto > 0 && (
+            <p className="text-xs font-semibold text-jade-700">
+              Já com {contratacao.periodo.desconto}% de desconto
+            </p>
+          )}
         </div>
 
         {contratacao.invoiceUrl && (

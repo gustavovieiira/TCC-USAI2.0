@@ -3,18 +3,25 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import { Logo } from '@/components/ui/Logo';
 import { TextField } from '@/components/ui/TextField';
-import { contratar, listarPlanos, PlanoDTO } from '@/features/assinaturas/assinaturas.api';
+import {
+  contratar,
+  frequenciaDoPeriodo,
+  listarPlanos,
+  PlanosDTO,
+  precoDe,
+} from '@/features/assinaturas/assinaturas.api';
 import { extractErrorMessage } from '@/lib/apiClient';
 import { formatCurrency } from '@/lib/format';
 
-/** Contratação pelo síndico: escolhe o plano, cadastra o condomínio e segue pro PIX. */
+/** Contratação pelo síndico: escolhe o plano e o período, cadastra o condomínio e segue pro PIX. */
 export function ContratarPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  const [planos, setPlanos] = useState<PlanoDTO[] | null>(null);
+  const [dados, setDados] = useState<PlanosDTO | null>(null);
   const [erroPlanos, setErroPlanos] = useState(false);
   const [planoCodigo, setPlanoCodigo] = useState(searchParams.get('plano') ?? '');
+  const [periodoCodigo, setPeriodoCodigo] = useState(searchParams.get('periodo') ?? 'MENSAL');
 
   const [nomeCondominio, setNomeCondominio] = useState('');
   const [nomeSindico, setNomeSindico] = useState('');
@@ -26,27 +33,33 @@ export function ContratarPage() {
 
   useEffect(() => {
     listarPlanos()
-      .then((lista) => {
-        setPlanos(lista);
+      .then((resposta) => {
+        setDados(resposta);
         setPlanoCodigo((atual) => {
-          if (lista.some((p) => p.codigo === atual)) return atual;
-          return (lista.find((p) => p.destaque) ?? lista[0])?.codigo ?? '';
+          if (resposta.planos.some((p) => p.codigo === atual)) return atual;
+          return (resposta.planos.find((p) => p.destaque) ?? resposta.planos[0])?.codigo ?? '';
         });
+        setPeriodoCodigo((atual) =>
+          resposta.periodos.some((p) => p.codigo === atual) ? atual : 'MENSAL',
+        );
       })
       .catch(() => setErroPlanos(true));
   }, []);
 
-  const plano = planos?.find((p) => p.codigo === planoCodigo) ?? null;
+  const plano = dados?.planos.find((p) => p.codigo === planoCodigo) ?? null;
+  const periodo = dados?.periodos.find((p) => p.codigo === periodoCodigo) ?? null;
+  const preco = plano && periodo ? precoDe(plano, periodo.codigo) : undefined;
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!plano) return;
+    if (!plano || !periodo) return;
     setErro(null);
     setEnviando(true);
 
     try {
       const contratacao = await contratar({
         planoCodigo: plano.codigo,
+        periodoCodigo: periodo.codigo,
         nomeCondominio,
         nomeSindico,
         email,
@@ -78,7 +91,7 @@ export function ContratarPage() {
             Contratar para o meu condomínio
           </h1>
           <p className="mt-2 text-ink-soft">
-            Cadastre o condomínio, pague o primeiro mês por PIX e receba o acesso por e-mail.
+            Cadastre o condomínio, pague o primeiro período por PIX e receba o acesso por e-mail.
           </p>
 
           {erroPlanos && (
@@ -87,14 +100,14 @@ export function ContratarPage() {
             </p>
           )}
 
-          {planos && (
+          {dados && (
             <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-6">
               <fieldset className="flex flex-col gap-3">
                 <legend className="mb-1 text-sm font-medium text-ink">
                   1. Plano (pela quantidade de moradores)
                 </legend>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  {planos.map((p) => (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {dados.planos.map((p) => (
                     <label
                       key={p.codigo}
                       className={`notch-sm flex cursor-pointer flex-col gap-0.5 border p-3 transition ${
@@ -111,21 +124,78 @@ export function ContratarPage() {
                         onChange={() => setPlanoCodigo(p.codigo)}
                         className="sr-only"
                       />
-                      <span className="font-display font-bold text-ink">{p.nome}</span>
+                      <span className="flex items-center justify-between gap-2 font-display font-bold text-ink">
+                        {p.nome}
+                        {p.teste && (
+                          <span className="notch-sm bg-mostarda-500 px-2 py-0.5 font-meta text-[10px] uppercase text-ink">
+                            teste
+                          </span>
+                        )}
+                      </span>
                       <span className="text-sm text-ink-soft">
                         até {p.limiteMoradores} moradores
                       </span>
                       <span className="font-display font-semibold text-barro-700">
-                        {formatCurrency(p.valorMensal)}/mês
+                        a partir de {formatCurrency(p.valorMensal)}/mês
                       </span>
                     </label>
                   ))}
                 </div>
               </fieldset>
 
+              <fieldset className="flex flex-col gap-3">
+                <legend className="mb-1 text-sm font-medium text-ink">
+                  2. Período de cobrança (quanto mais longo, maior o desconto)
+                </legend>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {dados.periodos.map((p) => {
+                    const valor = plano ? precoDe(plano, p.codigo) : undefined;
+                    return (
+                      <label
+                        key={p.codigo}
+                        className={`notch-sm flex cursor-pointer flex-col gap-0.5 border p-3 transition ${
+                          p.codigo === periodoCodigo
+                            ? 'border-barro-500 bg-paper-surface ring-2 ring-barro-500'
+                            : 'border-paper-line bg-paper-surface hover:bg-paper'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="periodo"
+                          value={p.codigo}
+                          checked={p.codigo === periodoCodigo}
+                          onChange={() => setPeriodoCodigo(p.codigo)}
+                          className="sr-only"
+                        />
+                        <span className="flex items-center justify-between gap-2 font-display font-bold text-ink">
+                          {p.nome}
+                          {p.desconto > 0 && (
+                            <span className="notch-sm bg-jade-100 px-2 py-0.5 font-meta text-xs text-jade-700">
+                              −{p.desconto}%
+                            </span>
+                          )}
+                        </span>
+                        {valor && (
+                          <>
+                            <span className="font-display font-semibold text-barro-700">
+                              {formatCurrency(valor.valorTotal)}
+                            </span>
+                            <span className="text-xs text-ink-soft">
+                              {p.meses === 1
+                                ? 'cobrado todo mês'
+                                : `${formatCurrency(valor.valorMensalEquivalente)}/mês`}
+                            </span>
+                          </>
+                        )}
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
+
               <fieldset className="flex flex-col gap-4">
                 <legend className="mb-1 text-sm font-medium text-ink">
-                  2. Condomínio e síndico
+                  3. Condomínio e síndico
                 </legend>
                 <TextField
                   label="Nome do condomínio"
@@ -172,7 +242,10 @@ export function ContratarPage() {
                 />
                 <span>
                   Declaro que sou o síndico (ou represento o condomínio) e concordo com a cobrança
-                  mensal{plano ? ` de ${formatCurrency(plano.valorMensal)}` : ''} por PIX.
+                  {preco && periodo
+                    ? ` de ${formatCurrency(preco.valorTotal)} por PIX ${frequenciaDoPeriodo(periodo.meses)}`
+                    : ' por PIX'}
+                  .
                 </span>
               </label>
 
@@ -182,7 +255,7 @@ export function ContratarPage() {
                 </p>
               )}
 
-              <Button type="submit" isLoading={enviando} disabled={!plano || !declaro}>
+              <Button type="submit" isLoading={enviando} disabled={!plano || !periodo || !declaro}>
                 {enviando ? 'Gerando o PIX…' : 'Continuar para o pagamento'}
               </Button>
             </form>
@@ -194,7 +267,7 @@ export function ContratarPage() {
             <h2 className="font-display text-lg font-bold text-ink">Como funciona</h2>
             <ol className="mt-3 flex flex-col gap-3 text-sm text-ink-soft">
               <li>
-                <strong className="text-ink">1. Você paga o PIX</strong> do primeiro mês.
+                <strong className="text-ink">1. Você paga o PIX</strong> do primeiro período.
               </li>
               <li>
                 <strong className="text-ink">2. Confirmado o pagamento,</strong> o condomínio é
@@ -205,19 +278,31 @@ export function ContratarPage() {
                 PIN e envia aos moradores.
               </li>
             </ol>
-            {plano && (
+            {plano && periodo && preco && (
               <div className="mt-5 border-t border-dashed border-paper-line pt-4">
                 <p className="font-meta text-xs uppercase tracking-wide text-ink-faint">Resumo</p>
                 <p className="mt-1 font-display font-semibold text-ink">
                   Plano {plano.nome} · até {plano.limiteMoradores} moradores
                 </p>
-                <p className="font-display text-2xl font-bold text-barro-700">
-                  {formatCurrency(plano.valorMensal)}
-                  <span className="text-sm font-normal text-ink-soft"> / mês</span>
+                <p className="text-sm text-ink-soft">
+                  {periodo.nome}
+                  {periodo.desconto > 0 && ` · desconto de ${periodo.desconto}%`}
                 </p>
+                <p className="font-display text-2xl font-bold text-barro-700">
+                  {formatCurrency(preco.valorTotal)}
+                  <span className="text-sm font-normal text-ink-soft">
+                    {' '}
+                    {frequenciaDoPeriodo(periodo.meses)}
+                  </span>
+                </p>
+                {preco.economia > 0 && (
+                  <p className="text-sm font-semibold text-jade-700">
+                    Você economiza {formatCurrency(preco.economia)} em relação ao mensal.
+                  </p>
+                )}
                 <p className="mt-2 text-xs text-ink-faint">
-                  Você paga mês a mês. Se a mensalidade não for renovada, o acesso dos moradores é
-                  suspenso até o próximo pagamento.
+                  Se o período não for renovado, o acesso dos moradores é suspenso até o próximo
+                  pagamento. Na renovação você pode trocar de período.
                 </p>
               </div>
             )}

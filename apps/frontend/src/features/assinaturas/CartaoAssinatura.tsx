@@ -3,7 +3,12 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { extractErrorMessage } from '@/lib/apiClient';
 import { formatCurrency, formatDate } from '@/lib/format';
-import { gerarCobrancaMensalidade, PainelAssinaturaDTO } from './assinaturas.api';
+import {
+  frequenciaDoPeriodo,
+  gerarCobrancaRenovacao,
+  PainelAssinaturaDTO,
+  PeriodoCodigo,
+} from './assinaturas.api';
 
 const STATUS_ROTULO: Record<PainelAssinaturaDTO['status'], string> = {
   AGUARDANDO_PAGAMENTO: 'Aguardando pagamento',
@@ -18,9 +23,12 @@ interface CartaoAssinaturaProps {
   painel: PainelAssinaturaDTO;
 }
 
-/** Plano contratado, uso (moradores x limite), vencimento e o PIX da mensalidade. */
+/** Plano contratado, uso (moradores x limite), vencimento e o PIX da renovação (com troca de período). */
 export function CartaoAssinatura({ painel }: CartaoAssinaturaProps) {
-  const [invoiceUrl, setInvoiceUrl] = useState(painel.cobrancaPendente?.invoiceUrl ?? null);
+  const [pendente, setPendente] = useState(painel.cobrancaPendente);
+  const [periodoEscolhido, setPeriodoEscolhido] = useState<PeriodoCodigo>(
+    painel.cobrancaPendente?.periodoCodigo ?? painel.periodoCodigo,
+  );
   const [gerando, setGerando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -33,12 +41,25 @@ export function CartaoAssinatura({ painel }: CartaoAssinaturaProps) {
   const vencendo =
     painel.diasRestantes !== null && painel.diasRestantes <= DIAS_PARA_AVISAR && !suspensa;
 
+  const periodoAtual = painel.opcoesRenovacao.find((o) => o.periodoCodigo === painel.periodoCodigo);
+  const opcaoEscolhida = painel.opcoesRenovacao.find((o) => o.periodoCodigo === periodoEscolhido);
+  const jaGerada = pendente !== null && pendente.periodoCodigo === periodoEscolhido;
+
   async function handlePagar() {
     setErro(null);
     setGerando(true);
     try {
-      const url = invoiceUrl ?? (await gerarCobrancaMensalidade()).invoiceUrl;
-      setInvoiceUrl(url);
+      let url = jaGerada ? pendente.invoiceUrl : null;
+      if (!url) {
+        const gerada = await gerarCobrancaRenovacao(periodoEscolhido);
+        url = gerada.invoiceUrl;
+        setPendente({
+          invoiceUrl: url,
+          valor: opcaoEscolhida?.valorTotal ?? 0,
+          referencia: '',
+          periodoCodigo: periodoEscolhido,
+        });
+      }
       window.open(url, '_blank', 'noopener,noreferrer');
     } catch (err) {
       setErro(extractErrorMessage(err));
@@ -52,7 +73,10 @@ export function CartaoAssinatura({ painel }: CartaoAssinaturaProps) {
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h2 className="font-display text-lg font-semibold text-ink">Plano {painel.planoNome}</h2>
-          <p className="text-sm text-ink-soft">{formatCurrency(painel.valorMensal)} por mês</p>
+          <p className="text-sm text-ink-soft">
+            {painel.periodoNome} · {formatCurrency(painel.valorCiclo)}{' '}
+            {frequenciaDoPeriodo(periodoAtual?.meses ?? 1)}
+          </p>
         </div>
         <span
           className={`notch-sm px-3 py-1 text-xs font-semibold ${
@@ -99,12 +123,12 @@ export function CartaoAssinatura({ painel }: CartaoAssinaturaProps) {
 
       {suspensa && (
         <p role="alert" className="text-sm text-carmim-700">
-          A mensalidade venceu e o acesso dos moradores está suspenso. Pague o PIX para reativar.
+          O período venceu e o acesso dos moradores está suspenso. Pague o PIX para reativar.
         </p>
       )}
       {vencendo && (
         <p role="status" className="text-sm text-mostarda-700">
-          A mensalidade vence em {Math.max(painel.diasRestantes ?? 0, 0)}{' '}
+          O período vence em {Math.max(painel.diasRestantes ?? 0, 0)}{' '}
           {painel.diasRestantes === 1 ? 'dia' : 'dias'}.
         </p>
       )}
@@ -115,16 +139,43 @@ export function CartaoAssinatura({ painel }: CartaoAssinaturaProps) {
         </p>
       )}
 
-      {(suspensa || vencendo || invoiceUrl) && (
-        <Button
-          type="button"
-          fullWidth={false}
-          isLoading={gerando}
-          onClick={handlePagar}
-          className="self-start"
-        >
-          {invoiceUrl ? 'Pagar mensalidade (PIX)' : 'Gerar PIX da mensalidade'}
-        </Button>
+      {(suspensa || vencendo || pendente) && (
+        <div className="flex flex-col gap-3 border-t border-dashed border-paper-line pt-4">
+          <div className="flex flex-col gap-1">
+            <label htmlFor="renovar-por" className="text-sm font-medium text-ink">
+              Renovar por
+            </label>
+            <select
+              id="renovar-por"
+              value={periodoEscolhido}
+              onChange={(e) => setPeriodoEscolhido(e.target.value as PeriodoCodigo)}
+              className="min-h-[44px] border border-ink/40 bg-paper-surface px-3 py-2 text-sm text-ink
+                outline-none focus:border-ink"
+            >
+              {painel.opcoesRenovacao.map((opcao) => (
+                <option key={opcao.periodoCodigo} value={opcao.periodoCodigo}>
+                  {opcao.nome} — {formatCurrency(opcao.valorTotal)}
+                  {opcao.desconto > 0 ? ` (−${opcao.desconto}%)` : ''}
+                </option>
+              ))}
+            </select>
+            {opcaoEscolhida && opcaoEscolhida.economia > 0 && (
+              <p className="text-xs font-semibold text-jade-700">
+                Economia de {formatCurrency(opcaoEscolhida.economia)} em relação ao mensal.
+              </p>
+            )}
+          </div>
+
+          <Button
+            type="button"
+            fullWidth={false}
+            isLoading={gerando}
+            onClick={handlePagar}
+            className="self-start"
+          >
+            {jaGerada ? 'Pagar renovação (PIX)' : 'Gerar PIX da renovação'}
+          </Button>
+        </div>
       )}
     </Card>
   );

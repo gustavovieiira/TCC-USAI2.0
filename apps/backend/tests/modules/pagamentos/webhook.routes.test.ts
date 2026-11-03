@@ -113,6 +113,9 @@ describe('POST /api/webhooks/asaas', () => {
       id: 'cobranca-1',
       assinaturaId: 'assinatura-1',
       asaasChargeId: 'pay_mensalidade',
+      periodoCodigo: 'TRIMESTRAL',
+      dias: 90,
+      valor: 453,
     });
     (prisma.cobrancaAssinatura.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
     (prisma.assinatura.findUniqueOrThrow as jest.Mock).mockResolvedValue({
@@ -134,7 +137,12 @@ describe('POST /api/webhooks/asaas', () => {
     expect(response.status).toBe(200);
     expect(prisma.assinatura.update).toHaveBeenCalledWith({
       where: { id: 'assinatura-1' },
-      data: { status: 'ATIVA', ativaAte: expect.any(Date) },
+      data: {
+        status: 'ATIVA',
+        ativaAte: expect.any(Date),
+        periodoCodigo: 'TRIMESTRAL',
+        valorCiclo: 453,
+      },
     });
     expect(prisma.condominio.update).toHaveBeenCalledWith({
       where: { id: 'cond-novo' },

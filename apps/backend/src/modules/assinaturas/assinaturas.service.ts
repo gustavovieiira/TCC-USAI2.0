@@ -9,11 +9,20 @@ import { BCRYPT_ROUNDS } from '@/modules/auth/auth.service';
 import { NotificacoesService } from '@/modules/notificacoes/notificacoes.service';
 import { AsaasClient, STATUS_ASAAS_PAGO } from '@/modules/pagamentos/asaas.client';
 import { emailAcessoSindico, HORAS_VALIDADE_ACESSO } from './assinaturas.emails';
-import { buscarPlano, Plano, PLANOS } from './planos';
+import {
+  buscarPeriodo,
+  buscarPlano,
+  buscarPlanoDisponivel,
+  Periodo,
+  PERIODOS,
+  Plano,
+  planosDisponiveis,
+  precoDoPeriodo,
+  PrecoDoPeriodo,
+  precosDoPlano,
+} from './planos';
 
 const MS_POR_DIA = 24 * 60 * 60 * 1000;
-/** Quanto cada mensalidade paga mantém o condomínio ativo. */
-const DIAS_POR_MENSALIDADE = 30;
 /** Dias de tolerância depois do vencimento antes de suspender o condomínio. */
 const DIAS_DE_CARENCIA = 5;
 const DIAS_ATE_VENCIMENTO_COBRANCA = 7;
@@ -25,6 +34,7 @@ export type StatusAssinatura = 'AGUARDANDO_PAGAMENTO' | 'ATIVA' | 'SUSPENSA';
 
 export interface ContratarInput {
   planoCodigo: string;
+  periodoCodigo: string;
   nomeCondominio: string;
   nomeSindico: string;
   email: string;
@@ -35,6 +45,9 @@ export interface ContratacaoDTO {
   assinaturaId: string;
   status: StatusAssinatura;
   plano: Pick<Plano, 'codigo' | 'nome' | 'valorMensal' | 'limiteMoradores'>;
+  /** Período de cobrança escolhido e o valor de cada cobrança (o que o PIX cobra de uma vez). */
+  periodo: Pick<Periodo, 'codigo' | 'nome' | 'meses' | 'desconto'>;
+  valorCiclo: number;
   nomeCondominio: string;
   /** Link do PIX pra pagar; só existe enquanto o pagamento não foi confirmado. */
   invoiceUrl: string | null;
@@ -42,17 +55,37 @@ export interface ContratacaoDTO {
   emailMascarado: string;
 }
 
+export interface PlanoComPrecosDTO extends Plano {
+  precos: PrecoDoPeriodo[];
+}
+
+export interface PlanosDTO {
+  periodos: Periodo[];
+  planos: PlanoComPrecosDTO[];
+}
+
 export interface PainelAssinaturaDTO {
   planoCodigo: string;
   planoNome: string;
   valorMensal: number;
+  periodoCodigo: string;
+  periodoNome: string;
+  /** Valor de cada cobrança no período atual. */
+  valorCiclo: number;
+  /** Quanto custa renovar por cada período (o síndico pode trocar de período ao renovar). */
+  opcoesRenovacao: (PrecoDoPeriodo & { nome: string; meses: number; desconto: number })[];
   limiteMoradores: number;
   moradoresAtivos: number;
   status: StatusAssinatura;
   ativaAte: Date | null;
   /** Dias até vencer (negativo = vencida). Null enquanto não houve o primeiro pagamento. */
   diasRestantes: number | null;
-  cobrancaPendente: { invoiceUrl: string; valor: number; referencia: string } | null;
+  cobrancaPendente: {
+    invoiceUrl: string;
+    valor: number;
+    referencia: string;
+    periodoCodigo: string;
+  } | null;
 }
 
 type AssinaturaComResponsavel = Assinatura & { responsavel: User };
@@ -86,12 +119,14 @@ function referenciaDoMes(data: Date): string {
 }
 
 /**
- * Assinatura mensal dos condomínios (SaaS). Fluxo: o síndico escolhe o plano pela quantidade de
- * moradores e cadastra o condomínio (fica inativo) → paga a 1ª mensalidade por PIX (Asaas) →
+ * Assinatura dos condomínios (SaaS). Fluxo: o síndico escolhe o plano pela quantidade de moradores
+ * e o período de cobrança (mensal, trimestral, semestral ou anual, com desconto) e cadastra o
+ * condomínio (fica inativo) → paga a 1ª cobrança por PIX (Asaas) →
  * confirmado o pagamento (webhook ou conferência periódica), o condomínio e a conta do síndico são
  * ativados e chega por e-mail um link de uso único pra ele criar a senha → no painel, o síndico
- * repassa o link e o PIN aos moradores. A mensalidade seguinte é cobrada por PIX; vencida há mais
- * de alguns dias, o condomínio é suspenso (moradores deixam de entrar até pagar).
+ * repassa o link e o PIN aos moradores. A cobrança seguinte também é por PIX (e dá pra trocar de
+ * período); vencida há mais de alguns dias, o condomínio é suspenso (moradores deixam de entrar
+ * até pagar).
  */
 export class AssinaturasService {
   constructor(
@@ -101,8 +136,11 @@ export class AssinaturasService {
     private readonly notificacoes?: NotificacoesService,
   ) {}
 
-  listarPlanos(): Plano[] {
-    return PLANOS;
+  listarPlanos(): PlanosDTO {
+    return {
+      periodos: PERIODOS,
+      planos: planosDisponiveis().map((plano) => ({ ...plano, precos: precosDoPlano(plano) })),
+    };
   }
 
   /**
@@ -110,9 +148,13 @@ export class AssinaturasService {
    * for confirmado: quem volta a contratar com o mesmo e-mail recebe de volta a mesma cobrança.
    */
   async contratar(input: ContratarInput): Promise<ContratacaoDTO> {
-    const plano = buscarPlano(input.planoCodigo);
+    const plano = buscarPlanoDisponivel(input.planoCodigo);
     if (!plano) {
       throw new AppError('Plano inválido', 400, 'PLANO_INVALIDO');
+    }
+    const periodo = buscarPeriodo(input.periodoCodigo);
+    if (!periodo) {
+      throw new AppError('Período de cobrança inválido', 400, 'PERIODO_INVALIDO');
     }
 
     const cpfCnpj = normalizarDocumento(input.cpfCnpj);
@@ -133,12 +175,17 @@ export class AssinaturasService {
     if (existente) {
       const pendente = existente.ativo ? undefined : existente.assinaturasContratadas[0];
       if (pendente?.cobrancas[0]) {
-        return this.paraDTO(
-          pendente,
-          existente.email,
-          pendente.condominio.nome,
-          pendente.cobrancas[0].invoiceUrl,
-        );
+        const mudou =
+          pendente.planoCodigo !== plano.codigo || pendente.periodoCodigo !== periodo.codigo;
+        if (!mudou) {
+          return this.paraDTO(
+            pendente,
+            existente.email,
+            pendente.condominio.nome,
+            pendente.cobrancas[0].invoiceUrl,
+          );
+        }
+        return this.reconfigurarPendente(pendente, existente, plano, periodo);
       }
       throw new ConflictError('Já existe uma conta com este e-mail');
     }
@@ -180,6 +227,8 @@ export class AssinaturasService {
           planoCodigo: plano.codigo,
           valorMensal: plano.valorMensal,
           limiteMoradores: plano.limiteMoradores,
+          periodoCodigo: periodo.codigo,
+          valorCiclo: precoDoPeriodo(plano, periodo).valorTotal,
           status: 'AGUARDANDO_PAGAMENTO',
         },
       });
@@ -187,7 +236,12 @@ export class AssinaturasService {
     });
 
     try {
-      const cobranca = await this.abrirCobranca(criados.assinatura, criados.sindico, new Date());
+      const cobranca = await this.abrirCobranca(
+        criados.assinatura,
+        criados.sindico,
+        new Date(),
+        periodo,
+      );
       return this.paraDTO(
         { ...criados.assinatura, responsavel: criados.sindico },
         criados.sindico.email,
@@ -290,6 +344,16 @@ export class AssinaturasService {
       planoCodigo: assinatura.planoCodigo,
       planoNome: buscarPlano(assinatura.planoCodigo)?.nome ?? assinatura.planoCodigo,
       valorMensal: Number(assinatura.valorMensal),
+      periodoCodigo: assinatura.periodoCodigo,
+      periodoNome: buscarPeriodo(assinatura.periodoCodigo)?.nome ?? assinatura.periodoCodigo,
+      valorCiclo: Number(assinatura.valorCiclo),
+      // O preço contratado vale nas renovações, mesmo que a tabela de planos mude depois.
+      opcoesRenovacao: PERIODOS.map((periodo) => ({
+        ...precoDoPeriodo({ valorMensal: Number(assinatura.valorMensal) }, periodo),
+        nome: periodo.nome,
+        meses: periodo.meses,
+        desconto: periodo.desconto,
+      })),
       limiteMoradores: assinatura.limiteMoradores,
       moradoresAtivos,
       status: assinatura.status as StatusAssinatura,
@@ -302,13 +366,20 @@ export class AssinaturasService {
             invoiceUrl: pendente.invoiceUrl,
             valor: Number(pendente.valor),
             referencia: pendente.referencia,
+            periodoCodigo: pendente.periodoCodigo,
           }
         : null,
     };
   }
 
-  /** Síndico gera (ou recupera, se já existe uma em aberto) o PIX da próxima mensalidade. */
-  async gerarCobrancaMensalidade(condominioId: string): Promise<{ invoiceUrl: string }> {
+  /**
+   * Síndico gera o PIX da renovação. Pode trocar de período (ex.: de mensal pra anual) — a cobrança
+   * em aberto de outro período é cancelada. Pedir o mesmo período de novo devolve a que já existe.
+   */
+  async gerarCobrancaRenovacao(
+    condominioId: string,
+    periodoCodigo?: string,
+  ): Promise<{ invoiceUrl: string }> {
     const assinatura = await this.prisma.assinatura.findUnique({
       where: { condominioId },
       include: {
@@ -320,17 +391,32 @@ export class AssinaturasService {
     if (!assinatura) {
       throw new NotFoundError('Este condomínio não tem assinatura');
     }
-    if (assinatura.cobrancas[0]) {
-      return { invoiceUrl: assinatura.cobrancas[0].invoiceUrl };
+
+    const periodo = buscarPeriodo(periodoCodigo ?? assinatura.periodoCodigo);
+    if (!periodo) {
+      throw new AppError('Período de cobrança inválido', 400, 'PERIODO_INVALIDO');
+    }
+
+    const pendente = assinatura.cobrancas[0];
+    if (pendente && pendente.periodoCodigo === periodo.codigo) {
+      return { invoiceUrl: pendente.invoiceUrl };
     }
     if (assinatura.status === 'AGUARDANDO_PAGAMENTO') {
       throw new AppError('A primeira cobrança ainda não foi gerada', 409, 'SEM_COBRANCA');
     }
+    if (pendente) {
+      await this.cancelarCobranca(pendente);
+    }
 
-    // A referência é o mês que esta mensalidade passa a cobrir.
+    // A referência é o mês em que o período pago começa a valer.
     const inicioDoPeriodo =
       assinatura.ativaAte && assinatura.ativaAte > new Date() ? assinatura.ativaAte : new Date();
-    const cobranca = await this.abrirCobranca(assinatura, assinatura.responsavel, inicioDoPeriodo);
+    const cobranca = await this.abrirCobranca(
+      assinatura,
+      assinatura.responsavel,
+      inicioDoPeriodo,
+      periodo,
+    );
     return { invoiceUrl: cobranca.invoiceUrl };
   }
 
@@ -358,11 +444,16 @@ export class AssinaturasService {
       const primeiroPagamento = assinatura.status === 'AGUARDANDO_PAGAMENTO';
       const agora = new Date();
       const base = assinatura.ativaAte && assinatura.ativaAte > agora ? assinatura.ativaAte : agora;
-      const ativaAte = new Date(base.getTime() + DIAS_POR_MENSALIDADE * MS_POR_DIA);
+      const ativaAte = new Date(base.getTime() + cobranca.dias * MS_POR_DIA);
 
       await tx.assinatura.update({
         where: { id: assinatura.id },
-        data: { status: 'ATIVA', ativaAte },
+        data: {
+          status: 'ATIVA',
+          ativaAte,
+          periodoCodigo: cobranca.periodoCodigo,
+          valorCiclo: cobranca.valor,
+        },
       });
       await tx.condominio.update({ where: { id: assinatura.condominioId }, data: { ativo: true } });
       if (primeiroPagamento) {
@@ -390,7 +481,7 @@ export class AssinaturasService {
       await this.notificacoes?.notificar({
         userId: assinatura.responsavelId,
         tipo: 'ASSINATURA_RENOVADA',
-        titulo: 'Mensalidade confirmada',
+        titulo: 'Pagamento da assinatura confirmado',
         mensagem: `Recebemos o pagamento. Seu condomínio está ativo até ${ativaAte.toLocaleDateString('pt-BR')}.`,
         link: '/sindico',
       });
@@ -460,6 +551,7 @@ export class AssinaturasService {
     assinatura: Assinatura,
     responsavel: User,
     inicioDoPeriodo: Date,
+    periodo: Periodo,
   ): Promise<CobrancaAssinatura> {
     let customerId = responsavel.asaasCustomerId;
     if (!customerId) {
@@ -478,13 +570,14 @@ export class AssinaturasService {
     const plano = buscarPlano(assinatura.planoCodigo);
     const referencia = referenciaDoMes(inicioDoPeriodo);
     const vencimento = new Date(Date.now() + DIAS_ATE_VENCIMENTO_COBRANCA * MS_POR_DIA);
+    const { valorTotal } = precoDoPeriodo({ valorMensal: Number(assinatura.valorMensal) }, periodo);
 
     const noAsaas = await this.asaas.criarCobrancaPix({
       customerId,
-      valor: Number(assinatura.valorMensal),
+      valor: valorTotal,
       vencimento,
       externalReference: `assinatura:${assinatura.id}`,
-      descricao: `USAI — plano ${plano?.nome ?? assinatura.planoCodigo} (${referencia})`,
+      descricao: `USAI — plano ${plano?.nome ?? assinatura.planoCodigo}, ${periodo.nome.toLowerCase()} (${referencia})`,
     });
 
     return this.prisma.cobrancaAssinatura.create({
@@ -492,11 +585,49 @@ export class AssinaturasService {
         assinaturaId: assinatura.id,
         asaasChargeId: noAsaas.id,
         invoiceUrl: noAsaas.invoiceUrl,
-        valor: assinatura.valorMensal,
+        valor: valorTotal,
+        periodoCodigo: periodo.codigo,
+        dias: periodo.dias,
         status: 'PENDENTE',
         referencia,
       },
     });
+  }
+
+  /** Cancela uma cobrança em aberto (aqui e, se der, no Asaas — o cancelamento lá é best-effort). */
+  private async cancelarCobranca(cobranca: CobrancaAssinatura): Promise<void> {
+    await this.prisma.cobrancaAssinatura.updateMany({
+      where: { id: cobranca.id, status: 'PENDENTE' },
+      data: { status: 'CANCELADO' },
+    });
+    await this.asaas.cancelarCobranca(cobranca.asaasChargeId);
+  }
+
+  /**
+   * O síndico voltou à contratação (antes de pagar) escolhendo outro plano ou período: atualiza a
+   * assinatura, cancela o PIX antigo e abre um novo com o valor certo.
+   */
+  private async reconfigurarPendente(
+    pendente: Assinatura & { condominio: { nome: string }; cobrancas: CobrancaAssinatura[] },
+    sindico: User,
+    plano: Plano,
+    periodo: Periodo,
+  ): Promise<ContratacaoDTO> {
+    const atualizada = await this.prisma.assinatura.update({
+      where: { id: pendente.id },
+      data: {
+        planoCodigo: plano.codigo,
+        valorMensal: plano.valorMensal,
+        limiteMoradores: plano.limiteMoradores,
+        periodoCodigo: periodo.codigo,
+        valorCiclo: precoDoPeriodo(plano, periodo).valorTotal,
+      },
+    });
+
+    await this.cancelarCobranca(pendente.cobrancas[0]);
+
+    const cobranca = await this.abrirCobranca(atualizada, sindico, new Date(), periodo);
+    return this.paraDTO(atualizada, sindico.email, pendente.condominio.nome, cobranca.invoiceUrl);
   }
 
   /** Gera o link de uso único (só o hash fica no banco) e envia por e-mail. */
@@ -560,6 +691,7 @@ export class AssinaturasService {
     invoiceUrl: string | null,
   ): ContratacaoDTO {
     const plano = buscarPlano(assinatura.planoCodigo);
+    const periodo = buscarPeriodo(assinatura.periodoCodigo) ?? PERIODOS[0];
     return {
       assinaturaId: assinatura.id,
       status: assinatura.status as StatusAssinatura,
@@ -569,6 +701,13 @@ export class AssinaturasService {
         valorMensal: Number(assinatura.valorMensal),
         limiteMoradores: assinatura.limiteMoradores,
       },
+      periodo: {
+        codigo: periodo.codigo,
+        nome: periodo.nome,
+        meses: periodo.meses,
+        desconto: periodo.desconto,
+      },
+      valorCiclo: Number(assinatura.valorCiclo),
       nomeCondominio,
       invoiceUrl,
       emailMascarado: mascararEmail(email),

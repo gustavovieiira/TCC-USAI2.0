@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -12,37 +12,68 @@ import { CartaoAssinatura } from './CartaoAssinatura';
 import { ConviteMoradores, textoDoConvite } from './ConviteMoradores';
 import { planoIdeal, PlanosPrecos } from './PlanosPrecos';
 
-const planos: api.PlanoDTO[] = [
-  {
-    codigo: 'ESSENCIAL',
-    nome: 'Essencial',
-    limiteMoradores: 30,
-    valorMensal: 49,
-    descricao: 'Pequenos',
-    destaque: false,
-  },
-  {
-    codigo: 'CONDOMINIO',
-    nome: 'Condomínio',
-    limiteMoradores: 100,
-    valorMensal: 99,
-    descricao: 'A maioria',
-    destaque: true,
-  },
-  {
-    codigo: 'GRANDE',
-    nome: 'Grande',
-    limiteMoradores: 250,
-    valorMensal: 179,
-    descricao: 'Grandes',
-    destaque: false,
-  },
+const periodos: api.PeriodoDTO[] = [
+  { codigo: 'MENSAL', nome: 'Mensal', meses: 1, dias: 30, desconto: 0 },
+  { codigo: 'TRIMESTRAL', nome: 'Trimestral', meses: 3, dias: 90, desconto: 5 },
+  { codigo: 'SEMESTRAL', nome: 'Semestral', meses: 6, dias: 180, desconto: 10 },
+  { codigo: 'ANUAL', nome: 'Anual', meses: 12, dias: 365, desconto: 20 },
 ];
+
+/** Mesma conta do backend (planos.ts): meses x mensalidade, menos o desconto, em reais inteiros. */
+function precos(valorMensal: number): api.PrecoDoPeriodoDTO[] {
+  return periodos.map((p) => {
+    const cheio = valorMensal * p.meses;
+    const valorTotal = Math.round((cheio * (100 - p.desconto)) / 100);
+    return {
+      periodoCodigo: p.codigo,
+      valorTotal,
+      valorMensalEquivalente: Math.round((valorTotal / p.meses) * 100) / 100,
+      economia: cheio - valorTotal,
+    };
+  });
+}
+
+function plano(
+  codigo: string,
+  nome: string,
+  limiteMoradores: number,
+  valorMensal: number,
+  destaque = false,
+  teste = false,
+): api.PlanoDTO {
+  return {
+    codigo,
+    nome,
+    limiteMoradores,
+    valorMensal,
+    descricao: `Plano ${nome}`,
+    destaque,
+    teste,
+    precos: precos(valorMensal),
+  };
+}
+
+const planos: api.PlanoDTO[] = [
+  plano('ESSENCIAL', 'Essencial', 20, 149),
+  plano('CONDOMINIO', 'Condomínio', 60, 299, true),
+  plano('GRANDE', 'Grande', 150, 499),
+  plano('PREMIUM', 'Premium', 300, 799),
+];
+
+const catalogo: api.PlanosDTO = { periodos, planos };
+
+/** Resposta da API com o modo de teste ligado: o plano de R$ 5,00 vem junto, marcado como teste. */
+const catalogoComTeste: api.PlanosDTO = {
+  periodos,
+  planos: [...planos, plano('TESTE', 'Teste', 3, 5, false, true)],
+};
 
 const contratacao = (extra: Partial<api.ContratacaoDTO> = {}): api.ContratacaoDTO => ({
   assinaturaId: 'assin-1',
   status: 'AGUARDANDO_PAGAMENTO',
-  plano: { codigo: 'CONDOMINIO', nome: 'Condomínio', valorMensal: 99, limiteMoradores: 100 },
+  plano: { codigo: 'CONDOMINIO', nome: 'Condomínio', valorMensal: 299, limiteMoradores: 60 },
+  periodo: { codigo: 'ANUAL', nome: 'Anual', meses: 12, desconto: 20 },
+  valorCiclo: 2870,
   nomeCondominio: 'Residencial Aurora',
   invoiceUrl: 'https://asaas/pay_1',
   emailMascarado: 's***@exemplo.com',
@@ -58,73 +89,206 @@ afterEach(() => {
 });
 
 describe('planoIdeal', () => {
-  it('escolhe o menor plano que comporta os moradores', () => {
+  it('escolhe o menor plano que comporta as pessoas', () => {
     expect(planoIdeal(planos, 1)?.codigo).toBe('ESSENCIAL');
-    expect(planoIdeal(planos, 30)?.codigo).toBe('ESSENCIAL');
-    expect(planoIdeal(planos, 31)?.codigo).toBe('CONDOMINIO');
-    expect(planoIdeal(planos, 250)?.codigo).toBe('GRANDE');
-    expect(planoIdeal(planos, 251)).toBeNull();
+    expect(planoIdeal(planos, 20)?.codigo).toBe('ESSENCIAL');
+    expect(planoIdeal(planos, 21)?.codigo).toBe('CONDOMINIO');
+    expect(planoIdeal(planos, 300)?.codigo).toBe('PREMIUM');
+    expect(planoIdeal(planos, 301)).toBeNull();
     expect(planoIdeal(planos, 0)).toBeNull();
     expect(planoIdeal(planos, Number.NaN)).toBeNull();
   });
 });
 
 describe('PlanosPrecos', () => {
-  it('mostra os planos com preço, limite e o link pra contratar cada um', async () => {
-    vi.spyOn(api, 'listarPlanos').mockResolvedValue(planos);
-
-    render(
+  function renderSecao() {
+    return render(
       <MemoryRouter>
         <PlanosPrecos />
       </MemoryRouter>,
     );
+  }
+
+  it('mostra os planos pelo preço mensal, com limite e link pra contratar cada um', async () => {
+    vi.spyOn(api, 'listarPlanos').mockResolvedValue(catalogo);
+
+    renderSecao();
 
     expect(await screen.findByRole('heading', { name: 'Essencial' })).toBeInTheDocument();
-    expect(screen.getByText('Até 100 moradores')).toBeInTheDocument();
-    expect(screen.getByText('R$ 99,00')).toBeInTheDocument();
+    expect(screen.getAllByRole('listitem').length).toBeGreaterThanOrEqual(4);
+    expect(screen.getByText('Até 150 moradores')).toBeInTheDocument();
+    expect(screen.getByText('R$ 299,00')).toBeInTheDocument();
+    expect(screen.getAllByText('Cobrado todo mês, sem desconto')).toHaveLength(4);
     expect(screen.getByRole('link', { name: 'Contratar o Grande' })).toHaveAttribute(
       'href',
-      '/contratar?plano=GRANDE',
+      '/contratar?plano=GRANDE&periodo=MENSAL',
     );
     // sem número informado, o plano marcado como destaque é o "mais indicado"
     expect(screen.getByText('Mais indicado')).toBeInTheDocument();
   });
 
-  it('recomenda o plano ideal conforme a quantidade de moradores', async () => {
-    vi.spyOn(api, 'listarPlanos').mockResolvedValue(planos);
+  it('oferece os períodos com o desconto e recalcula os preços ao trocar', async () => {
+    vi.spyOn(api, 'listarPlanos').mockResolvedValue(catalogo);
 
-    render(
-      <MemoryRouter>
-        <PlanosPrecos />
-      </MemoryRouter>,
-    );
+    renderSecao();
     await screen.findByRole('heading', { name: 'Essencial' });
 
-    await userEvent.type(screen.getByLabelText(/Quantos moradores/), '20');
+    const grupo = screen.getByRole('group', { name: 'Período de cobrança' });
+    expect(within(grupo).getByRole('button', { name: /Mensal/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(within(grupo).getByRole('button', { name: /Trimestral/ })).toHaveTextContent('−5%');
+    expect(within(grupo).getByRole('button', { name: /Semestral/ })).toHaveTextContent('−10%');
+    expect(within(grupo).getByRole('button', { name: /Anual/ })).toHaveTextContent('−20%');
+
+    await userEvent.click(within(grupo).getByRole('button', { name: /Anual/ }));
+
+    // Essencial: 149 x 12 = 1788, menos 20% = 1430 (119,17 por mês), economia de 358
+    expect(within(grupo).getByRole('button', { name: /Anual/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(screen.getByText('R$ 119,17')).toBeInTheDocument();
+    expect(screen.getByText(/R\$ 1.430,00 cobrados a cada 12 meses/)).toBeInTheDocument();
+    expect(screen.getByText('Economia de R$ 358,00 (20%)')).toBeInTheDocument();
+    // o preço cheio fica riscado pra comparar
+    expect(screen.getAllByText('R$ 149,00 / mês')[0]).toHaveClass('line-through');
+    expect(screen.getByRole('link', { name: 'Contratar o Essencial' })).toHaveAttribute(
+      'href',
+      '/contratar?plano=ESSENCIAL&periodo=ANUAL',
+    );
+
+    await userEvent.click(within(grupo).getByRole('button', { name: /Trimestral/ }));
+    expect(screen.getByText(/R\$ 425,00 cobrados a cada 3 meses/)).toBeInTheDocument();
+  });
+
+  it('recomenda o plano ideal conforme a quantidade de pessoas', async () => {
+    vi.spyOn(api, 'listarPlanos').mockResolvedValue(catalogo);
+
+    renderSecao();
+    await screen.findByRole('heading', { name: 'Essencial' });
+
+    await userEvent.type(screen.getByLabelText(/Quantas pessoas/), '20');
     expect(screen.getByRole('status')).toHaveTextContent('Essencial');
     expect(screen.getByText('Ideal para você')).toBeInTheDocument();
 
-    await userEvent.clear(screen.getByLabelText(/Quantos moradores/));
-    await userEvent.type(screen.getByLabelText(/Quantos moradores/), '400');
+    await userEvent.clear(screen.getByLabelText(/Quantas pessoas/));
+    await userEvent.type(screen.getByLabelText(/Quantas pessoas/), '400');
     expect(screen.getByRole('status')).toHaveTextContent('Ainda não temos plano');
     expect(screen.queryByText('Ideal para você')).not.toBeInTheDocument();
+  });
+
+  it('esclarece que o limite conta contas cadastradas', async () => {
+    vi.spyOn(api, 'listarPlanos').mockResolvedValue(catalogo);
+
+    renderSecao();
+
+    expect(await screen.findByText(/conta as contas cadastradas/)).toBeInTheDocument();
   });
 
   it('avisa quando não consegue carregar os planos', async () => {
     vi.spyOn(api, 'listarPlanos').mockRejectedValue(new Error('offline'));
 
-    render(
-      <MemoryRouter>
-        <PlanosPrecos />
-      </MemoryRouter>,
-    );
+    renderSecao();
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível carregar');
   });
 });
 
+describe('plano de teste de R$ 5,00', () => {
+  function renderSecao() {
+    return render(
+      <MemoryRouter>
+        <PlanosPrecos />
+      </MemoryRouter>,
+    );
+  }
+
+  it('sem o modo de teste, o card não aparece', async () => {
+    vi.spyOn(api, 'listarPlanos').mockResolvedValue(catalogo);
+
+    renderSecao();
+    await screen.findByRole('heading', { name: 'Essencial' });
+
+    expect(screen.queryByTestId('plano-teste')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /plano de teste/ })).not.toBeInTheDocument();
+  });
+
+  it('com o modo de teste ligado, mostra o card separado, com R$ 5,00 e o link pra contratar', async () => {
+    vi.spyOn(api, 'listarPlanos').mockResolvedValue(catalogoComTeste);
+
+    renderSecao();
+    await screen.findByRole('heading', { name: 'Essencial' });
+
+    const card = within(screen.getByTestId('plano-teste'));
+    expect(card.getByText('Plano de teste')).toBeInTheDocument();
+    expect(card.getByText('R$ 5,00')).toBeInTheDocument();
+    expect(card.getByText(/Até 3 moradores/)).toBeInTheDocument();
+    expect(card.getByRole('link', { name: 'Contratar o plano de teste' })).toHaveAttribute(
+      'href',
+      '/contratar?plano=TESTE&periodo=MENSAL',
+    );
+    // os quatro planos de verdade continuam sendo quatro, sem o de teste na grade
+    expect(screen.getAllByRole('link', { name: /^Contratar o (?!plano de teste)/ })).toHaveLength(
+      4,
+    );
+  });
+
+  it('o card acompanha o período escolhido nas abas', async () => {
+    vi.spyOn(api, 'listarPlanos').mockResolvedValue(catalogoComTeste);
+
+    renderSecao();
+    await screen.findByRole('heading', { name: 'Essencial' });
+    await userEvent.click(
+      within(screen.getByRole('group', { name: 'Período de cobrança' })).getByRole('button', {
+        name: /Trimestral/,
+      }),
+    );
+
+    const card = within(screen.getByTestId('plano-teste'));
+    // 5 x 3 = 15, menos 5% = 14,25 -> R$ 14,00 a cada 3 meses
+    expect(card.getByText('R$ 14,00')).toBeInTheDocument();
+    expect(card.getByText(/a cada 3 meses/)).toBeInTheDocument();
+    expect(card.getByRole('link', { name: 'Contratar o plano de teste' })).toHaveAttribute(
+      'href',
+      '/contratar?plano=TESTE&periodo=TRIMESTRAL',
+    );
+  });
+
+  it('nunca é o plano recomendado no calculador, mesmo cabendo 2 pessoas nele', async () => {
+    vi.spyOn(api, 'listarPlanos').mockResolvedValue(catalogoComTeste);
+
+    renderSecao();
+    await screen.findByRole('heading', { name: 'Essencial' });
+    await userEvent.type(screen.getByLabelText(/Quantas pessoas/), '2');
+
+    expect(screen.getByRole('status')).toHaveTextContent('Essencial');
+    expect(screen.getByRole('status')).not.toHaveTextContent('Teste');
+    expect(planoIdeal(catalogoComTeste.planos, 2)?.codigo).toBe('ESSENCIAL');
+  });
+
+  it('na contratação o plano de teste vem marcado e pré-selecionado pela URL', async () => {
+    vi.spyOn(api, 'listarPlanos').mockResolvedValue(catalogoComTeste);
+
+    render(
+      <MemoryRouter initialEntries={['/contratar?plano=TESTE&periodo=MENSAL']}>
+        <Routes>
+          <Route path="/contratar" element={<ContratarPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const radio = await screen.findByRole('radio', { name: /Teste/ });
+    expect(radio).toBeChecked();
+    expect(radio.closest('label')).toHaveTextContent('teste');
+    expect(screen.getByText(/Plano Teste · até 3 moradores/)).toBeInTheDocument();
+    expect(screen.getAllByText(/R\$\s5,00/).length).toBeGreaterThan(0);
+  });
+});
+
 describe('ContratarPage', () => {
-  function renderPage(entrada = '/contratar?plano=GRANDE') {
+  function renderPage(entrada = '/contratar?plano=GRANDE&periodo=SEMESTRAL') {
     return render(
       <MemoryRouter initialEntries={[entrada]}>
         <Routes>
@@ -135,17 +299,29 @@ describe('ContratarPage', () => {
     );
   }
 
-  it('pré-seleciona o plano da URL e mostra o resumo com o valor', async () => {
-    vi.spyOn(api, 'listarPlanos').mockResolvedValue(planos);
+  it('pré-seleciona plano e período da URL e mostra o resumo com valor e economia', async () => {
+    vi.spyOn(api, 'listarPlanos').mockResolvedValue(catalogo);
 
     renderPage();
 
     expect(await screen.findByRole('radio', { name: /Grande/ })).toBeChecked();
-    expect(screen.getByText(/Plano Grande · até 250 moradores/)).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /Semestral/ })).toBeChecked();
+    expect(screen.getByText(/Plano Grande · até 150 moradores/)).toBeInTheDocument();
+    // Grande: 499 x 6 = 2994, menos 10% = 2694,60 -> R$ 2.695,00; economia R$ 299,00
+    expect(screen.getAllByText(/R\$\s2.695,00/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Você economiza R\$\s299,00/)).toBeInTheDocument();
   });
 
-  it('envia o cadastro e segue pro acompanhamento do pagamento', async () => {
-    vi.spyOn(api, 'listarPlanos').mockResolvedValue(planos);
+  it('cai no mensal quando o período da URL não existe', async () => {
+    vi.spyOn(api, 'listarPlanos').mockResolvedValue(catalogo);
+
+    renderPage('/contratar?plano=GRANDE&periodo=QUINZENAL');
+
+    expect(await screen.findByRole('radio', { name: /Mensal/ })).toBeChecked();
+  });
+
+  it('envia o cadastro com o período escolhido e segue pro acompanhamento', async () => {
+    vi.spyOn(api, 'listarPlanos').mockResolvedValue(catalogo);
     const contratar = vi.spyOn(api, 'contratar').mockResolvedValue(contratacao());
 
     renderPage('/contratar');
@@ -154,15 +330,20 @@ describe('ContratarPage', () => {
     const botao = screen.getByRole('button', { name: 'Continuar para o pagamento' });
     expect(botao).toBeDisabled();
 
+    await userEvent.click(screen.getByRole('radio', { name: /Anual/ }));
     await userEvent.type(screen.getByLabelText('Nome do condomínio'), 'Residencial Aurora');
     await userEvent.type(screen.getByLabelText('Seu nome (síndico)'), 'Sílvia Souza');
     await userEvent.type(screen.getByLabelText(/E-mail/), 'silvia@exemplo.com');
     await userEvent.type(screen.getByLabelText(/CPF do síndico ou CNPJ/), '529.982.247-25');
     await userEvent.click(screen.getByRole('checkbox'));
+    expect(screen.getByRole('checkbox').closest('label')).toHaveTextContent(
+      /R\$\s2.870,00 por PIX a cada 12 meses/,
+    );
     await userEvent.click(botao);
 
     expect(contratar).toHaveBeenCalledWith({
       planoCodigo: 'CONDOMINIO',
+      periodoCodigo: 'ANUAL',
       nomeCondominio: 'Residencial Aurora',
       nomeSindico: 'Sílvia Souza',
       email: 'silvia@exemplo.com',
@@ -173,7 +354,7 @@ describe('ContratarPage', () => {
   });
 
   it('mostra o erro devolvido pela API (ex.: e-mail já cadastrado)', async () => {
-    vi.spyOn(api, 'listarPlanos').mockResolvedValue(planos);
+    vi.spyOn(api, 'listarPlanos').mockResolvedValue(catalogo);
     vi.spyOn(api, 'contratar').mockRejectedValue({
       isAxiosError: true,
       response: { data: { error: { message: 'Já existe uma conta com este e-mail' } } },
@@ -203,18 +384,34 @@ describe('AcompanharContratacaoPage', () => {
     );
   }
 
-  it('enquanto não paga, mostra o valor e o link do PIX', async () => {
+  it('enquanto não paga, mostra o valor do período escolhido e o link do PIX', async () => {
     vi.spyOn(api, 'consultarContratacao').mockResolvedValue(contratacao());
 
     renderPage();
 
     expect(await screen.findByText('Falta só o pagamento')).toBeInTheDocument();
-    expect(screen.getByText('R$ 99,00')).toBeInTheDocument();
+    expect(screen.getByText(/Primeiro pagamento · Anual/)).toBeInTheDocument();
+    expect(screen.getByText(/R\$\s2.870,00/)).toBeInTheDocument();
+    expect(screen.getByText('Já com 20% de desconto')).toBeInTheDocument();
     const pagar = screen.getByRole('link', { name: 'Pagar com PIX' });
     expect(pagar).toHaveAttribute('href', 'https://asaas/pay_1');
     expect(pagar).toHaveAttribute('target', '_blank');
     expect(pagar).toHaveAttribute('rel', expect.stringContaining('noopener'));
     expect(screen.getByText(/Aguardando a confirmação do pagamento/)).toBeInTheDocument();
+  });
+
+  it('no mensal não fala em desconto', async () => {
+    vi.spyOn(api, 'consultarContratacao').mockResolvedValue(
+      contratacao({
+        periodo: { codigo: 'MENSAL', nome: 'Mensal', meses: 1, desconto: 0 },
+        valorCiclo: 299,
+      }),
+    );
+
+    renderPage();
+
+    expect(await screen.findByText(/Primeiro pagamento · Mensal/)).toBeInTheDocument();
+    expect(screen.queryByText(/de desconto/)).not.toBeInTheDocument();
   });
 
   it('consulta de novo a cada poucos segundos e vira "confirmado" quando o PIX é pago', async () => {
@@ -391,11 +588,23 @@ describe('ConviteMoradores', () => {
 });
 
 describe('CartaoAssinatura', () => {
+  const opcoes = (valorMensal: number): api.OpcaoRenovacaoDTO[] =>
+    periodos.map((p, i) => ({
+      ...precos(valorMensal)[i],
+      nome: p.nome,
+      meses: p.meses,
+      desconto: p.desconto,
+    }));
+
   const painel = (extra: Partial<api.PainelAssinaturaDTO> = {}): api.PainelAssinaturaDTO => ({
     planoCodigo: 'ESSENCIAL',
     planoNome: 'Essencial',
-    valorMensal: 49,
-    limiteMoradores: 30,
+    valorMensal: 149,
+    periodoCodigo: 'TRIMESTRAL',
+    periodoNome: 'Trimestral',
+    valorCiclo: 425,
+    opcoesRenovacao: opcoes(149),
+    limiteMoradores: 20,
     moradoresAtivos: 12,
     status: 'ATIVA',
     ativaAte: new Date(Date.now() + 20 * 86_400_000).toISOString(),
@@ -404,11 +613,12 @@ describe('CartaoAssinatura', () => {
     ...extra,
   });
 
-  it('mostra o plano, o uso em moradores e que não há o que pagar ainda', () => {
+  it('mostra o plano, o período e o valor, o uso em moradores e que não há o que pagar ainda', () => {
     render(<CartaoAssinatura painel={painel()} />);
 
     expect(screen.getByText('Plano Essencial')).toBeInTheDocument();
-    expect(screen.getByText('12 de 30')).toBeInTheDocument();
+    expect(screen.getByText(/Trimestral · R\$\s425,00 a cada 3 meses/)).toBeInTheDocument();
+    expect(screen.getByText('12 de 20')).toBeInTheDocument();
     expect(screen.getByRole('progressbar', { name: 'Uso do plano' })).toHaveAttribute(
       'aria-valuenow',
       '12',
@@ -417,30 +627,69 @@ describe('CartaoAssinatura', () => {
     expect(screen.queryByRole('button', { name: /PIX/ })).not.toBeInTheDocument();
   });
 
+  it('no mensal, diz "por mês"', () => {
+    render(
+      <CartaoAssinatura
+        painel={painel({ periodoCodigo: 'MENSAL', periodoNome: 'Mensal', valorCiclo: 149 })}
+      />,
+    );
+
+    expect(screen.getByText(/Mensal · R\$\s149,00 por mês/)).toBeInTheDocument();
+  });
+
   it('avisa quando o plano está cheio', () => {
-    render(<CartaoAssinatura painel={painel({ moradoresAtivos: 30 })} />);
+    render(<CartaoAssinatura painel={painel({ moradoresAtivos: 20 })} />);
 
     expect(screen.getByText(/plano está cheio/)).toBeInTheDocument();
   });
 
-  it('perto do vencimento oferece gerar o PIX e abre o link numa aba nova', async () => {
+  it('perto do vencimento oferece renovar pelo período atual e abre o PIX numa aba nova', async () => {
     const abrir = vi.spyOn(window, 'open').mockReturnValue(null);
     const gerar = vi
-      .spyOn(api, 'gerarCobrancaMensalidade')
+      .spyOn(api, 'gerarCobrancaRenovacao')
       .mockResolvedValue({ invoiceUrl: 'https://asaas/pay_2' });
 
     render(<CartaoAssinatura painel={painel({ diasRestantes: 3 })} />);
 
     expect(screen.getByRole('status')).toHaveTextContent('vence em 3 dias');
-    await userEvent.click(screen.getByRole('button', { name: 'Gerar PIX da mensalidade' }));
+    expect(screen.getByLabelText('Renovar por')).toHaveValue('TRIMESTRAL');
+    await userEvent.click(screen.getByRole('button', { name: 'Gerar PIX da renovação' }));
 
-    await waitFor(() => expect(gerar).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(gerar).toHaveBeenCalledWith('TRIMESTRAL'));
     expect(abrir).toHaveBeenCalledWith('https://asaas/pay_2', '_blank', 'noopener,noreferrer');
+    // depois de gerado, o botão passa a só pagar a que já existe
+    expect(
+      await screen.findByRole('button', { name: 'Pagar renovação (PIX)' }),
+    ).toBeInTheDocument();
+  });
+
+  it('deixa trocar de período ao renovar, mostrando preço e economia de cada um', async () => {
+    const abrir = vi.spyOn(window, 'open').mockReturnValue(null);
+    const gerar = vi
+      .spyOn(api, 'gerarCobrancaRenovacao')
+      .mockResolvedValue({ invoiceUrl: 'https://asaas/anual' });
+
+    render(<CartaoAssinatura painel={painel({ diasRestantes: 3 })} />);
+
+    const select = screen.getByLabelText('Renovar por');
+    expect(
+      within(select).getByRole('option', { name: /Mensal — R\$\s149,00/ }),
+    ).toBeInTheDocument();
+    expect(
+      within(select).getByRole('option', { name: /Anual — R\$\s1.430,00 \(−20%\)/ }),
+    ).toBeInTheDocument();
+
+    await userEvent.selectOptions(select, 'ANUAL');
+    expect(screen.getByText('Economia de R$ 358,00 em relação ao mensal.')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Gerar PIX da renovação' }));
+
+    await waitFor(() => expect(gerar).toHaveBeenCalledWith('ANUAL'));
+    expect(abrir).toHaveBeenCalledWith('https://asaas/anual', '_blank', 'noopener,noreferrer');
   });
 
   it('suspensa: alerta e usa a cobrança que já está em aberto, sem gerar outra', async () => {
     const abrir = vi.spyOn(window, 'open').mockReturnValue(null);
-    const gerar = vi.spyOn(api, 'gerarCobrancaMensalidade');
+    const gerar = vi.spyOn(api, 'gerarCobrancaRenovacao');
 
     render(
       <CartaoAssinatura
@@ -449,17 +698,46 @@ describe('CartaoAssinatura', () => {
           diasRestantes: -9,
           cobrancaPendente: {
             invoiceUrl: 'https://asaas/aberta',
-            valor: 49,
+            valor: 425,
             referencia: '2026-11',
+            periodoCodigo: 'TRIMESTRAL',
           },
         })}
       />,
     );
 
     expect(screen.getByRole('alert')).toHaveTextContent('suspenso');
-    await userEvent.click(screen.getByRole('button', { name: 'Pagar mensalidade (PIX)' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Pagar renovação (PIX)' }));
 
     expect(gerar).not.toHaveBeenCalled();
     expect(abrir).toHaveBeenCalledWith('https://asaas/aberta', '_blank', 'noopener,noreferrer');
+  });
+
+  it('se troca de período com um PIX já aberto, gera um novo em vez de reaproveitar o antigo', async () => {
+    vi.spyOn(window, 'open').mockReturnValue(null);
+    const gerar = vi
+      .spyOn(api, 'gerarCobrancaRenovacao')
+      .mockResolvedValue({ invoiceUrl: 'https://asaas/nova' });
+
+    render(
+      <CartaoAssinatura
+        painel={painel({
+          diasRestantes: 2,
+          cobrancaPendente: {
+            invoiceUrl: 'https://asaas/antiga',
+            valor: 425,
+            referencia: '2026-11',
+            periodoCodigo: 'TRIMESTRAL',
+          },
+        })}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Pagar renovação (PIX)' })).toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByLabelText('Renovar por'), 'SEMESTRAL');
+    expect(screen.getByRole('button', { name: 'Gerar PIX da renovação' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Gerar PIX da renovação' }));
+
+    await waitFor(() => expect(gerar).toHaveBeenCalledWith('SEMESTRAL'));
   });
 });

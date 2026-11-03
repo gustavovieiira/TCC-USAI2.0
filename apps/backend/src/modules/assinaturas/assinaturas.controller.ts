@@ -3,7 +3,7 @@ import { ForbiddenError } from '@/common/errors';
 import { prisma } from '@/common/prisma';
 import { NotificacoesService } from '@/modules/notificacoes/notificacoes.service';
 import { AsaasClient } from '@/modules/pagamentos/asaas.client';
-import { assinaturaIdSchema, contratarSchema } from './assinaturas.schemas';
+import { assinaturaIdSchema, contratarSchema, renovacaoSchema } from './assinaturas.schemas';
 import { AssinaturasService } from './assinaturas.service';
 
 /** Instância compartilhada com o webhook do Asaas e com a conferência periódica (server.ts). */
@@ -49,7 +49,11 @@ export const assinaturasController = {
   },
 
   async gerarCobranca(req: Request, res: Response) {
-    const resultado = await assinaturasService.gerarCobrancaMensalidade(condominioDoSindico(req));
+    const { periodoCodigo } = renovacaoSchema.parse(req.body ?? {});
+    const resultado = await assinaturasService.gerarCobrancaRenovacao(
+      condominioDoSindico(req),
+      periodoCodigo,
+    );
     res.status(201).json(resultado);
   },
 };
