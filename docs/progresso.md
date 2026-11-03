@@ -120,7 +120,7 @@ período, vigência, valor e link do comprovante) e os próximos passos (senha, 
 condomínio). Feito com tabelas e CSS inline (padrão que funciona no Gmail e no Outlook), com versão em
 texto simples. A **logo vai anexada ao e-mail (`cid`)**, porque e-mail não aceita SVG nem imagem em
 `localhost`. Os nomes são escapados (nada injeta HTML). O mesmo recibo vai no reenvio do acesso (o do
-primeiro pagamento). Para ver sem enviar: `npm run email:previa --workspace=apps/backend -- previa.html`.
+primeiro pagamento). Para ver sem enviar: `npm run email:previa --workspace=apps/backend` (gera `previa-email-acesso.html` na pasta atual).
 **O e-mail só sai com o dinheiro na conta:** a mensalidade só ativa o condomínio com `PAYMENT_RECEIVED`
 (webhook) ou status `RECEIVED` na conferência periódica; `PAYMENT_CONFIRMED`/`CONFIRMED` (autorizado, ainda
 não liquidado) é reconhecido mas fica esperando. Testado de ponta a ponta no sandbox, com o SMTP do

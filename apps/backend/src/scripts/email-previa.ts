@@ -2,14 +2,18 @@
  * Gera uma prévia do e-mail de acesso do síndico num arquivo HTML, para ver no navegador sem enviar
  * nada. A logo (que no e-mail real vai anexada) é trocada por uma imagem embutida na própria página.
  *
- *   npm run email:previa --workspace=apps/backend -- previa-email.html
+ *   npm run email:previa --workspace=apps/backend
+ *
+ * O arquivo é sempre `previa-email-acesso.html`, na pasta de onde o comando foi executado (o
+ * caminho de saída não é lido de argumento da linha de comando, de propósito).
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { emailAcessoSindico, LOGO_CID } from '@/modules/assinaturas/assinaturas.emails';
 import { LOGO_USAI_PNG_BASE64 } from '@/modules/assinaturas/assinaturas.logo';
 
-const destino = path.resolve(process.argv[2] ?? 'previa-email-acesso.html');
+const ARQUIVO_DA_PREVIA = 'previa-email-acesso.html';
+const destino = path.join(process.cwd(), ARQUIVO_DA_PREVIA);
 
 const UM_DIA = 24 * 60 * 60 * 1000;
 const ativaAte = new Date(Date.now() + 365 * UM_DIA);

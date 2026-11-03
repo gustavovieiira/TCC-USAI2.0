@@ -33,3 +33,4 @@ docker-compose.override.yml
 
 # Uploads (arquivos enviados pelos usuários — armazenamento local em disco, não versionado)
 apps/backend/uploads/
+previa-email-acesso.html
