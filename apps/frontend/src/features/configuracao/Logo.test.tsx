@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Logo } from '@/components/ui/Logo';
@@ -11,7 +12,7 @@ import { ConfiguracaoDTO } from './configuracao.types';
 
 // A tela inicial lista os planos; aqui não interessa o conteúdo, só não ir à rede.
 beforeEach(() => {
-  vi.spyOn(assinaturasApi, 'listarPlanos').mockResolvedValue([]);
+  vi.spyOn(assinaturasApi, 'listarPlanos').mockResolvedValue({ periodos: [], planos: [] });
 });
 
 const comLogo: ConfiguracaoDTO = {
@@ -118,24 +119,27 @@ describe('marca padrão da USAI e tela inicial', () => {
     expect(screen.getByText('USAI')).toHaveClass('sr-only');
   });
 
-  it('a tela inicial explica o produto: como funciona, recursos e chamadas para cadastro e login', () => {
+  function renderLanding() {
     vi.spyOn(api, 'buscarConfiguracao').mockRejectedValue(new Error('offline'));
 
-    render(
+    return render(
       <MemoryRouter>
         <ConfiguracaoProvider>
           <LandingPage />
         </ConfiguracaoProvider>
       </MemoryRouter>,
     );
+  }
+
+  it('a tela inicial explica o produto: como funciona, chamadas para contratar e entrar', () => {
+    renderLanding();
 
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
-      'Compartilhe e alugue itens',
+      'Itens e serviços entre vizinhos',
     );
     expect(screen.getByRole('heading', { name: 'Como funciona' })).toBeInTheDocument();
     expect(screen.getAllByRole('listitem').length).toBeGreaterThanOrEqual(4);
     expect(screen.getByText('Retire e devolva com termo')).toBeInTheDocument();
-    expect(screen.getByText('Termo e documento com aceite')).toBeInTheDocument();
     // chamadas para contratar (cabeçalho, abertura e faixa final)
     const contratar = screen.getAllByRole('link', { name: /Contratar/ });
     expect(contratar.length).toBeGreaterThan(1);
@@ -151,5 +155,110 @@ describe('marca padrão da USAI e tela inicial', () => {
     expect(
       screen.getByText(/Documento gerado eletronicamente pela plataforma USAI/),
     ).toBeInTheDocument();
+  });
+
+  it('explica que não são só itens: serviços e ajuda de vizinhos pelo Mural', () => {
+    renderLanding();
+
+    expect(
+      screen.getByRole('heading', { name: 'Muito além de itens parados' }),
+    ).toBeInTheDocument();
+    const servicos = screen
+      .getByRole('heading', { name: 'Serviços e ajuda de quem mora aqui' })
+      .closest('li');
+    expect(servicos).toHaveTextContent(/eletricista/);
+    expect(servicos).toHaveTextContent(/maquiadora/);
+    expect(servicos).toHaveTextContent(/Mural/);
+  });
+
+  it('mostra as proteções de cada negociação e quem responde pelo material alugado', () => {
+    renderLanding();
+
+    const secao = screen
+      .getByRole('heading', { name: 'Segurança em cada negociação' })
+      .closest('section');
+    expect(secao).not.toBeNull();
+    const dentro = within(secao as HTMLElement);
+    [
+      'Só vizinhos',
+      'O dono decide',
+      'Pagamento confirmado sozinho',
+      'Termo de responsabilidade',
+      'Aceite com a sua senha',
+      'Documento e histórico',
+    ].forEach((titulo) =>
+      expect(dentro.getByRole('heading', { name: titulo })).toBeInTheDocument(),
+    );
+
+    expect(
+      dentro.getByRole('heading', { name: 'Quem responde pelo material alugado?' }),
+    ).toBeInTheDocument();
+    expect(dentro.getByText(/responde pela guarda e pela conservação/)).toBeInTheDocument();
+    expect(dentro.getByText(/vedado emprestar, ceder ou sublocar/)).toBeInTheDocument();
+    expect(dentro.getByText(/Perda, dano, defeito ou qualquer incidente/)).toBeInTheDocument();
+  });
+
+  it('explica os 10% do condomínio com o exemplo de R$ 100 (R$ 90 e R$ 10)', () => {
+    renderLanding();
+
+    const secao = screen
+      .getByRole('heading', { name: 'O condomínio também ganha' })
+      .closest('section');
+    const dentro = within(secao as HTMLElement);
+
+    expect(dentro.getByText('10% de cada locação fica com o condomínio')).toBeInTheDocument();
+    expect(dentro.getByText(/Dinheiro para melhorias internas/)).toBeInTheDocument();
+    expect(dentro.getByText('R$ 90,00')).toBeInTheDocument();
+    expect(dentro.getByText('R$ 10,00')).toBeInTheDocument();
+    expect(
+      dentro.getByRole('img', { name: '90% para o dono do item e 10% para o condomínio' }),
+    ).toBeInTheDocument();
+  });
+
+  it('tem perguntas frequentes que abrem e fecham, sem JavaScript extra', async () => {
+    renderLanding();
+
+    const secao = screen.getByRole('heading', { name: 'Perguntas frequentes' }).closest('section');
+    const itens = (secao as HTMLElement).querySelectorAll('details');
+    expect(itens.length).toBeGreaterThanOrEqual(6);
+
+    const servicos = Array.from(itens).find((d) =>
+      /Posso pedir ou oferecer serviços/.test(d.textContent ?? ''),
+    );
+    expect(servicos).toBeDefined();
+    expect(servicos).not.toHaveAttribute('open');
+    await userEvent.click(
+      within(servicos as HTMLElement).getByText('Posso pedir ou oferecer serviços?'),
+    );
+    expect(servicos).toHaveAttribute('open');
+    expect(servicos).toHaveTextContent(/chat privado/);
+
+    const mensalidade = Array.from(itens).find((d) =>
+      /moradores pagam mensalidade/.test(d.textContent ?? ''),
+    );
+    expect(mensalidade).toHaveTextContent(/10% vão para o condomínio e 90% para o dono/);
+
+    // o valor mínimo do aluguel está explicado (e é o mesmo que a plataforma aplica)
+    const minimo = Array.from(itens).find((d) =>
+      /Qual o valor mínimo de um aluguel/.test(d.textContent ?? ''),
+    );
+    expect(minimo).toHaveTextContent(/pelo menos R\$\s5,00/);
+    expect(minimo).toHaveTextContent(/PIX/);
+  });
+
+  it('a navegação do topo leva às seções (como funciona, segurança e planos)', () => {
+    renderLanding();
+
+    const nav = within(screen.getByRole('navigation', { name: 'Principal' }));
+    expect(nav.getByRole('link', { name: 'Como funciona' })).toHaveAttribute(
+      'href',
+      '#como-funciona',
+    );
+    expect(nav.getByRole('link', { name: 'Segurança' })).toHaveAttribute('href', '#seguranca');
+    expect(nav.getByRole('link', { name: 'Planos' })).toHaveAttribute('href', '#planos');
+    expect(document.getElementById('como-funciona')).not.toBeNull();
+    expect(document.getElementById('seguranca')).not.toBeNull();
+    expect(document.getElementById('planos')).not.toBeNull();
+    expect(document.getElementById('perguntas')).not.toBeNull();
   });
 });

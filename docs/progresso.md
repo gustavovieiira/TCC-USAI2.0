@@ -11,9 +11,60 @@
 **Pedido.** A tela inicial é a de um SaaS, então precisa de preços: cada síndico escolhe o plano pela
 quantidade de moradores, cadastra o condomínio, paga por PIX e, confirmado o pagamento, recebe o
 acesso por e-mail. Depois de entrar, o síndico repassa o link e o PIN aos moradores.
-Decidido com o usuário: cobrança **mensal por PIX**, e-mail por **SMTP configurável**, acesso por
-**link para criar a própria senha** (a senha nunca vai por e-mail). Faixas e preços são do usuário;
-os atuais (Essencial 30 moradores R$ 49, Condomínio 100 R$ 99, Grande 250 R$ 179) são provisórios.
+Decidido com o usuário: cobrança **por PIX**, e-mail por **SMTP configurável**, acesso por
+**link para criar a própria senha** (a senha nunca vai por e-mail). Depois, o usuário pediu a
+mensalidade mais cara e períodos de cobrança com desconto.
+
+**Preços (fictícios, projeto acadêmico; ficam todos em `planos.ts`).** Quatro planos pelo número de
+contas de morador — Essencial até 20 (R$ 149/mês), Condomínio até 60 (R$ 299), Grande até 150
+(R$ 499), Premium até 300 (R$ 799) — e quatro períodos: **mensal** (sem desconto), **trimestral**
+(−5%), **semestral** (−10%) e **anual** (−20%). O valor de cada período é meses × mensalidade menos o
+desconto, arredondado para reais inteiros (ex.: Condomínio anual = R$ 2.870). O posicionamento é de
+produto premium: o usuário pediu preços mais altos, duas vezes, para valorizar o produto. O limite conta contas
+cadastradas, não todos os moradores do prédio, e a tela inicial pergunta "quantas pessoas devem usar
+a USAI?". O preço contratado vale nas renovações mesmo que a tabela mude depois.
+**Pagamento:** só PIX. PIX Automático (autorização única, cobranças sem ação do síndico) ficou como
+melhoria futura; cartão recorrente e boleto foram descartados nesta fase.
+
+**Plano de teste para validar o Asaas em produção.** O usuário pediu um card de R$ 2,00 para testar a
+conta do Asaas em produção. O **Asaas recusa cobranças abaixo de R$ 5,00** (erro "não pode ser menor
+que R$ 5,00", conferido no sandbox), então o plano `TESTE` custa **R$ 5,00** (o mínimo), com limite de
+3 contas. Ele fica **desligado por padrão**: só aparece na tela inicial e só pode ser contratado com
+`PLANO_TESTE_ATIVO=true` no `.env` do backend. É para ligar durante o teste e desligar depois; se
+ficasse sempre visível, qualquer visitante poderia contratar um condomínio por R$ 5. Fica num card
+separado (tracejado, "Plano de teste"), fora da grade e **fora da recomendação** do calculador.
+Assinaturas já criadas no plano de teste continuam funcionando se a chave for desligada.
+
+**Valor mínimo da diária: R$ 5,00.** Pelo mesmo motivo (o Asaas recusa cobrança abaixo de R$ 5,00),
+a plataforma passou a exigir **diária de pelo menos R$ 5,00** ao publicar ou editar um item. Como toda
+locação tem no mínimo 1 dia (`calcularDias` nunca devolve menos que 1), a diária mínima garante que o
+total sempre possa ser cobrado por PIX. A regra vive em `common/valores.ts` (`VALOR_MINIMO_COBRANCA`) e é
+aplicada em três pontos: (1) o schema de criar/editar item (400 com mensagem clara); (2) o pedido de
+locação, que recusa total abaixo de R$ 5,00 — protege itens antigos publicados com diária menor
+(`VALOR_ABAIXO_DO_MINIMO`); (3) a geração da cobrança, que não chama o Asaas se o total estiver abaixo.
+No frontend, o formulário de Publicar item mostra o mínimo, o campo tem `min=5` e barra valores
+menores antes de enviar (`features/itens/valores.ts`, mesmo valor do backend); a tela inicial explica
+o mínimo nas perguntas frequentes. Conferido no banco local: nenhum item nem locação aberta abaixo
+de R$ 5,00, então não foi preciso corrigir dados.
+
+**Conexão com o Asaas.** Na máquina de desenvolvimento a chamada ao Asaas falhava de vez em quando
+(`ENOTFOUND` de DNS e `UND_ERR_CONNECT_TIMEOUT`, em rajadas curtas). O cliente passou a tentar de
+novo, até 3 vezes com pausa crescente, **só** nos erros de rede em que o pedido não chegou ao Asaas
+(conexão reaproveitada já fechada, recusa, DNS, timeout ao conectar). Erro devolvido pelo Asaas e
+timeout de resposta nunca são repetidos, para não duplicar cobrança. Cada falha é registrada no log
+com o código do erro.
+
+**Tela inicial mais explicativa e crível.** A pedido do usuário, a tela pública ganhou: "Muito além
+de itens parados" (itens, serviços e ajuda, vizinhança); "Segurança em cada negociação" (só vizinhos,
+aprovação do dono, PIX confirmado sozinho, termo de responsabilidade, aceite com senha, documento e
+histórico) com o bloco "Quem responde pelo material alugado?" (cláusulas do termo); "O condomínio
+também ganha" (10% de cada locação para o condomínio, extrato detalhado, uso em melhorias
+internas, com exemplo de R$ 100 = R$ 90 + R$ 10); e perguntas frequentes. **Regra de honestidade:** o
+texto só afirma o que o sistema faz. Serviços (eletricista, maquiadora etc.) hoje funcionam pelo
+**Mural** (pedir ajuda e divulgar o trabalho, combinando pelo chat privado); um catálogo próprio de
+serviços, com preço e agendamento, **não existe** e ficou como possível evolução. Os 10% valem só para
+locações pagas pela plataforma. Nada sobre validade jurídica do termo é prometido (os textos são
+modelo, sujeitos a revisão).
 
 **Fluxo.** `/contratar` (plano + dados) → condomínio e síndico nascem **inativos** + cliente e cobrança
 PIX no Asaas → `/contratacao/:id` mostra o PIX e consulta o status a cada 5 s → o webhook (ou a
@@ -34,13 +85,17 @@ com link de uso único (48 h) → `/definir-senha?token=…` cria a senha e já 
   contratação, acompanhamento e criação de senha, e no painel do síndico os cartões **Convidar
   moradores** (copiar link, PIN e mensagem pronta) e **Plano** (uso x limite, vencimento, PIX).
 
-**Regras.** Plano cheio barra o cadastro de novos moradores (409). Vencida há mais de 5 dias, a
+**Regras.** Cada cobrança libera os dias do período pago (30, 90, 180 ou 365) somados ao vigente.
+Antes de pagar, o síndico pode voltar e trocar plano ou período: o PIX antigo é cancelado e sai um
+novo. Na renovação ele também pode trocar de período (o painel mostra o preço e a economia de cada
+um). Plano cheio barra o cadastro de novos moradores (409). Vencida há mais de 5 dias, a
 assinatura é **suspensa**: moradores não entram, o síndico sim (precisa pagar). Pagando, reativa.
 Condomínios cadastrados antes pelo Admin não têm assinatura e seguem sem limite.
 
-**Testes.** Backend 452 → 500, frontend 255 → 277. E2E real (MySQL + Asaas sandbox, PIX simulado pelo
-webhook) com 42 verificações: contratação, idempotência, ativação, e-mail, criação de senha, convite,
-limite, renovação e suspensão (`.scratch/e2e_saas.cjs`).
+**Testes.** Backend 452 → 511, frontend 255 → 284. E2E real (MySQL + Asaas sandbox, PIX simulado pelo
+webhook) com 51 verificações: contratação, troca de período antes de pagar, ativação por período,
+e-mail, criação de senha, convite, limite, renovação com troca de período e suspensão
+(`.scratch/e2e_saas.cjs`).
 
 **Limites conhecidos.** Sem SMTP configurado o e-mail só aparece no log. Não há "esqueci minha senha"
 nem cancelamento de assinatura. O limitador de contratações é em memória (uma instância só).
