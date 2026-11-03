@@ -18,6 +18,9 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/tests/setup.ts'],
+    // Testes de formulário digitam letra por letra e, com a máquina ocupada (dev servers, CI),
+    // passavam dos 5 s padrão sem estar errados.
+    testTimeout: 15000,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],

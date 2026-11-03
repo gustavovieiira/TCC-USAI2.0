@@ -1,4 +1,30 @@
 import { AppError } from '@/common/errors';
+import { logger } from '@/common/logger';
+
+/**
+ * Erros de rede em que o pedido NÃO chegou ao Asaas, então repetir é seguro: conexão reaproveitada
+ * que o servidor já tinha fechado (ECONNRESET/EPIPE/UND_ERR_SOCKET/UND_ERR_CLOSED — acontece na
+ * primeira chamada depois de um tempo parado), conexão recusada, DNS e timeout ao conectar.
+ */
+const ERROS_SEGUROS_PARA_REPETIR = new Set([
+  'ECONNRESET',
+  'EPIPE',
+  'UND_ERR_SOCKET',
+  'UND_ERR_CLOSED',
+  'ECONNREFUSED',
+  'ENOTFOUND',
+  'EAI_AGAIN',
+  'UND_ERR_CONNECT_TIMEOUT',
+]);
+/** Até 3 tentativas, com pausa crescente: DNS e conexão costumam falhar em rajadas curtas. */
+const MAX_TENTATIVAS = 3;
+const PAUSA_BASE_MS = 250;
+
+/** O `fetch` do Node embrulha o erro de rede real em `error.cause` (ex.: `{ code: 'ECONNRESET' }`). */
+function codigoDoErroDeRede(error: unknown): string | undefined {
+  const causa = (error as { cause?: { code?: unknown } } | null)?.cause;
+  return typeof causa?.code === 'string' ? causa.code : undefined;
+}
 
 /** Status do Asaas que significam "dinheiro recebido": RECEIVED é o do PIX, CONFIRMED o de cartão/boleto. */
 export const STATUS_ASAAS_PAGO = ['RECEIVED', 'CONFIRMED'];
@@ -41,13 +67,29 @@ export class AsaasClient {
     };
   }
 
-  private async requisitar<T>(path: string, init: RequestInit): Promise<T> {
-    let response: Response;
-    try {
-      response = await fetch(`${this.baseUrl()}${path}`, { ...init, headers: this.headers() });
-    } catch {
-      throw new AppError('Não foi possível conectar ao Asaas', 502, 'ASAAS_INDISPONIVEL');
+  /** Faz a chamada; numa falha de rede em que o pedido não chegou ao Asaas, tenta de novo (até 3 vezes). */
+  private async enviar(path: string, init: RequestInit): Promise<Response> {
+    for (let tentativa = 1; ; tentativa += 1) {
+      try {
+        return await fetch(`${this.baseUrl()}${path}`, { ...init, headers: this.headers() });
+      } catch (error) {
+        const codigo = codigoDoErroDeRede(error);
+        logger.warn('Falha de conexão com o Asaas', { path, tentativa, codigo });
+
+        const repetir =
+          tentativa < MAX_TENTATIVAS &&
+          codigo !== undefined &&
+          ERROS_SEGUROS_PARA_REPETIR.has(codigo);
+        if (!repetir) {
+          throw new AppError('Não foi possível conectar ao Asaas', 502, 'ASAAS_INDISPONIVEL');
+        }
+        await new Promise((resolver) => setTimeout(resolver, PAUSA_BASE_MS * tentativa));
+      }
     }
+  }
+
+  private async requisitar<T>(path: string, init: RequestInit): Promise<T> {
+    const response = await this.enviar(path, init);
 
     if (!response.ok) {
       const corpo = (await response.json().catch(() => null)) as AsaasErroBody | null;

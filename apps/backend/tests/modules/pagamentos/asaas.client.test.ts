@@ -119,3 +119,106 @@ describe('AsaasClient.cancelarCobranca', () => {
     await expect(client.cancelarCobranca('pay_123')).resolves.toBeUndefined();
   });
 });
+
+describe('AsaasClient — falhas de conexão', () => {
+  const erroDeRede = (codigo: string) =>
+    Object.assign(new TypeError('fetch failed'), { cause: { code: codigo } });
+
+  // Os testes de cima deixam o fetch espionado: começa limpo pra contar só as chamadas daqui.
+  beforeEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('repete quando a conexão reaproveitada já estava fechada (ECONNRESET) e dá certo na segunda', async () => {
+    const fetchMock = jest
+      .spyOn(global, 'fetch')
+      .mockRejectedValueOnce(erroDeRede('ECONNRESET'))
+      .mockResolvedValueOnce(mockFetchResponse(true, { id: 'cus_ok' }));
+
+    const client = new AsaasClient();
+    const resultado = await client.criarCliente({
+      nome: 'Ana',
+      cpfCnpj: '52998224725',
+      email: 'ana@example.com',
+    });
+
+    expect(resultado.id).toBe('cus_ok');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('uma rajada de falhas de DNS ainda se recupera na terceira tentativa', async () => {
+    const fetchMock = jest
+      .spyOn(global, 'fetch')
+      .mockRejectedValueOnce(erroDeRede('ENOTFOUND'))
+      .mockRejectedValueOnce(erroDeRede('UND_ERR_CONNECT_TIMEOUT'))
+      .mockResolvedValueOnce(mockFetchResponse(true, { id: 'pay_1', status: 'PENDING' }));
+
+    const resultado = await new AsaasClient().buscarCobranca('pay_1');
+
+    expect(resultado.id).toBe('pay_1');
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it.each(['EPIPE', 'UND_ERR_SOCKET', 'ECONNREFUSED', 'ENOTFOUND', 'UND_ERR_CONNECT_TIMEOUT'])(
+    'também repete em %s (o pedido não chegou ao Asaas)',
+    async (codigo) => {
+      const fetchMock = jest
+        .spyOn(global, 'fetch')
+        .mockRejectedValueOnce(erroDeRede(codigo))
+        .mockResolvedValueOnce(mockFetchResponse(true, { id: 'pay_1', status: 'PENDING' }));
+
+      await new AsaasClient().buscarCobranca('pay_1');
+
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it('tenta no máximo 3 vezes: se todas falharem, devolve 502 ASAAS_INDISPONIVEL', async () => {
+    const fetchMock = jest.spyOn(global, 'fetch').mockRejectedValue(erroDeRede('ECONNRESET'));
+
+    await expect(new AsaasClient().buscarCobranca('pay_1')).rejects.toMatchObject({
+      statusCode: 502,
+      code: 'ASAAS_INDISPONIVEL',
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('não repete quando não dá pra garantir que o pedido não chegou (ex.: timeout de resposta)', async () => {
+    const fetchMock = jest.spyOn(global, 'fetch').mockRejectedValue(erroDeRede('ETIMEDOUT'));
+
+    await expect(
+      new AsaasClient().criarCobrancaPix({
+        customerId: 'cus_1',
+        valor: 5,
+        vencimento: new Date(),
+        externalReference: 'x',
+        descricao: 'teste',
+      }),
+    ).rejects.toMatchObject({ code: 'ASAAS_INDISPONIVEL' });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('erro sem causa conhecida também não repete', async () => {
+    const fetchMock = jest.spyOn(global, 'fetch').mockRejectedValue(new Error('network down'));
+
+    await expect(new AsaasClient().buscarCobranca('pay_1')).rejects.toMatchObject({
+      code: 'ASAAS_INDISPONIVEL',
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('um erro do Asaas (resposta com status de erro) nunca é repetido', async () => {
+    const fetchMock = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(mockFetchResponse(false, { errors: [{ description: 'valor mínimo' }] }));
+
+    await expect(new AsaasClient().buscarCobranca('pay_1')).rejects.toMatchObject({
+      code: 'ASAAS_ERROR',
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
