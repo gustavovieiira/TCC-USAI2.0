@@ -42,6 +42,27 @@ describe('MuralPage', () => {
     expect(screen.getByText('Síndico')).toBeInTheDocument();
   });
 
+  it('filtra o mural por tipo de post e mostra a contagem', async () => {
+    vi.spyOn(authStorage, 'getStoredUser').mockReturnValue(null);
+    vi.spyOn(muralApi, 'listarPosts').mockResolvedValue([
+      buildPost({ id: 'p1', conteudo: 'Reunião de condomínio sexta', tipo: 'AVISO' }),
+      buildPost({ id: 'p2', conteudo: 'Alguém tem uma escada?', tipo: 'PEDIDO', status: 'ABERTO' }),
+    ]);
+
+    renderPage();
+    await screen.findByText('Reunião de condomínio sexta');
+
+    expect(screen.getByRole('button', { name: /Pedidos de ajuda\s*1/ })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /Pedidos de ajuda/ }));
+    expect(screen.queryByText('Reunião de condomínio sexta')).not.toBeInTheDocument();
+    expect(screen.getByText('Alguém tem uma escada?')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /Tudo/ }));
+    expect(screen.getByText('Reunião de condomínio sexta')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Posts do mural' })).toBeInTheDocument();
+  });
+
   it('mostra estado vazio quando não há posts', async () => {
     vi.spyOn(authStorage, 'getStoredUser').mockReturnValue(null);
     vi.spyOn(muralApi, 'listarPosts').mockResolvedValue([]);

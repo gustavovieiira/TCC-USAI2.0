@@ -2,17 +2,22 @@ import { FormEvent, useEffect, useState } from 'react';
 import { Avatar } from '@/components/ui/Avatar';
 import { PostCard } from '@/features/mural/PostCard';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { FiltroChips } from '@/components/ui/FiltroChips';
+import { ListaRolavel } from '@/components/ui/ListaRolavel';
 import { Spinner } from '@/components/ui/Spinner';
 import { extractErrorMessage } from '@/lib/apiClient';
 import { getStoredUser } from '@/lib/authStorage';
 import { criarPost, excluirPost, listarPosts } from '@/features/mural/mural.api';
 import { PostDTO, TipoPost } from '@/features/mural/mural.types';
 
+type FiltroTipo = 'TODOS' | TipoPost;
+
 export function MuralPage() {
   const user = getStoredUser();
 
   const [posts, setPosts] = useState<PostDTO[] | null>(null);
   const [erroLista, setErroLista] = useState<string | null>(null);
+  const [filtro, setFiltro] = useState<FiltroTipo>('TODOS');
 
   const [conteudo, setConteudo] = useState('');
   const [tipo, setTipo] = useState<TipoPost>('AVISO');
@@ -64,8 +69,12 @@ export function MuralPage() {
     return user.id === post.autor.id || user.papel === 'SINDICO';
   }
 
+  const postsFiltrados = (posts ?? []).filter((post) => filtro === 'TODOS' || post.tipo === filtro);
+  const totalPorTipo = (tipoPost: TipoPost) =>
+    (posts ?? []).filter((post) => post.tipo === tipoPost).length;
+
   return (
-    <div className="mx-auto flex max-w-xl flex-col gap-5">
+    <div className="mx-auto flex max-w-2xl flex-col gap-5">
       <div>
         <h1 className="font-display text-2xl font-bold text-ink">Mural</h1>
         <p className="text-sm text-ink-soft">
@@ -150,14 +159,36 @@ export function MuralPage() {
 
         {posts && posts.length > 0 && (
           <div className="flex flex-col gap-3">
-            {posts.map((post) => (
-              <PostCard
-                key={post.id}
-                post={post}
-                canDelete={podeExcluir(post)}
-                onDelete={() => handleDelete(post.id)}
-              />
-            ))}
+            <FiltroChips
+              rotulo="Filtrar o mural por tipo"
+              valor={filtro}
+              onChange={setFiltro}
+              opcoes={[
+                { valor: 'TODOS', rotulo: 'Tudo', total: posts.length },
+                { valor: 'AVISO', rotulo: 'Avisos', total: totalPorTipo('AVISO') },
+                { valor: 'PEDIDO', rotulo: 'Pedidos de ajuda', total: totalPorTipo('PEDIDO') },
+              ]}
+            />
+
+            {postsFiltrados.length === 0 ? (
+              <EmptyState title="Nada por aqui" description="Nenhum post desse tipo no momento." />
+            ) : (
+              <ListaRolavel
+                rotulo="Posts do mural"
+                alturaMaxima="max-h-[calc(100vh-28rem)] min-h-[22rem]"
+              >
+                <div className="flex flex-col gap-3">
+                  {postsFiltrados.map((post) => (
+                    <PostCard
+                      key={post.id}
+                      post={post}
+                      canDelete={podeExcluir(post)}
+                      onDelete={() => handleDelete(post.id)}
+                    />
+                  ))}
+                </div>
+              </ListaRolavel>
+            )}
           </div>
         )}
       </div>

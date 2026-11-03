@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { FiltroChips } from '@/components/ui/FiltroChips';
+import { ListaRolavel } from '@/components/ui/ListaRolavel';
 import { StatusBadge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { extractErrorMessage } from '@/lib/apiClient';
@@ -22,6 +24,19 @@ import { useLocacaoAtualizada } from '@/features/locacoes/useLocacaoAtualizada';
 import { criarCobranca } from '@/features/pagamentos/pagamentos.api';
 
 type Aba = 'locatario' | 'proprietario';
+type FiltroStatus = 'TODAS' | 'EM_ABERTO' | 'ATIVAS' | 'ENCERRADAS';
+
+const FILTROS: { valor: FiltroStatus; rotulo: string; status?: LocacaoDTO['status'][] }[] = [
+  { valor: 'TODAS', rotulo: 'Todas' },
+  { valor: 'EM_ABERTO', rotulo: 'Em aberto', status: ['PENDENTE', 'APROVADA'] },
+  { valor: 'ATIVAS', rotulo: 'Ativas', status: ['PAGA', 'EM_ANDAMENTO'] },
+  { valor: 'ENCERRADAS', rotulo: 'Encerradas', status: ['CONCLUIDA', 'CANCELADA'] },
+];
+
+function filtrarPorStatus(lista: LocacaoDTO[], filtro: FiltroStatus): LocacaoDTO[] {
+  const status = FILTROS.find((f) => f.valor === filtro)?.status;
+  return status ? lista.filter((l) => status.includes(l.status)) : lista;
+}
 
 export function MinhasLocacoesPage() {
   const navigate = useNavigate();
@@ -30,6 +45,7 @@ export function MinhasLocacoesPage() {
   const [comoLocatario, setComoLocatario] = useState<LocacaoDTO[] | null>(null);
   const [comoProprietario, setComoProprietario] = useState<LocacaoDTO[] | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [filtro, setFiltro] = useState<FiltroStatus>('TODAS');
   const [processandoId, setProcessandoId] = useState<string | null>(null);
 
   // Notificação ao vivo de locação/pagamento (pedido novo, aprovação...) → recarrega as listas.
@@ -108,6 +124,7 @@ export function MinhasLocacoesPage() {
   }
 
   const lista = aba === 'locatario' ? comoLocatario : comoProprietario;
+  const listaFiltrada = lista ? filtrarPorStatus(lista, filtro) : null;
 
   return (
     <div className="flex flex-col gap-5">
@@ -118,7 +135,10 @@ export function MinhasLocacoesPage() {
 
       <div className="flex gap-1 border border-paper-line bg-paper-surface p-1">
         <button
-          onClick={() => setAba('locatario')}
+          onClick={() => {
+            setAba('locatario');
+            setFiltro('TODAS');
+          }}
           className={`flex-1 py-2 text-sm font-semibold transition ${
             aba === 'locatario' ? 'notch-sm bg-ink text-ink-inverse' : 'text-ink-soft'
           }`}
@@ -126,7 +146,10 @@ export function MinhasLocacoesPage() {
           Como locatário
         </button>
         <button
-          onClick={() => setAba('proprietario')}
+          onClick={() => {
+            setAba('proprietario');
+            setFiltro('TODAS');
+          }}
           className={`flex-1 py-2 text-sm font-semibold transition ${
             aba === 'proprietario' ? 'notch-sm bg-ink text-ink-inverse' : 'text-ink-soft'
           }`}
@@ -156,76 +179,100 @@ export function MinhasLocacoesPage() {
         />
       )}
 
-      {lista && lista.length > 0 && (
-        <div className="flex flex-col gap-3">
-          {lista.map((locacao) => (
-            <Card key={locacao.id} className="flex flex-col">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-display font-semibold text-ink">{locacao.item.titulo}</h3>
-                    <StatusBadge status={locacao.status} />
-                  </div>
-                  <p className="mt-1 text-sm text-ink-soft">
-                    {formatDate(locacao.dataInicio)} → {formatDate(locacao.dataFim)}
-                  </p>
-                  <p className="mt-1 font-display text-sm font-semibold text-ink">
-                    {formatCurrency(locacao.valorTotal)}
-                  </p>
-                  {locacao.finalidade && (
-                    <p className="mt-1 text-sm text-ink-soft">
-                      <span className="font-semibold text-ink">Finalidade:</span>{' '}
-                      {locacao.finalidade}
-                    </p>
-                  )}
-                </div>
+      {lista && lista.length > 0 && listaFiltrada && (
+        <>
+          <FiltroChips
+            rotulo="Filtrar locações por situação"
+            valor={filtro}
+            onChange={setFiltro}
+            opcoes={FILTROS.map((f) => ({
+              valor: f.valor,
+              rotulo: f.rotulo,
+              total: filtrarPorStatus(lista, f.valor).length,
+            }))}
+          />
 
-                <div className="flex flex-col gap-2 sm:items-end">
-                  <button
-                    type="button"
-                    onClick={() => handleAbrirConversa(locacao.id)}
-                    className="text-sm font-semibold text-barro-700 hover:underline"
-                  >
-                    Mensagens
-                  </button>
+          {listaFiltrada.length === 0 ? (
+            <EmptyState
+              title="Nada nessa situação"
+              description="Nenhuma locação com esse filtro. Escolha outro acima."
+            />
+          ) : (
+            <ListaRolavel rotulo="Locações" alturaMaxima="max-h-[calc(100vh-28rem)] min-h-[22rem]">
+              <div className="flex flex-col gap-3">
+                {listaFiltrada.map((locacao) => (
+                  <Card key={locacao.id} className="flex flex-col">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-display font-semibold text-ink">
+                            {locacao.item.titulo}
+                          </h3>
+                          <StatusBadge status={locacao.status} />
+                        </div>
+                        <p className="mt-1 text-sm text-ink-soft">
+                          {formatDate(locacao.dataInicio)} → {formatDate(locacao.dataFim)}
+                        </p>
+                        <p className="mt-1 font-display text-sm font-semibold text-ink">
+                          {formatCurrency(locacao.valorTotal)}
+                        </p>
+                        {locacao.finalidade && (
+                          <p className="mt-1 text-sm text-ink-soft">
+                            <span className="font-semibold text-ink">Finalidade:</span>{' '}
+                            {locacao.finalidade}
+                          </p>
+                        )}
+                      </div>
 
-                  {aba === 'proprietario' && locacao.status === 'PENDENTE' && (
-                    <div className="flex gap-2">
-                      <Button
-                        fullWidth={false}
-                        isLoading={processandoId === locacao.id}
-                        onClick={() => handleAprovar(locacao)}
-                        className="flex-1 sm:flex-none"
-                      >
-                        Aprovar
-                      </Button>
-                      <Button
-                        variant="danger"
-                        fullWidth={false}
-                        disabled={processandoId === locacao.id}
-                        onClick={() => handleRejeitar(locacao)}
-                        className="flex-1 sm:flex-none"
-                      >
-                        Rejeitar
-                      </Button>
+                      <div className="flex flex-col gap-2 sm:items-end">
+                        <button
+                          type="button"
+                          onClick={() => handleAbrirConversa(locacao.id)}
+                          className="text-sm font-semibold text-barro-700 hover:underline"
+                        >
+                          Mensagens
+                        </button>
+
+                        {aba === 'proprietario' && locacao.status === 'PENDENTE' && (
+                          <div className="flex gap-2">
+                            <Button
+                              fullWidth={false}
+                              isLoading={processandoId === locacao.id}
+                              onClick={() => handleAprovar(locacao)}
+                              className="flex-1 sm:flex-none"
+                            >
+                              Aprovar
+                            </Button>
+                            <Button
+                              variant="danger"
+                              fullWidth={false}
+                              disabled={processandoId === locacao.id}
+                              onClick={() => handleRejeitar(locacao)}
+                              className="flex-1 sm:flex-none"
+                            >
+                              Rejeitar
+                            </Button>
+                          </div>
+                        )}
+
+                        {aba === 'locatario' && locacao.status === 'APROVADA' && (
+                          <Button
+                            fullWidth={false}
+                            isLoading={processandoId === locacao.id}
+                            onClick={() => handlePagar(locacao)}
+                          >
+                            Pagar agora
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                  )}
-
-                  {aba === 'locatario' && locacao.status === 'APROVADA' && (
-                    <Button
-                      fullWidth={false}
-                      isLoading={processandoId === locacao.id}
-                      onClick={() => handlePagar(locacao)}
-                    >
-                      Pagar agora
-                    </Button>
-                  )}
-                </div>
+                    <MovimentacoesLocacao locacao={locacao} userId={usuario?.id} />
+                  </Card>
+                ))}
               </div>
-              <MovimentacoesLocacao locacao={locacao} userId={usuario?.id} />
-            </Card>
-          ))}
-        </div>
+            </ListaRolavel>
+          )}
+        </>
       )}
     </div>
   );

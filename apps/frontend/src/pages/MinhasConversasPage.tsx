@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ListaRolavel } from '@/components/ui/ListaRolavel';
 import { Spinner } from '@/components/ui/Spinner';
 import { PapelTag } from '@/components/ui/Badge';
 import { Avatar } from '@/components/ui/Avatar';
@@ -87,7 +88,7 @@ export function MinhasConversasPage() {
         )}
 
         {resultados.length > 0 && (
-          <div className="mt-3 flex flex-col divide-y divide-dashed divide-paper-line">
+          <div className="mt-3 flex max-h-60 flex-col divide-y divide-dashed divide-paper-line overflow-y-auto">
             {resultados.map((usuario) => (
               <button
                 key={usuario.id}
@@ -125,44 +126,51 @@ export function MinhasConversasPage() {
       )}
 
       {conversas && conversas.length > 0 && (
-        <div className="flex flex-col gap-3">
-          {conversas.map((conversa) => (
-            <Link
-              key={conversa.id}
-              to={`/conversas/${conversa.id}`}
-              className="notch flex gap-3 border border-paper-line bg-paper-surface p-4
+        <ListaRolavel
+          rotulo="Suas conversas"
+          alturaMaxima="max-h-[calc(100vh-26rem)] min-h-[18rem]"
+        >
+          <div className="flex flex-col gap-3">
+            {conversas.map((conversa) => (
+              <Link
+                key={conversa.id}
+                to={`/conversas/${conversa.id}`}
+                className="notch flex gap-3 border border-paper-line bg-paper-surface p-4
                 shadow-paper transition hover:bg-paper"
-            >
-              <Avatar nome={conversa.outroParticipante.nome} />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-semibold text-ink">{conversa.outroParticipante.nome}</span>
-                  {conversa.naoLidas > 0 && (
-                    <span
-                      aria-label={`${conversa.naoLidas} ${conversa.naoLidas === 1 ? 'mensagem não lida' : 'mensagens não lidas'}`}
-                      className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-carmim-500 px-1.5 text-[11px] font-bold text-white"
-                    >
-                      {conversa.naoLidas}
+              >
+                <Avatar nome={conversa.outroParticipante.nome} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold text-ink">
+                      {conversa.outroParticipante.nome}
                     </span>
-                  )}
-                  {conversa.ultimaMensagem && (
-                    <span className="shrink-0 font-meta text-xs text-ink-faint">
-                      {formatRelativeTime(conversa.ultimaMensagem.createdAt)}
-                    </span>
-                  )}
+                    {conversa.naoLidas > 0 && (
+                      <span
+                        aria-label={`${conversa.naoLidas} ${conversa.naoLidas === 1 ? 'mensagem não lida' : 'mensagens não lidas'}`}
+                        className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-carmim-500 px-1.5 text-[11px] font-bold text-white"
+                      >
+                        {conversa.naoLidas}
+                      </span>
+                    )}
+                    {conversa.ultimaMensagem && (
+                      <span className="shrink-0 font-meta text-xs text-ink-faint">
+                        {formatRelativeTime(conversa.ultimaMensagem.createdAt)}
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-0.5 truncate text-sm text-ink-soft">
+                    {conversa.ultimaMensagem?.conteudo ?? 'Nenhuma mensagem ainda.'}
+                  </p>
+                  <p className="mt-1 font-meta text-xs text-ink-faint">
+                    {conversa.locacao
+                      ? `Locação · ${conversa.locacao.itemTitulo}`
+                      : conversa.expiraEm && formatDiasRestantes(conversa.expiraEm)}
+                  </p>
                 </div>
-                <p className="mt-0.5 truncate text-sm text-ink-soft">
-                  {conversa.ultimaMensagem?.conteudo ?? 'Nenhuma mensagem ainda.'}
-                </p>
-                <p className="mt-1 font-meta text-xs text-ink-faint">
-                  {conversa.locacao
-                    ? `Locação · ${conversa.locacao.itemTitulo}`
-                    : conversa.expiraEm && formatDiasRestantes(conversa.expiraEm)}
-                </p>
-              </div>
-            </Link>
-          ))}
-        </div>
+              </Link>
+            ))}
+          </div>
+        </ListaRolavel>
       )}
     </div>
   );

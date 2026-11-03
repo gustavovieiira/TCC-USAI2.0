@@ -57,7 +57,7 @@ export function AppShell() {
     <NotificacoesContext.Provider value={notificacoes}>
       <div className="min-h-screen bg-paper">
         <header className="no-print sticky top-0 z-20 bg-ink text-ink-inverse">
-          <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3 md:px-6">
+          <div className="mx-auto flex max-w-screen-2xl items-center justify-between gap-4 px-4 py-3 md:px-6 lg:px-10">
             <NavLink
               to={homeRouteFor(user?.papel)}
               className="flex items-center gap-2 font-display text-xl font-bold text-ink-inverse"
@@ -94,7 +94,7 @@ export function AppShell() {
           </div>
         </header>
 
-        <main className="mx-auto max-w-5xl bg-cortica bg-cortica-grid px-4 pb-24 pt-6 md:px-6 md:pb-10 md:pt-8">
+        <main className="mx-auto min-h-[calc(100vh-68px)] max-w-screen-2xl bg-cortica bg-cortica-grid px-4 pb-24 pt-6 md:px-6 md:pb-10 md:pt-8 lg:px-10">
           <Outlet />
         </main>
 

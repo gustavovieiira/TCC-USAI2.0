@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ListaRolavel } from '@/components/ui/ListaRolavel';
 import { Spinner } from '@/components/ui/Spinner';
 import { extractErrorMessage } from '@/lib/apiClient';
 import { ItemCard } from '@/features/itens/ItemCard';
@@ -28,12 +29,24 @@ export function CatalogoPage() {
 
   const itensFiltrados = useMemo(() => {
     if (!itens) return [];
+    const termo = busca.trim().toLowerCase();
     return itens.filter((item) => {
       const combinaCategoria = !categoriaAtiva || item.categoria === categoriaAtiva;
-      const combinaBusca = item.titulo.toLowerCase().includes(busca.trim().toLowerCase());
+      const combinaBusca =
+        !termo ||
+        [item.titulo, item.categoria, item.descricao, item.fabricante, item.modelo].some((campo) =>
+          campo?.toLowerCase().includes(termo),
+        );
       return combinaCategoria && combinaBusca;
     });
   }, [itens, categoriaAtiva, busca]);
+
+  const filtrando = busca.trim() !== '' || categoriaAtiva !== null;
+
+  function limparFiltros() {
+    setBusca('');
+    setCategoriaAtiva(null);
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -46,7 +59,7 @@ export function CatalogoPage() {
         type="search"
         value={busca}
         onChange={(e) => setBusca(e.target.value)}
-        placeholder="Buscar item, categoria, vizinho…"
+        placeholder="Buscar item, categoria, marca…"
         className="notch-sm min-h-[44px] w-full border border-ink/40 bg-paper-surface px-4 py-2.5
           text-sm text-ink outline-none transition focus:border-ink"
       />
@@ -114,11 +127,33 @@ export function CatalogoPage() {
       )}
 
       {itens && itensFiltrados.length > 0 && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 lg:grid-cols-4">
-          {itensFiltrados.map((item) => (
-            <ItemCard key={item.id} item={item} />
-          ))}
-        </div>
+        <>
+          <div className="flex items-center justify-between gap-3 text-sm text-ink-soft">
+            <p aria-live="polite">
+              {itensFiltrados.length} {itensFiltrados.length === 1 ? 'item' : 'itens'}
+              {filtrando && ` de ${itens.length}`}
+            </p>
+            {filtrando && (
+              <button
+                type="button"
+                onClick={limparFiltros}
+                className="font-semibold text-barro-700 hover:underline"
+              >
+                Limpar filtros
+              </button>
+            )}
+          </div>
+          <ListaRolavel
+            rotulo="Itens do catálogo"
+            alturaMaxima="max-h-[calc(100vh-26rem)] min-h-[20rem]"
+          >
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+              {itensFiltrados.map((item) => (
+                <ItemCard key={item.id} item={item} />
+              ))}
+            </div>
+          </ListaRolavel>
+        </>
       )}
     </div>
   );

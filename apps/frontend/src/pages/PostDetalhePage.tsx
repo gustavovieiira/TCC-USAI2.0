@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import { PapelTag, PostStatusBadge } from '@/components/ui/Badge';
+import { ListaRolavel } from '@/components/ui/ListaRolavel';
 import { Spinner } from '@/components/ui/Spinner';
 import { Avatar } from '@/components/ui/Avatar';
 import { ConversarButton } from '@/features/conversas/ConversarButton';
@@ -172,30 +173,34 @@ export function PostDetalhePage() {
           <p className="text-sm text-ink-faint">Nenhum comentário ainda. Seja o primeiro!</p>
         )}
 
-        <div className="flex flex-col gap-3">
-          {post.comentarios.map((comentario) => (
-            <div key={comentario.id} className="flex gap-3">
-              <Avatar nome={comentario.autor.nome} />
-              <div className="notch min-w-0 flex-1 bg-paper px-3 py-2">
-                <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                  <span className="font-semibold text-ink">{comentario.autor.nome}</span>
-                  <PapelTag papel={comentario.autor.papel} />
-                  <span className="font-meta text-ink-faint">
-                    · {formatRelativeTime(comentario.createdAt)}
-                  </span>
-                  {user?.id !== comentario.autor.id && (
-                    <ConversarButton
-                      usuarioId={comentario.autor.id}
-                      nomeDoOutro={comentario.autor.nome}
-                      postOrigemId={post.id}
-                    />
-                  )}
+        <ListaRolavel rotulo="Comentários" alturaMaxima="max-h-[28rem]">
+          <div className="flex flex-col gap-3">
+            {post.comentarios.map((comentario) => (
+              <div key={comentario.id} className="flex gap-3">
+                <Avatar nome={comentario.autor.nome} />
+                <div className="notch min-w-0 flex-1 bg-paper px-3 py-2">
+                  <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                    <span className="font-semibold text-ink">{comentario.autor.nome}</span>
+                    <PapelTag papel={comentario.autor.papel} />
+                    <span className="font-meta text-ink-faint">
+                      · {formatRelativeTime(comentario.createdAt)}
+                    </span>
+                    {user?.id !== comentario.autor.id && (
+                      <ConversarButton
+                        usuarioId={comentario.autor.id}
+                        nomeDoOutro={comentario.autor.nome}
+                        postOrigemId={post.id}
+                      />
+                    )}
+                  </div>
+                  <p className="mt-0.5 whitespace-pre-line text-sm text-ink">
+                    {comentario.conteudo}
+                  </p>
                 </div>
-                <p className="mt-0.5 whitespace-pre-line text-sm text-ink">{comentario.conteudo}</p>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </ListaRolavel>
       </div>
 
       <div className="notch border border-paper-line bg-paper-surface p-4 shadow-paper">

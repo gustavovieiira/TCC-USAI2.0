@@ -73,10 +73,64 @@ describe('CatalogoPage', () => {
     );
 
     await screen.findByText('Furadeira Bosch');
-    await userEvent.type(screen.getByPlaceholderText('Buscar item, categoria, vizinho…'), 'taças');
+    await userEvent.type(screen.getByPlaceholderText('Buscar item, categoria, marca…'), 'taças');
 
     await waitFor(() => expect(screen.queryByText('Furadeira Bosch')).not.toBeInTheDocument());
     expect(screen.getByText('Jogo de taças')).toBeInTheDocument();
+  });
+
+  it('a busca também encontra pela categoria e pela descrição', async () => {
+    vi.spyOn(itensApi, 'listarItens').mockResolvedValue(itens);
+
+    render(
+      <MemoryRouter>
+        <CatalogoPage />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText('Furadeira Bosch');
+    const busca = screen.getByPlaceholderText('Buscar item, categoria, marca…');
+
+    await userEvent.type(busca, 'cristal');
+    await waitFor(() => expect(screen.queryByText('Furadeira Bosch')).not.toBeInTheDocument());
+    expect(screen.getByText('Jogo de taças')).toBeInTheDocument();
+
+    await userEvent.clear(busca);
+    await userEvent.type(busca, 'ferramentas');
+    await waitFor(() => expect(screen.queryByText('Jogo de taças')).not.toBeInTheDocument());
+    expect(screen.getByText('Furadeira Bosch')).toBeInTheDocument();
+  });
+
+  it('mostra a contagem e permite limpar os filtros', async () => {
+    vi.spyOn(itensApi, 'listarItens').mockResolvedValue(itens);
+
+    render(
+      <MemoryRouter>
+        <CatalogoPage />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('2 itens')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Cozinha' }));
+    expect(screen.getByText('1 item de 2')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Limpar filtros' }));
+    expect(screen.getByText('2 itens')).toBeInTheDocument();
+    expect(screen.getByText('Furadeira Bosch')).toBeInTheDocument();
+  });
+
+  it('a lista de itens fica numa região com rolagem própria', async () => {
+    vi.spyOn(itensApi, 'listarItens').mockResolvedValue(itens);
+
+    render(
+      <MemoryRouter>
+        <CatalogoPage />
+      </MemoryRouter>,
+    );
+
+    const regiao = await screen.findByRole('region', { name: 'Itens do catálogo' });
+    expect(regiao).toHaveClass('overflow-y-auto');
   });
 
   it('mostra estado vazio quando o condomínio ainda não tem itens', async () => {

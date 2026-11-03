@@ -48,6 +48,31 @@ describe('MinhasLocacoesPage', () => {
     expect(screen.getByRole('button', { name: 'Mensagens' })).toBeInTheDocument();
   });
 
+  it('filtra as locações por situação e mostra a contagem de cada filtro', async () => {
+    vi.spyOn(locacoesApi, 'listarComoLocatario').mockResolvedValue([
+      buildLocacao({ id: 'l1', status: 'PENDENTE' }),
+      buildLocacao({
+        id: 'l2',
+        status: 'CONCLUIDA',
+        item: { id: 'item-2', titulo: 'Escada de alumínio', valorDiaria: 15, ownerId: 'user-1' },
+      }),
+    ]);
+    vi.spyOn(locacoesApi, 'listarComoProprietario').mockResolvedValue([]);
+
+    renderPage();
+    await screen.findByText('Furadeira Bosch');
+
+    expect(screen.getByRole('button', { name: /Em aberto\s*1/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Todas\s*2/ })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /Encerradas/ }));
+    expect(screen.queryByText('Furadeira Bosch')).not.toBeInTheDocument();
+    expect(screen.getByText('Escada de alumínio')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /Ativas/ }));
+    expect(screen.getByText('Nada nessa situação')).toBeInTheDocument();
+  });
+
   it('"Mensagens" abre o chat da locação na página de Conversas', async () => {
     vi.spyOn(locacoesApi, 'listarComoLocatario').mockResolvedValue([buildLocacao()]);
     vi.spyOn(locacoesApi, 'listarComoProprietario').mockResolvedValue([]);
