@@ -1,4 +1,5 @@
 import { Item, Locacao, PrismaClient } from '@prisma/client';
+import { VALOR_MINIMO_COBRANCA } from '@/common/valores';
 import { AppError, ForbiddenError, NotFoundError } from '@/common/errors';
 import { logger } from '@/common/logger';
 import { registrarPagamentoConfirmado } from '@/modules/lancamentos/lancamentos.service';
@@ -55,6 +56,14 @@ export class PagamentosService {
 
     if (locacao.pagamento?.invoiceUrl) {
       return { invoiceUrl: locacao.pagamento.invoiceUrl };
+    }
+
+    if (Number(locacao.valorTotal) < VALOR_MINIMO_COBRANCA) {
+      throw new AppError(
+        'O valor desta locação está abaixo do mínimo de R$ 5,00 para pagamento por PIX.',
+        400,
+        'VALOR_ABAIXO_DO_MINIMO',
+      );
     }
 
     const locatario = locacao.locatario;

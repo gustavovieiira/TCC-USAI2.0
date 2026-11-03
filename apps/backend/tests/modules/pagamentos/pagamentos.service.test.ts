@@ -176,6 +176,38 @@ describe('PagamentosService.criarCobranca', () => {
     await expect(service.criarCobranca(LOCACAO_ID, LOCATARIO_ID)).rejects.toBeInstanceOf(AppError);
   });
 
+  it('rejeita cobrar uma locação com total abaixo de R$ 5,00 (o Asaas recusaria), sem chamar o Asaas', async () => {
+    const prisma = buildPrismaMock();
+    const asaas = buildAsaasMock();
+    prisma.locacao.findUnique.mockResolvedValue({ ...locacaoAprovada, valorTotal: 4.5 });
+
+    const service = new PagamentosService(prisma, asaas);
+
+    await expect(service.criarCobranca(LOCACAO_ID, LOCATARIO_ID)).rejects.toMatchObject({
+      statusCode: 400,
+      code: 'VALOR_ABAIXO_DO_MINIMO',
+    });
+    expect(asaas.criarCliente).not.toHaveBeenCalled();
+    expect(asaas.criarCobrancaPix).not.toHaveBeenCalled();
+  });
+
+  it('cobra normalmente uma locação de exatamente R$ 5,00', async () => {
+    const prisma = buildPrismaMock();
+    const asaas = buildAsaasMock();
+    prisma.locacao.findUnique.mockResolvedValue({ ...locacaoAprovada, valorTotal: 5 });
+    asaas.criarCliente.mockResolvedValue({ id: 'cus_123' });
+    asaas.criarCobrancaPix.mockResolvedValue({
+      id: 'pay_5',
+      invoiceUrl: 'https://sandbox.asaas.com/i/pay_5',
+      status: 'PENDING',
+    });
+
+    const service = new PagamentosService(prisma, asaas);
+    await service.criarCobranca(LOCACAO_ID, LOCATARIO_ID);
+
+    expect(asaas.criarCobrancaPix).toHaveBeenCalledWith(expect.objectContaining({ valor: 5 }));
+  });
+
   it('rejeita quando o locatário não tem CPF cadastrado', async () => {
     const prisma = buildPrismaMock();
     const asaas = buildAsaasMock();

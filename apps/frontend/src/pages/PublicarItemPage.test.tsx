@@ -21,6 +21,72 @@ function renderPage() {
   );
 }
 
+describe('PublicarItemPage — valor mínimo da diária (R$ 5,00)', () => {
+  async function preencher(valor: string) {
+    await userEvent.type(screen.getByLabelText('Título'), 'Furadeira Bosch');
+    await userEvent.type(screen.getByLabelText('Categoria'), 'Ferramentas');
+    await userEvent.type(
+      screen.getByLabelText('Descrição'),
+      'Furadeira de impacto em ótimo estado',
+    );
+    await userEvent.type(screen.getByLabelText('Valor por diária (R$)'), valor);
+  }
+
+  it('avisa o mínimo antes de preencher, e o campo não aceita menos de R$ 5,00', () => {
+    renderPage();
+
+    expect(screen.getByText(/Mínimo de R\$ 5,00 por diária/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Valor por diária (R$)')).toHaveAttribute('min', '5');
+    expect(screen.getByLabelText('Valor por diária (R$)')).toHaveAccessibleDescription(
+      /Mínimo de R\$ 5,00/,
+    );
+  });
+
+  it.each(['4.99', '1', '0.5'])(
+    'barra a publicação com diária de R$ %s, sem chamar a API',
+    async (valor) => {
+      const criar = vi.spyOn(itensApi, 'criarItem');
+
+      renderPage();
+      await preencher(valor);
+      await userEvent.click(screen.getByRole('button', { name: 'Publicar' }));
+
+      expect(await screen.findByText(/O valor mínimo da diária é R\$ 5,00/)).toBeInTheDocument();
+      expect(criar).not.toHaveBeenCalled();
+    },
+  );
+
+  it('o aviso some quando a pessoa corrige o valor, e R$ 5,00 exatos publica', async () => {
+    const criar = vi.spyOn(itensApi, 'criarItem').mockResolvedValue({
+      id: 'item-5',
+      titulo: 'Furadeira Bosch',
+      descricao: 'Furadeira de impacto em ótimo estado',
+      categoria: 'Ferramentas',
+      valorDiaria: 5,
+      ativo: true,
+      ownerId: 'user-1',
+      condominioId: 'cond-1',
+      imagens: [],
+      createdAt: '2026-09-15T00:00:00.000Z',
+    });
+
+    renderPage();
+    await preencher('3');
+    await userEvent.click(screen.getByRole('button', { name: 'Publicar' }));
+    expect(await screen.findByText(/O valor mínimo da diária é R\$ 5,00/)).toBeInTheDocument();
+
+    const campo = screen.getByLabelText('Valor por diária (R$)');
+    await userEvent.clear(campo);
+    await userEvent.type(campo, '5');
+    expect(screen.queryByText(/O valor mínimo da diária é R\$ 5,00/)).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Publicar' }));
+
+    expect(criar).toHaveBeenCalledWith(expect.objectContaining({ valorDiaria: 5 }));
+    expect(await screen.findByText('Detalhe do item item-5')).toBeInTheDocument();
+  });
+});
+
 describe('PublicarItemPage', () => {
   it('publica o item e navega pro detalhe recém-criado', async () => {
     vi.spyOn(itensApi, 'criarItem').mockResolvedValue({

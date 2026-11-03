@@ -1,4 +1,5 @@
 import { Item, Locacao, PrismaClient, StatusLocacao } from '@prisma/client';
+import { VALOR_MINIMO_COBRANCA } from '@/common/valores';
 import { AppError, ForbiddenError, NotFoundError } from '@/common/errors';
 import { formatarReais } from '@/modules/notificacoes/notificacoes.format';
 import { NotificacoesService } from '@/modules/notificacoes/notificacoes.service';
@@ -125,6 +126,15 @@ export class LocacoesService {
 
     const dias = calcularDias(input.dataInicio, input.dataFim);
     const valorTotal = Number(item.valorDiaria) * dias;
+
+    // Itens antigos podem ter diária abaixo do mínimo: o PIX desse valor seria recusado pelo Asaas.
+    if (valorTotal < VALOR_MINIMO_COBRANCA) {
+      throw new AppError(
+        'O valor desta locação está abaixo do mínimo de R$ 5,00 para pagamento por PIX. Peça ao dono para ajustar o valor da diária.',
+        400,
+        'VALOR_ABAIXO_DO_MINIMO',
+      );
+    }
 
     const locacao = await this.prisma.locacao.create({
       data: {

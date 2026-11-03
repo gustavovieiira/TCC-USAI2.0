@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { MENSAGEM_VALOR_MINIMO, VALOR_MINIMO_COBRANCA } from '@/common/valores';
 
 const textoOpcional = z
   .string()
@@ -16,7 +17,7 @@ export const criarItemSchema = z.object({
   titulo: z.string().min(3, 'Título deve ter ao menos 3 caracteres').max(120),
   descricao: z.string().min(10, 'Descrição deve ter ao menos 10 caracteres'),
   categoria: z.string().min(2, 'Categoria é obrigatória'),
-  valorDiaria: z.number().positive('Valor diário deve ser maior que zero'),
+  valorDiaria: z.number().min(VALOR_MINIMO_COBRANCA, MENSAGEM_VALOR_MINIMO),
   fabricante: textoOpcional,
   modelo: textoOpcional,
   numeroSerie: textoOpcional,
@@ -29,7 +30,7 @@ export const atualizarItemSchema = z
     titulo: z.string().min(3).max(120).optional(),
     descricao: z.string().min(10).optional(),
     categoria: z.string().min(2).optional(),
-    valorDiaria: z.number().positive().optional(),
+    valorDiaria: z.number().min(VALOR_MINIMO_COBRANCA, MENSAGEM_VALOR_MINIMO).optional(),
     fabricante: textoOpcional,
     modelo: textoOpcional,
     numeroSerie: textoOpcional,

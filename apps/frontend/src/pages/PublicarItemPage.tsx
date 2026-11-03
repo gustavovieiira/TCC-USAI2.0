@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/Textarea';
 import { Card } from '@/components/ui/Card';
 import { extractErrorMessage } from '@/lib/apiClient';
 import { criarItem, uploadImagemItem } from '@/features/itens/itens.api';
+import { MENSAGEM_VALOR_MINIMO, VALOR_MINIMO_DIARIA } from '@/features/itens/valores';
 
 const TIPOS_ACEITOS = ['image/jpeg', 'image/png', 'image/webp'];
 
@@ -15,6 +16,7 @@ export function PublicarItemPage() {
   const [categoria, setCategoria] = useState('');
   const [descricao, setDescricao] = useState('');
   const [valorDiaria, setValorDiaria] = useState('');
+  const [erroValor, setErroValor] = useState<string | null>(null);
   const [fabricante, setFabricante] = useState('');
   const [modelo, setModelo] = useState('');
   const [numeroSerie, setNumeroSerie] = useState('');
@@ -64,6 +66,13 @@ export function PublicarItemPage() {
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setErro(null);
+
+    // Abaixo do mínimo o PIX seria recusado na hora de pagar; barra já na publicação.
+    if (!(Number(valorDiaria) >= VALOR_MINIMO_DIARIA)) {
+      setErroValor(MENSAGEM_VALOR_MINIMO);
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -132,13 +141,21 @@ export function PublicarItemPage() {
             label="Valor por diária (R$)"
             name="valorDiaria"
             type="number"
-            min="0.01"
+            min={VALOR_MINIMO_DIARIA}
             step="0.01"
             inputMode="decimal"
             required
             value={valorDiaria}
-            onChange={(e) => setValorDiaria(e.target.value)}
+            error={erroValor ?? undefined}
+            aria-describedby="dica-valor-minimo"
+            onChange={(e) => {
+              setValorDiaria(e.target.value);
+              setErroValor(null);
+            }}
           />
+          <p id="dica-valor-minimo" className="-mt-2 text-xs text-ink-faint">
+            Mínimo de R$ 5,00 por diária (o menor valor que a cobrança por PIX aceita).
+          </p>
 
           <fieldset className="flex flex-col gap-3 border border-paper-line p-3">
             <legend className="px-1 text-sm font-medium text-ink">

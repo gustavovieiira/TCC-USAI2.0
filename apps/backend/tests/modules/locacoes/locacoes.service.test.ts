@@ -66,6 +66,56 @@ describe('LocacoesService.solicitar', () => {
     expect(result.status).toBe('PENDENTE');
   });
 
+  it('recusa o pedido quando o total ficaria abaixo de R$ 5,00 (item antigo com diária baixa)', async () => {
+    const prisma = buildPrismaMock();
+    prisma.item.findFirst.mockResolvedValue({ ...itemDisponivel, valorDiaria: 2 });
+    prisma.locacao.findFirst.mockResolvedValue(null);
+
+    const service = new LocacoesService(prisma);
+
+    // 1 dia a R$ 2,00 = R$ 2,00: o Asaas recusaria a cobrança
+    await expect(
+      service.solicitar(CONDOMINIO_ID, LOCATARIO_ID, {
+        ...inputPadrao,
+        dataInicio: new Date('2026-10-01'),
+        dataFim: new Date('2026-10-01'),
+      }),
+    ).rejects.toMatchObject({ statusCode: 400, code: 'VALOR_ABAIXO_DO_MINIMO' });
+    expect(prisma.locacao.create).not.toHaveBeenCalled();
+  });
+
+  it('aceita quando o total passa de R$ 5,00 mesmo com diária baixa (2 dias x R$ 3,00 = R$ 6,00)', async () => {
+    const prisma = buildPrismaMock();
+    prisma.item.findFirst.mockResolvedValue({ ...itemDisponivel, valorDiaria: 3 });
+    prisma.locacao.findFirst.mockResolvedValue(null);
+    prisma.locacao.create.mockResolvedValue({ ...locacaoBase, valorTotal: 6 });
+
+    const service = new LocacoesService(prisma);
+    await service.solicitar(CONDOMINIO_ID, LOCATARIO_ID, inputPadrao);
+
+    expect(prisma.locacao.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ valorTotal: 6 }) }),
+    );
+  });
+
+  it('com diária de exatamente R$ 5,00, um dia só já vale', async () => {
+    const prisma = buildPrismaMock();
+    prisma.item.findFirst.mockResolvedValue({ ...itemDisponivel, valorDiaria: 5 });
+    prisma.locacao.findFirst.mockResolvedValue(null);
+    prisma.locacao.create.mockResolvedValue({ ...locacaoBase, valorTotal: 5 });
+
+    const service = new LocacoesService(prisma);
+    await service.solicitar(CONDOMINIO_ID, LOCATARIO_ID, {
+      ...inputPadrao,
+      dataInicio: new Date('2026-10-01'),
+      dataFim: new Date('2026-10-01'),
+    });
+
+    expect(prisma.locacao.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ valorTotal: 5 }) }),
+    );
+  });
+
   it('rejeita quando o item não existe ou não pertence ao condomínio (RN02)', async () => {
     const prisma = buildPrismaMock();
     prisma.item.findFirst.mockResolvedValue(null);

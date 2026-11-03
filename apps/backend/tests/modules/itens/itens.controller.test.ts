@@ -85,6 +85,65 @@ describe('POST /api/itens', () => {
   });
 });
 
+describe('valor mínimo da diária (R$ 5,00, o menor que o PIX aceita)', () => {
+  const corpo = {
+    titulo: 'Furadeira Bosch',
+    descricao: 'Furadeira de impacto em ótimo estado',
+    categoria: 'Ferramentas',
+  };
+
+  it.each([0.01, 1, 4.99])('recusa publicar com diária de R$ %s (400)', async (valorDiaria) => {
+    const app = createApp();
+
+    const response = await request(app)
+      .post('/api/itens')
+      .set('Authorization', `Bearer ${token()}`)
+      .send({ ...corpo, valorDiaria });
+
+    expect(response.status).toBe(400);
+    expect(JSON.stringify(response.body)).toContain('R$ 5,00');
+    expect(prisma.item.create).not.toHaveBeenCalled();
+  });
+
+  it.each([5, 5.01, 20])('aceita publicar com diária de R$ %s', async (valorDiaria) => {
+    (prisma.item.create as jest.Mock).mockResolvedValue({ ...itemBase, valorDiaria });
+    const app = createApp();
+
+    const response = await request(app)
+      .post('/api/itens')
+      .set('Authorization', `Bearer ${token()}`)
+      .send({ ...corpo, valorDiaria });
+
+    expect(response.status).toBe(201);
+  });
+
+  it('o dono também não consegue baixar a diária para menos de R$ 5,00 ao editar', async () => {
+    (prisma.item.findUnique as jest.Mock).mockResolvedValue(itemBase);
+    const app = createApp();
+
+    const response = await request(app)
+      .patch('/api/itens/item-1')
+      .set('Authorization', `Bearer ${token(OWNER_ID)}`)
+      .send({ valorDiaria: 3 });
+
+    expect(response.status).toBe(400);
+    expect(prisma.item.update).not.toHaveBeenCalled();
+  });
+
+  it('editar com R$ 5,00 ou mais funciona', async () => {
+    (prisma.item.findUnique as jest.Mock).mockResolvedValue(itemBase);
+    (prisma.item.update as jest.Mock).mockResolvedValue({ ...itemBase, valorDiaria: 5 });
+    const app = createApp();
+
+    const response = await request(app)
+      .patch('/api/itens/item-1')
+      .set('Authorization', `Bearer ${token(OWNER_ID)}`)
+      .send({ valorDiaria: 5 });
+
+    expect(response.status).toBe(200);
+  });
+});
+
 describe('GET /api/itens', () => {
   it('lista os itens do condomínio, aplicando o filtro de categoria', async () => {
     (prisma.item.findMany as jest.Mock).mockResolvedValue([itemBase]);
