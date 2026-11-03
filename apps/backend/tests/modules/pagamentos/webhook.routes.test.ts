@@ -108,6 +108,30 @@ describe('POST /api/webhooks/asaas', () => {
     });
   });
 
+  it('PAYMENT_CONFIRMED (sem o dinheiro na conta) de uma mensalidade não ativa o condomínio nem manda e-mail', async () => {
+    (prisma.cobrancaAssinatura.findUnique as jest.Mock).mockResolvedValue({
+      id: 'cobranca-1',
+      assinaturaId: 'assinatura-1',
+      asaasChargeId: 'pay_mensalidade',
+      periodoCodigo: 'MENSAL',
+      dias: 30,
+      valor: 299,
+    });
+    const app = createApp();
+
+    const response = await request(app)
+      .post('/api/webhooks/asaas')
+      .set('asaas-access-token', WEBHOOK_TOKEN)
+      .send({ event: 'PAYMENT_CONFIRMED', payment: { id: 'pay_mensalidade' } });
+
+    expect(response.status).toBe(200);
+    expect(prisma.cobrancaAssinatura.updateMany).not.toHaveBeenCalled();
+    expect(prisma.condominio.update).not.toHaveBeenCalled();
+    expect(prisma.tokenAcesso.create).not.toHaveBeenCalled();
+    // e também não é tratada como uma locação
+    expect(prisma.pagamento.updateMany).not.toHaveBeenCalled();
+  });
+
   it('ativa o condomínio quando o PIX confirmado é a mensalidade de uma assinatura', async () => {
     (prisma.cobrancaAssinatura.findUnique as jest.Mock).mockResolvedValue({
       id: 'cobranca-1',

@@ -163,9 +163,10 @@ export class PagamentosService {
    * APROVADA (perdeu a corrida pra outra locação concorrente que pagou primeiro), o pagamento fica
    * marcado como órfão pro Admin reembolsar manualmente — não há estorno automático nesta versão.
    */
-  async confirmarPagamento(asaasChargeId: string): Promise<void> {
-    // Cobrança de mensalidade de condomínio? Então não é uma locação: quem trata é a assinatura.
-    if (await this.assinaturas?.confirmarCobranca(asaasChargeId)) return;
+  async confirmarPagamento(asaasChargeId: string, recebido = true): Promise<void> {
+    // Cobrança de mensalidade de condomínio? Então não é uma locação: quem trata é a assinatura
+    // (que só ativa o condomínio quando o dinheiro foi recebido, não só confirmado).
+    if (await this.assinaturas?.confirmarCobranca(asaasChargeId, recebido)) return;
 
     const resultado = await this.prisma.$transaction(async (tx) => {
       const flipPagamento = await tx.pagamento.updateMany({

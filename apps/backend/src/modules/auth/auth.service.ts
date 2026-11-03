@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
 import { AppError, ConflictError, NotFoundError, UnauthorizedError } from '@/common/errors';
+import { logger } from '@/common/logger';
 import {
   AtualizarPerfilInput,
   AuthResult,
@@ -16,6 +17,12 @@ const ACCESS_TOKEN_TTL = '15m';
 const REFRESH_TOKEN_TTL = '7d';
 /** Reaproveitado pelo Admin USAI ao criar contas de síndico (`admin.service.ts`). */
 export const BCRYPT_ROUNDS = 10;
+
+/** Tamanho do código do link de acesso: 32 bytes aleatórios em base64url, sem preenchimento. */
+export const TAMANHO_TOKEN_ACESSO = 43;
+
+const SENHA_JA_CRIADA =
+  'A sua senha já foi criada. Entre pela página "Entrar", com o seu e-mail e a senha que você definiu.';
 
 function toAuthenticatedUser(user: {
   id: string;
@@ -174,17 +181,45 @@ export class AuthService {
 
   /**
    * Link do e-mail de acesso (enviado ao síndico quando o PIX é confirmado): define a primeira
-   * senha e já entra. O token é de uso único e expira; só o hash dele existe no banco.
+   * senha e já entra. O link vale até a senha ser criada (sem prazo), mesmo que o e-mail tenha sido
+   * reenviado; ao criar a senha, TODOS os links do síndico deixam de valer. Só o hash do token existe
+   * no banco.
    */
   async definirSenha(token: string, senha: string): Promise<AuthResult> {
+    // Um link com tamanho errado foi cortado ao ser copiado (ou digitado à mão): dizer isso é bem mais
+    // útil do que um "link inválido" genérico.
+    if (token.length !== TAMANHO_TOKEN_ACESSO) {
+      logger.warn('Link de acesso com tamanho errado (provavelmente cortado ao copiar)', {
+        tamanho: token.length,
+      });
+      throw new AppError(
+        'Este link parece estar incompleto: ele foi cortado ao ser copiado. Abra-o direto pelo botão do e-mail (no mesmo aparelho em que o endereço funciona) ou peça outro e-mail na página de acompanhamento da contratação.',
+        400,
+        'TOKEN_INCOMPLETO',
+      );
+    }
+
     const registro = await this.prisma.tokenAcesso.findUnique({
       where: { tokenHash: crypto.createHash('sha256').update(token).digest('hex') },
       include: { user: true },
     });
 
-    if (!registro || registro.usadoEm || registro.expiraEm < new Date()) {
+    if (!registro) {
       throw new AppError(
-        'Este link expirou ou já foi usado. Peça um novo na tela de acompanhamento da contratação.',
+        'Este link não é válido. Peça outro e-mail na página de acompanhamento da contratação.',
+        400,
+        'TOKEN_INVALIDO',
+      );
+    }
+
+    if (registro.usadoEm) {
+      throw new AppError(SENHA_JA_CRIADA, 400, 'SENHA_JA_CRIADA');
+    }
+
+    // Links antigos (de antes de passarem a valer sem prazo) ainda podem trazer uma validade.
+    if (registro.expiraEm && registro.expiraEm < new Date()) {
+      throw new AppError(
+        'Este link expirou. Peça outro e-mail na página de acompanhamento da contratação.',
         400,
         'TOKEN_INVALIDO',
       );
@@ -202,11 +237,17 @@ export class AuthService {
         data: { usadoEm: new Date() },
       });
       if (marcado.count === 0) return null;
+
+      // Senha criada: os outros links enviados por e-mail deixam de valer (o acesso agora é por login).
+      await tx.tokenAcesso.updateMany({
+        where: { userId: registro.userId, usadoEm: null },
+        data: { usadoEm: new Date() },
+      });
       return tx.user.update({ where: { id: registro.userId }, data: { senhaHash } });
     });
 
     if (!user) {
-      throw new AppError('Este link já foi usado.', 400, 'TOKEN_INVALIDO');
+      throw new AppError(SENHA_JA_CRIADA, 400, 'SENHA_JA_CRIADA');
     }
 
     const authenticatedUser = toAuthenticatedUser(user);

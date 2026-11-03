@@ -529,13 +529,14 @@ model CobrancaAssinatura {
   @@map("cobrancas_assinatura")
 }
 
-/// Link de uso único (válido por tempo limitado) enviado por e-mail pro síndico definir a própria
-/// senha. Só o hash (SHA-256) do token fica no banco.
+/// Link de uso único enviado por e-mail pro síndico definir a própria senha. Vale até a senha ser
+/// criada (`expiraEm` nulo = não expira); ao criar a senha, todos os links dele deixam de valer.
+/// Só o hash (SHA-256) do token fica no banco.
 model TokenAcesso {
   id        String    @id @default(uuid())
   userId    String
   tokenHash String    @unique
-  expiraEm  DateTime
+  expiraEm  DateTime?
   usadoEm   DateTime?
   createdAt DateTime  @default(now())
 

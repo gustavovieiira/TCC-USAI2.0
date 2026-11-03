@@ -138,11 +138,16 @@ export function AcompanharContratacaoPage() {
     >
       <p className="text-center text-sm text-ink">
         Enviamos para <strong>{contratacao.emailMascarado}</strong> o link para você criar a sua
-        senha e entrar. Ele vale por 48 horas.
+        senha e entrar. Ele funciona até você criar a senha, sem prazo.
       </p>
       <p className="mt-3 text-center text-sm text-ink-soft">
-        Depois de entrar, o painel do síndico mostra o link e o PIN para compartilhar com os
-        moradores.
+        Depois de criar a senha, você entra sempre pela página <strong>Entrar</strong>, com o seu
+        e-mail e a senha que definiu. No painel do síndico estão o link e o PIN para compartilhar
+        com os moradores.
+      </p>
+      <p className="mt-4 bg-paper px-3 py-2 text-center text-xs text-ink-soft">
+        <strong className="text-ink">Não chegou?</strong> Veja a caixa de <strong>spam</strong> ou
+        de <strong>promoções</strong> e procure por “USAI”. Se estiver lá, marque como “não é spam”.
       </p>
 
       {aviso && (

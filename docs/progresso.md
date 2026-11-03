@@ -100,6 +100,80 @@ e-mail, criação de senha, convite, limite, renovação com troca de período e
 **Limites conhecidos.** Sem SMTP configurado o e-mail só aparece no log. Não há "esqueci minha senha"
 nem cancelamento de assinatura. O limitador de contratações é em memória (uma instância só).
 
+**Bug de deploy encontrado e corrigido: o build de produção não subia.** Ao preparar o teste de e-mail em
+produção, o build compilado (`node dist/server.js`, o que o `Dockerfile` executa) falhava na
+inicialização com `Cannot find module '@/common/cors'`: o `tsc` mantém os imports com o alias `@/`, que
+só o `tsx` e o Jest entendem. Passou a rodar `tsc-alias` depois do `tsc` (`npm run build`), que reescreve o
+alias para caminhos relativos. Conferido: o build compilado sobe, responde `/health` e serve a API. Esse
+erro só apareceria no dia do deploy.
+
+**Comando para testar o SMTP.** `npm run smtp:testar --workspace=apps/backend -- voce@exemplo.com` (em
+produção, `node dist/scripts/smtp-testar.js voce@exemplo.com`) mostra a configuração em uso (senha nunca
+impressa), confere conexão e login, e envia o e-mail de acesso do síndico com o assunto `[TESTE]`. Erros
+de SMTP viram uma dica em português (senha de app do Gmail, host, porta, firewall, remetente).
+
+**E-mail de acesso com a cara da USAI, com recibo.** O e-mail que o síndico recebe depois de pagar deixou
+de ser um HTML simples: tem cabeçalho escuro com o símbolo e o nome da USAI, faixa terracota "Pagamento
+confirmado / Seu condomínio está ativo!", botão "Criar minha senha e entrar", **recibo de pagamento**
+(número `USAI-XXXXXXXX`, data e hora do recebimento, forma PIX, pagador com CPF/CNPJ mascarado, plano e
+período, vigência, valor e link do comprovante) e os próximos passos (senha, convite dos moradores, 10% do
+condomínio). Feito com tabelas e CSS inline (padrão que funciona no Gmail e no Outlook), com versão em
+texto simples. A **logo vai anexada ao e-mail (`cid`)**, porque e-mail não aceita SVG nem imagem em
+`localhost`. Os nomes são escapados (nada injeta HTML). O mesmo recibo vai no reenvio do acesso (o do
+primeiro pagamento). Para ver sem enviar: `npm run email:previa --workspace=apps/backend -- previa.html`.
+**O e-mail só sai com o dinheiro na conta:** a mensalidade só ativa o condomínio com `PAYMENT_RECEIVED`
+(webhook) ou status `RECEIVED` na conferência periódica; `PAYMENT_CONFIRMED`/`CONFIRMED` (autorizado, ainda
+não liquidado) é reconhecido mas fica esperando. Testado de ponta a ponta no sandbox, com o SMTP do
+Gmail da USAI (`usaisuporte@gmail.com`, senha de app só no `.env`, que o git ignora).
+
+**O e-mail caiu no spam (e o que foi feito).** No primeiro teste real o e-mail chegou, mas na caixa de
+spam. O log provou que o Gmail aceitou a mensagem (`250 2.0.0 OK`), então o sistema entregou; o que pesa
+contra é o remetente novo e gratuito e o **link para `localhost`, sem HTTPS** (some em produção, com
+`APP_URL` num domínio real). Melhorias: o **assunto** passou a ser específico, com o nome do condomínio
+("Residencial Aurora está ativo na USAI"), sem quebras de linha nem mais de 60 caracteres, para ninguém
+injetar cabeçalho; o envio ganhou **`Reply-To`** (`MAIL_REPLY_TO`, opcional) e os cabeçalhos
+`Auto-Submitted` e `X-Auto-Response-Suppress` de mensagem automática; o rodapé do e-mail e a **tela de
+"Pagamento confirmado!"** orientam a procurar na caixa de spam/promoções e marcar "não é spam"; e cada
+envio agora grava no log a resposta do servidor de e-mail (aceitos, recusados, `messageId`), que é o que
+permite provar o que aconteceu quando alguém diz "não chegou". **A solução definitiva é de produção:**
+domínio próprio (ex.: `contato@usai.com.br`) enviando por um serviço de e-mail transacional, com SPF,
+DKIM e DMARC configurados no DNS; só mudam variáveis do `.env` (`SMTP_*`, `MAIL_FROM`, `APP_URL`).
+
+**O link do e-mail vale até a senha ser criada (sem prazo).** Pedido do usuário, para o síndico nunca
+esbarrar num erro: antes o link expirava em 48 horas e **cada reenvio derrubava os anteriores** (quem
+abrisse o e-mail mais antigo via "link inválido"). Agora: `TokenAcesso.expiraEm` é opcional (nulo = não
+expira; migração `20261103140000_token_acesso_sem_expiracao`, que também tirou o prazo dos links ainda
+não usados que já tinham sido enviados); o reenvio **não invalida** os links anteriores; e ao criar a
+senha (`definirSenha`) **todos** os links do síndico passam a valer como usados. Quem clica num link
+depois de já ter a senha recebe a mensagem `SENHA_JA_CRIADA` ("entre pela página Entrar, com o seu
+e-mail e a senha que você definiu"), e a tela de criar senha tem o link para Entrar. Como o link não
+expira, a defesa é o uso único (consumo de todos os links ao criar a senha), o token aleatório de 256
+bits (só o hash no banco) e o limite de reenvio (1 por minuto). **O e-mail explica o login:** bloco
+"Como você entra daqui pra frente" (seu login = o e-mail do síndico; sua senha = a que ele criar no
+botão; onde entrar = página Entrar da plataforma), e a tela de pagamento confirmado repete a orientação.
+Ainda não existe "esqueci minha senha": quem perder a senha depois de criada fica sem recuperação.
+
+**Link "não é válido" no teste: era um link cortado.** No teste com outro e-mail o link abriu a tela de
+criar senha com "este link não é válido". O código na barra de endereço tinha 42 caracteres (um link
+real tem 43) e não batia com nenhum dos links gravados: o e-mail foi lido no celular, mas o link aponta
+para `localhost` (que no celular é o próprio celular), então foi copiado à mão e perdeu um caractere.
+Um link com tamanho errado agora responde `TOKEN_INCOMPLETO` com a explicação ("foi cortado ao ser
+copiado; abra pelo botão do e-mail ou peça outro"), em vez do "inválido" genérico, e o tamanho esperado
+(`TAMANHO_TOKEN_ACESSO` = 43, 32 bytes em base64url) é amarrado por teste ao que o e-mail gera. Provado
+de ponta a ponta num backend de teste (12 verificações): o link do **primeiro** e-mail funciona mesmo
+depois de um reenvio, criar a senha consome todos os links e o login com e-mail e senha funciona. Em
+produção o link é um endereço público e clicável em qualquer aparelho, então isso só aparece em teste
+local; para testar no celular seria preciso expor o front e a API pelo IP da máquina.
+
+**E-mail do Asaas com o CPF do titular.** O cliente recebeu, além do e-mail da USAI, o e-mail do próprio
+Asaas ("Seu pagamento foi confirmado - Fatura ..."), que mostra o **nome e o CPF do titular da conta**
+como se ele fosse o vendedor (no sandbox vem marcado "informações fictícias"; em produção seriam os dados
+reais). Os clientes passam a ser criados com `notificationDisabled: true` (campo confirmado no sandbox),
+pois a USAI já avisa por conta própria, com o recibo e o acesso. **Ainda aparece na página de pagamento
+(a fatura)**: o Asaas mostra nome e CPF/CNPJ do titular a quem paga, e isso não dá para desligar. Se a conta
+de produção for em CPF, o CPF vira público para todo síndico que pagar; o recomendado é uma conta em CNPJ.
+Clientes já criados antes dessa mudança (sandbox) continuam com as notificações do Asaas ligadas.
+
 ---
 
 ## 2026-10-27 — Telas com rolagem própria, filtros e uso da largura toda

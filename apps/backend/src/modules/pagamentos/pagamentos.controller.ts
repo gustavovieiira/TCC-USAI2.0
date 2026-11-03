@@ -17,6 +17,9 @@ const pagamentosService = new PagamentosService(
 /** Eventos do Asaas que valem como "PIX confirmado" — os demais são reconhecidos e ignorados. */
 const EVENTOS_PAGAMENTO_CONFIRMADO = ['PAYMENT_CONFIRMED', 'PAYMENT_RECEIVED'];
 
+/** O dinheiro caiu na conta (no PIX é este o evento). Mensalidade de condomínio só ativa com ele. */
+const EVENTO_DINHEIRO_RECEBIDO = 'PAYMENT_RECEIVED';
+
 export const pagamentosController = {
   async criarCobranca(req: Request, res: Response) {
     const resultado = await pagamentosService.criarCobranca(req.params.id, req.auth!.userId);
@@ -44,7 +47,10 @@ export const asaasWebhookController = {
     try {
       const body = asaasWebhookSchema.parse(req.body);
       if (EVENTOS_PAGAMENTO_CONFIRMADO.includes(body.event)) {
-        await pagamentosService.confirmarPagamento(body.payment.id);
+        await pagamentosService.confirmarPagamento(
+          body.payment.id,
+          body.event === EVENTO_DINHEIRO_RECEBIDO,
+        );
       }
     } catch (error) {
       logger.error('Falha ao processar webhook do Asaas', { error });

@@ -31,6 +31,26 @@ describe('AsaasClient.criarCliente', () => {
     );
   });
 
+  it('cria o cliente com as notificações do Asaas desligadas (a USAI avisa por conta própria)', async () => {
+    const fetchMock = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(mockFetchResponse(true, { id: 'cus_123' }));
+
+    await new AsaasClient().criarCliente({
+      nome: 'Ana Proprietaria',
+      cpfCnpj: '12345678901',
+      email: 'ana@example.com',
+    });
+
+    const corpo = JSON.parse(fetchMock.mock.calls[0][1]?.body as string);
+    expect(corpo).toEqual({
+      name: 'Ana Proprietaria',
+      cpfCnpj: '12345678901',
+      email: 'ana@example.com',
+      notificationDisabled: true,
+    });
+  });
+
   it('propaga erro do Asaas como AppError 502', async () => {
     jest
       .spyOn(global, 'fetch')

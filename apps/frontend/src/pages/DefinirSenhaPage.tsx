@@ -92,6 +92,19 @@ export function DefinirSenhaPage() {
           Criar senha e entrar
         </Button>
       </form>
+
+      <div className="mt-6 flex flex-col gap-2 border-t border-dashed border-paper-line pt-4 text-center text-xs text-ink-soft">
+        <p>
+          Depois de criar a senha, você entra sempre pela página <strong>Entrar</strong>, com o seu
+          e-mail e a senha que definiu.
+        </p>
+        <p>
+          Já criou a sua senha?{' '}
+          <Link to="/login" className="font-semibold text-barro-700 hover:underline">
+            Entrar
+          </Link>
+        </p>
+      </div>
     </AuthShell>
   );
 }

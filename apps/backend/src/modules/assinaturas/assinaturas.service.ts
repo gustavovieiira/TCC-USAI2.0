@@ -7,8 +7,8 @@ import { logger } from '@/common/logger';
 import { Mailer, SmtpMailer, urlDoApp } from '@/common/mailer';
 import { BCRYPT_ROUNDS } from '@/modules/auth/auth.service';
 import { NotificacoesService } from '@/modules/notificacoes/notificacoes.service';
-import { AsaasClient, STATUS_ASAAS_PAGO } from '@/modules/pagamentos/asaas.client';
-import { emailAcessoSindico, HORAS_VALIDADE_ACESSO } from './assinaturas.emails';
+import { AsaasClient } from '@/modules/pagamentos/asaas.client';
+import { DetalhesContratacao, emailAcessoSindico } from './assinaturas.emails';
 import {
   buscarPeriodo,
   buscarPlano,
@@ -116,6 +116,23 @@ function slugificar(nome: string): string {
 
 function gerarPin(): string {
   return String(crypto.randomInt(0, 1_000_000)).padStart(6, '0');
+}
+
+/** Número do recibo: prefixo da marca + os 8 primeiros caracteres do id da cobrança (ex.: USAI-3F9A12BC). */
+export function numeroDoRecibo(cobrancaId: string): string {
+  return `USAI-${cobrancaId.replaceAll('-', '').slice(0, 8).toUpperCase()}`;
+}
+
+/** Mostra só o miolo do CPF/CNPJ (***.123.456-**), pra o e-mail não carregar o documento inteiro. */
+export function mascararDocumento(documento: string | null | undefined): string | null {
+  const digitos = (documento ?? '').replace(/\D/g, '');
+  if (digitos.length === 11) {
+    return `***.${digitos.slice(3, 6)}.${digitos.slice(6, 9)}-**`;
+  }
+  if (digitos.length === 14) {
+    return `**.${digitos.slice(2, 5)}.${digitos.slice(5, 8)}/${digitos.slice(8, 12)}-**`;
+  }
+  return null;
 }
 
 function hashToken(token: string): string {
@@ -328,7 +345,25 @@ export class AssinaturasService {
       );
     }
 
-    await this.enviarAcesso(assinatura.responsavel, assinatura.condominio.nome);
+    // O recibo reenviado é o do primeiro pagamento (o que liberou o acesso).
+    const primeiraPaga = await this.prisma.cobrancaAssinatura.findFirst({
+      where: { assinaturaId: assinatura.id, status: 'PAGO' },
+      orderBy: { pagoEm: 'asc' },
+    });
+
+    await this.enviarAcesso(
+      assinatura.responsavel,
+      assinatura.condominio.nome,
+      primeiraPaga?.pagoEm
+        ? this.montarDetalhes({
+            planoCodigo: assinatura.planoCodigo,
+            cobranca: primeiraPaga,
+            pagador: assinatura.responsavel,
+            pagoEm: primeiraPaga.pagoEm,
+            ativaAte: new Date(primeiraPaga.pagoEm.getTime() + primeiraPaga.dias * MS_POR_DIA),
+          })
+        : undefined,
+    );
   }
 
   /** Painel do síndico: plano, uso (moradores x limite), vencimento e cobrança em aberto. */
@@ -429,18 +464,31 @@ export class AssinaturasService {
   }
 
   /**
-   * Chamado pelo webhook do Asaas e pela conferência periódica quando um PIX é confirmado.
+   * Chamado pelo webhook do Asaas e pela conferência periódica quando um PIX é pago.
    * Retorna `false` se a cobrança não é de uma assinatura (aí é uma locação e quem trata é o
    * `PagamentosService`). Idempotente: reentrega do mesmo evento não ativa nem soma período duas vezes.
+   *
+   * Só ativa o condomínio e envia o e-mail (com o recibo) quando o dinheiro **caiu na conta**
+   * (`recebido`, evento PAYMENT_RECEIVED). Uma confirmação sem o dinheiro (PAYMENT_CONFIRMED) é
+   * reconhecida, mas fica esperando o recebimento.
    */
-  async confirmarCobranca(asaasChargeId: string): Promise<boolean> {
+  async confirmarCobranca(asaasChargeId: string, recebido = true): Promise<boolean> {
     const cobranca = await this.prisma.cobrancaAssinatura.findUnique({ where: { asaasChargeId } });
     if (!cobranca) return false;
+
+    if (!recebido) {
+      logger.info('Mensalidade confirmada pelo Asaas, mas o dinheiro ainda não foi recebido', {
+        asaasChargeId,
+      });
+      return true;
+    }
+
+    const pagoEm = new Date();
 
     const resultado = await this.prisma.$transaction(async (tx) => {
       const virou = await tx.cobrancaAssinatura.updateMany({
         where: { id: cobranca.id, status: 'PENDENTE' },
-        data: { status: 'PAGO', pagoEm: new Date() },
+        data: { status: 'PAGO', pagoEm },
       });
       if (virou.count === 0) return null;
 
@@ -477,7 +525,17 @@ export class AssinaturasService {
 
     if (primeiroPagamento) {
       try {
-        await this.enviarAcesso(assinatura.responsavel, assinatura.condominio.nome);
+        await this.enviarAcesso(
+          assinatura.responsavel,
+          assinatura.condominio.nome,
+          this.montarDetalhes({
+            planoCodigo: assinatura.planoCodigo,
+            cobranca,
+            pagador: assinatura.responsavel,
+            pagoEm,
+            ativaAte,
+          }),
+        );
       } catch (error) {
         // O condomínio já está ativo; o síndico pode pedir o e-mail de novo pela tela de acompanhamento.
         logger.error('Falha ao enviar o e-mail de acesso do síndico', {
@@ -511,7 +569,8 @@ export class AssinaturasService {
     for (const cobranca of pendentes) {
       try {
         const noAsaas = await this.asaas.buscarCobranca(cobranca.asaasChargeId);
-        if (STATUS_ASAAS_PAGO.includes(noAsaas.status)) {
+        // RECEIVED = o dinheiro caiu na conta. CONFIRMED (autorizado, ainda não liquidado) não basta.
+        if (noAsaas.status === 'RECEIVED') {
           await this.confirmarCobranca(cobranca.asaasChargeId);
           confirmadas += 1;
         }
@@ -638,21 +697,45 @@ export class AssinaturasService {
     return this.paraDTO(atualizada, sindico.email, pendente.condominio.nome, cobranca.invoiceUrl);
   }
 
+  /** Monta o que o e-mail mostra: o recibo do pagamento recebido e o resumo da contratação. */
+  private montarDetalhes(dados: {
+    planoCodigo: string;
+    cobranca: CobrancaAssinatura;
+    pagador: User;
+    pagoEm: Date;
+    ativaAte: Date;
+  }): DetalhesContratacao {
+    const { cobranca, pagador, pagoEm, ativaAte } = dados;
+
+    return {
+      plano: buscarPlano(dados.planoCodigo)?.nome ?? dados.planoCodigo,
+      periodo: buscarPeriodo(cobranca.periodoCodigo)?.nome ?? cobranca.periodoCodigo,
+      valor: Number(cobranca.valor),
+      ativaAte,
+      recibo: {
+        numero: numeroDoRecibo(cobranca.id),
+        pagoEm,
+        forma: 'PIX',
+        pagador: pagador.nome,
+        documento: mascararDocumento(pagador.cpf),
+        vigenciaInicio: new Date(ativaAte.getTime() - cobranca.dias * MS_POR_DIA),
+        comprovanteUrl: cobranca.invoiceUrl,
+      },
+    };
+  }
+
   /** Gera o link de uso único (só o hash fica no banco) e envia por e-mail. */
-  private async enviarAcesso(sindico: User, nomeCondominio: string): Promise<void> {
+  private async enviarAcesso(
+    sindico: User,
+    nomeCondominio: string,
+    detalhes?: DetalhesContratacao,
+  ): Promise<void> {
     const token = crypto.randomBytes(32).toString('base64url');
 
-    // Um link novo invalida os anteriores ainda não usados.
-    await this.prisma.tokenAcesso.updateMany({
-      where: { userId: sindico.id, usadoEm: null },
-      data: { expiraEm: new Date() },
-    });
+    // O link não tem prazo e um reenvio NÃO derruba os anteriores: qualquer e-mail enviado funciona
+    // até o síndico criar a senha (aí `definirSenha` invalida todos de uma vez).
     await this.prisma.tokenAcesso.create({
-      data: {
-        userId: sindico.id,
-        tokenHash: hashToken(token),
-        expiraEm: new Date(Date.now() + HORAS_VALIDADE_ACESSO * 60 * 60 * 1000),
-      },
+      data: { userId: sindico.id, tokenHash: hashToken(token), expiraEm: null },
     });
 
     await this.mailer.enviar(
@@ -661,6 +744,7 @@ export class AssinaturasService {
         nomeSindico: sindico.nome,
         nomeCondominio,
         link: `${urlDoApp()}/definir-senha?token=${encodeURIComponent(token)}`,
+        detalhes,
       }),
     );
   }

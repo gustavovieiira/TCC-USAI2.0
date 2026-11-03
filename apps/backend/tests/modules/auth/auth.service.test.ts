@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { AuthService } from '@/modules/auth/auth.service';
+import crypto from 'node:crypto';
+import { AuthService, TAMANHO_TOKEN_ACESSO } from '@/modules/auth/auth.service';
 import { AppError, ConflictError, NotFoundError, UnauthorizedError } from '@/common/errors';
 
 // Fixa os segredos independentemente do ambiente (local ou CI podem ter valores diferentes
@@ -379,6 +380,9 @@ describe('AuthService — assinatura do condomínio', () => {
 });
 
 describe('AuthService.definirSenha', () => {
+  // Um código de link tem 43 caracteres; com outro tamanho a senha nem chega a ser verificada.
+  const TOKEN = 'k'.repeat(43);
+
   const tokenValido = (extra: Record<string, unknown> = {}) => ({
     id: 'tok-1',
     userId: 's1',
@@ -410,12 +414,12 @@ describe('AuthService.definirSenha', () => {
       }),
     );
 
-    const result = await new AuthService(prisma).definirSenha('token-da-url', 'minha-senha-nova');
+    const result = await new AuthService(prisma).definirSenha(TOKEN, 'minha-senha-nova');
 
     // Busca pelo hash, nunca pelo token em si.
     const buscado = prisma.tokenAcesso.findUnique.mock.calls[0][0].where.tokenHash;
     expect(buscado).toMatch(/^[0-9a-f]{64}$/);
-    expect(buscado).not.toContain('token-da-url');
+    expect(buscado).not.toContain(TOKEN);
     expect(prisma.tokenAcesso.updateMany).toHaveBeenCalledWith({
       where: { id: 'tok-1', usadoEm: null },
       data: { usadoEm: expect.any(Date) },
@@ -426,18 +430,115 @@ describe('AuthService.definirSenha', () => {
     expect(result.accessToken).toEqual(expect.any(String));
   });
 
-  it.each([
-    ['inexistente', null],
-    ['já usado', tokenValido({ usadoEm: new Date() })],
-    ['expirado', tokenValido({ expiraEm: new Date(Date.now() - 1000) })],
-  ])('recusa link %s', async (_nome, registro) => {
+  it('o link não tem prazo: sem validade (expiraEm nulo) funciona, mesmo muito depois do envio', async () => {
     const prisma = buildPrismaMock();
-    prisma.tokenAcesso.findUnique.mockResolvedValue(registro);
+    prisma.tokenAcesso.findUnique.mockResolvedValue(
+      tokenValido({ expiraEm: null, createdAt: new Date('2026-01-01') }),
+    );
+    prisma.tokenAcesso.updateMany.mockResolvedValue({ count: 1 });
+    prisma.user.update.mockImplementation(({ data }: any) =>
+      Promise.resolve({
+        id: 's1',
+        nome: 'Sílvia',
+        email: 'silvia@exemplo.com',
+        papel: 'SINDICO',
+        condominioId: 'cond-1',
+        ...data,
+      }),
+    );
+
+    const result = await new AuthService(prisma).definirSenha(TOKEN, 'minha-senha-nova');
+
+    expect(result.user.papel).toBe('SINDICO');
+    expect(prisma.user.update).toHaveBeenCalledTimes(1);
+  });
+
+  it('ao criar a senha, TODOS os links do síndico deixam de valer (não só o que foi clicado)', async () => {
+    const prisma = buildPrismaMock();
+    prisma.tokenAcesso.findUnique.mockResolvedValue(tokenValido({ expiraEm: null }));
+    prisma.tokenAcesso.updateMany.mockResolvedValue({ count: 1 });
+    prisma.user.update.mockImplementation(({ data }: any) =>
+      Promise.resolve({
+        id: 's1',
+        nome: 'Sílvia',
+        email: 'silvia@exemplo.com',
+        papel: 'SINDICO',
+        condominioId: 'cond-1',
+        ...data,
+      }),
+    );
+
+    await new AuthService(prisma).definirSenha(TOKEN, 'minha-senha-nova');
+
+    expect(prisma.tokenAcesso.updateMany).toHaveBeenNthCalledWith(1, {
+      where: { id: 'tok-1', usadoEm: null },
+      data: { usadoEm: expect.any(Date) },
+    });
+    // os outros e-mails enviados (reenvios) também são consumidos
+    expect(prisma.tokenAcesso.updateMany).toHaveBeenNthCalledWith(2, {
+      where: { userId: 's1', usadoEm: null },
+      data: { usadoEm: expect.any(Date) },
+    });
+  });
+
+  it('um link antigo, de antes dos links valerem sem prazo, ainda respeita a validade que tinha', async () => {
+    const prisma = buildPrismaMock();
+    prisma.tokenAcesso.findUnique.mockResolvedValue(
+      tokenValido({ expiraEm: new Date(Date.now() - 1000) }),
+    );
 
     await expect(
-      new AuthService(prisma).definirSenha('x'.repeat(20), 'minha-senha-nova'),
+      new AuthService(prisma).definirSenha(TOKEN, 'minha-senha-nova'),
+    ).rejects.toMatchObject({ code: 'TOKEN_INVALIDO', message: expect.stringMatching(/expirou/) });
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it('link que não existe: mensagem clara pedindo outro e-mail', async () => {
+    const prisma = buildPrismaMock();
+    prisma.tokenAcesso.findUnique.mockResolvedValue(null);
+
+    await expect(
+      new AuthService(prisma).definirSenha(TOKEN, 'minha-senha-nova'),
     ).rejects.toMatchObject({
       code: 'TOKEN_INVALIDO',
+      message: expect.stringMatching(/não é válido.*outro e-mail/),
+    });
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['cortado em 1 caractere', 'k'.repeat(42)],
+    ['com caractere a mais', 'k'.repeat(44)],
+    ['só o começo', 'k'.repeat(10)],
+  ])('link %s: avisa que está incompleto, sem nem consultar o banco', async (_nome, token) => {
+    const prisma = buildPrismaMock();
+
+    await expect(
+      new AuthService(prisma).definirSenha(token, 'minha-senha-nova'),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      code: 'TOKEN_INCOMPLETO',
+      message: expect.stringMatching(/incompleto.*cortado ao ser copiado/),
+    });
+    expect(prisma.tokenAcesso.findUnique).not.toHaveBeenCalled();
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it('o tamanho esperado é o de 32 bytes em base64url (43 caracteres)', () => {
+    expect(TAMANHO_TOKEN_ACESSO).toBe(43);
+    expect(crypto.randomBytes(32).toString('base64url')).toHaveLength(TAMANHO_TOKEN_ACESSO);
+  });
+
+  it('senha já criada: explica que o acesso agora é pela página Entrar, com e-mail e senha', async () => {
+    const prisma = buildPrismaMock();
+    prisma.tokenAcesso.findUnique.mockResolvedValue(tokenValido({ usadoEm: new Date() }));
+
+    await expect(
+      new AuthService(prisma).definirSenha(TOKEN, 'outra-senha-123'),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      code: 'SENHA_JA_CRIADA',
+      message: expect.stringMatching(/Entrar.*e-mail e a senha/),
     });
     expect(prisma.user.update).not.toHaveBeenCalled();
   });
@@ -448,10 +549,8 @@ describe('AuthService.definirSenha', () => {
     prisma.tokenAcesso.updateMany.mockResolvedValue({ count: 0 });
 
     await expect(
-      new AuthService(prisma).definirSenha('x'.repeat(20), 'minha-senha-nova'),
-    ).rejects.toMatchObject({
-      code: 'TOKEN_INVALIDO',
-    });
+      new AuthService(prisma).definirSenha(TOKEN, 'minha-senha-nova'),
+    ).rejects.toMatchObject({ code: 'SENHA_JA_CRIADA' });
     expect(prisma.user.update).not.toHaveBeenCalled();
   });
 });

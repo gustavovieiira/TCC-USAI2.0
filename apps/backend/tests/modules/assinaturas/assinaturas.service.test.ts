@@ -1,5 +1,12 @@
+import crypto from 'node:crypto';
 import bcrypt from 'bcryptjs';
-import { AssinaturasService } from '@/modules/assinaturas/assinaturas.service';
+import { TAMANHO_TOKEN_ACESSO } from '@/modules/auth/auth.service';
+import {
+  AssinaturasService,
+  mascararDocumento,
+  numeroDoRecibo,
+} from '@/modules/assinaturas/assinaturas.service';
+import { LOGO_CID } from '@/modules/assinaturas/assinaturas.emails';
 import {
   PERIODOS,
   PLANOS,
@@ -56,6 +63,7 @@ function buildPrismaMock() {
     cobrancaAssinatura: {
       create: jest.fn(),
       findUnique: jest.fn(),
+      findFirst: jest.fn().mockResolvedValue(null),
       findMany: jest.fn().mockResolvedValue([]),
       updateMany: jest.fn(),
     },
@@ -513,9 +521,15 @@ describe('AssinaturasService.confirmarCobranca', () => {
       id: 'assin-1',
       condominioId: 'cond-1',
       responsavelId: 'sindico-1',
+      planoCodigo: 'CONDOMINIO',
       status: 'AGUARDANDO_PAGAMENTO',
       ativaAte: null,
-      responsavel: { id: 'sindico-1', nome: 'Sílvia', email: 'silvia@exemplo.com' },
+      responsavel: {
+        id: 'sindico-1',
+        nome: 'Sílvia',
+        email: 'silvia@exemplo.com',
+        cpf: '52998224725',
+      },
       condominio: { nome: 'Residencial Aurora' },
       ...overrides,
     };
@@ -574,6 +588,110 @@ describe('AssinaturasService.confirmarCobranca', () => {
     expect(email.para).toBe('silvia@exemplo.com');
     expect(email.texto).toContain('/definir-senha?token=');
     expect(email.texto).not.toContain(salvo.tokenHash);
+  });
+
+  it('o e-mail do 1º pagamento traz o recibo: número, forma, pagador (documento mascarado), valor e vigência', async () => {
+    const prisma = buildPrismaMock();
+    prisma.cobrancaAssinatura.findUnique.mockResolvedValue({
+      id: 'abcd1234-ef56-7890-abcd-ef1234567890',
+      assinaturaId: 'assin-1',
+      periodoCodigo: 'ANUAL',
+      dias: 365,
+      valor: 2870,
+      invoiceUrl: 'https://asaas/comprovante',
+    });
+    prisma.cobrancaAssinatura.updateMany.mockResolvedValue({ count: 1 });
+    prisma.assinatura.findUniqueOrThrow.mockResolvedValue(assinaturaPaga());
+    const mailer = mailerVazio();
+    const service = new AssinaturasService(prisma, buildAsaasMock(), mailer);
+
+    await service.confirmarCobranca('pay_anual');
+
+    const email = mailer.enviar.mock.calls[0][0];
+    expect(email.texto).toContain('RECIBO DE PAGAMENTO nº USAI-ABCD1234');
+    expect(email.texto).toContain('Forma de pagamento: PIX');
+    expect(email.texto).toContain('Pagador: Sílvia (***.982.247-**)');
+    expect(email.texto).toMatch(/Valor pago: R\$\s2\.870,00/);
+    expect(email.texto).toContain('Plano Condomínio · Anual');
+    expect(email.texto).toContain('Comprovante do PIX: https://asaas/comprovante');
+    // o CPF inteiro nunca vai pro e-mail
+    expect(email.texto).not.toContain('52998224725');
+    expect(email.html).not.toContain('52998224725');
+    expect(email.html).toContain('Recibo de pagamento');
+    expect(email.anexos?.[0]).toMatchObject({ cid: LOGO_CID, tipo: 'image/png' });
+  });
+
+  it('o recibo mostra quando o dinheiro foi recebido, e a vigência bate com os dias pagos', async () => {
+    const prisma = buildPrismaMock();
+    prisma.cobrancaAssinatura.findUnique.mockResolvedValue({
+      id: 'cob-9',
+      assinaturaId: 'assin-1',
+      periodoCodigo: 'SEMESTRAL',
+      dias: 180,
+      valor: 1615,
+    });
+    prisma.cobrancaAssinatura.updateMany.mockResolvedValue({ count: 1 });
+    prisma.assinatura.findUniqueOrThrow.mockResolvedValue(assinaturaPaga());
+    const mailer = mailerVazio();
+    const service = new AssinaturasService(prisma, buildAsaasMock(), mailer);
+
+    await service.confirmarCobranca('pay_sem');
+
+    const { pagoEm } = prisma.cobrancaAssinatura.updateMany.mock.calls[0][0].data;
+    expect(pagoEm).toBeInstanceOf(Date);
+    const { ativaAte } = prisma.assinatura.update.mock.calls[0][0].data;
+    expect(Math.round((ativaAte.getTime() - pagoEm.getTime()) / UM_DIA)).toBe(180);
+    expect(mailer.enviar.mock.calls[0][0].texto).toContain('Plano Condomínio · Semestral');
+  });
+
+  it('PIX só confirmado, sem o dinheiro na conta (recebido=false): não ativa nem manda e-mail', async () => {
+    const prisma = buildPrismaMock();
+    prisma.cobrancaAssinatura.findUnique.mockResolvedValue({
+      id: 'cob-1',
+      assinaturaId: 'assin-1',
+      periodoCodigo: 'MENSAL',
+      dias: 30,
+      valor: 299,
+    });
+    const mailer = mailerVazio();
+    const service = new AssinaturasService(prisma, buildAsaasMock(), mailer);
+
+    // devolve true: a cobrança é de uma assinatura, só que ainda não vale como paga
+    expect(await service.confirmarCobranca('pay_1', false)).toBe(true);
+
+    expect(prisma.cobrancaAssinatura.updateMany).not.toHaveBeenCalled();
+    expect(prisma.assinatura.update).not.toHaveBeenCalled();
+    expect(prisma.condominio.update).not.toHaveBeenCalled();
+    expect(prisma.user.update).not.toHaveBeenCalled();
+    expect(prisma.tokenAcesso.create).not.toHaveBeenCalled();
+    expect(mailer.enviar).not.toHaveBeenCalled();
+  });
+
+  it('o código do link no e-mail tem exatamente o tamanho que a criação da senha exige, e não precisa de escape', async () => {
+    const prisma = buildPrismaMock();
+    prisma.cobrancaAssinatura.findUnique.mockResolvedValue({
+      id: 'cob-1',
+      assinaturaId: 'assin-1',
+      periodoCodigo: 'MENSAL',
+      dias: 30,
+      valor: 299,
+    });
+    prisma.cobrancaAssinatura.updateMany.mockResolvedValue({ count: 1 });
+    prisma.assinatura.findUniqueOrThrow.mockResolvedValue(assinaturaPaga());
+    const mailer = mailerVazio();
+    const service = new AssinaturasService(prisma, buildAsaasMock(), mailer);
+
+    await service.confirmarCobranca('pay_1');
+
+    const { texto, html } = mailer.enviar.mock.calls[0][0];
+    const [, codigo] = /definir-senha\?token=(\S+)/.exec(texto) ?? [];
+    expect(codigo).toHaveLength(TAMANHO_TOKEN_ACESSO);
+    // só letras, números, "-" e "_": nada que um cliente de e-mail possa quebrar ou reescrever
+    expect(codigo).toMatch(/^[A-Za-z0-9_-]+$/);
+    expect(html).toContain(`definir-senha?token=${codigo}"`);
+    // o que vai pro banco é o hash desse mesmo código
+    const salvo = prisma.tokenAcesso.create.mock.calls[0][0].data.tokenHash;
+    expect(salvo).toBe(crypto.createHash('sha256').update(codigo).digest('hex'));
   });
 
   it('é idempotente: o mesmo evento chegando de novo não ativa nem manda e-mail de novo', async () => {
@@ -681,6 +799,34 @@ describe('AssinaturasService.conferirPendentes', () => {
     expect(await service.conferirPendentes()).toBe(1);
     expect(confirmar).toHaveBeenCalledTimes(1);
     expect(confirmar).toHaveBeenCalledWith('pay_a');
+  });
+
+  it('CONFIRMED (autorizado, dinheiro ainda não na conta) não ativa: só RECEIVED conta', async () => {
+    const prisma = buildPrismaMock();
+    prisma.cobrancaAssinatura.findMany.mockResolvedValue([{ id: 'a', asaasChargeId: 'pay_a' }]);
+    const asaas = buildAsaasMock();
+    asaas.buscarCobranca.mockResolvedValue({ id: 'pay_a', status: 'CONFIRMED' });
+    const service = new AssinaturasService(prisma, asaas, mailerVazio());
+    const confirmar = jest.spyOn(service, 'confirmarCobranca').mockResolvedValue(true);
+
+    expect(await service.conferirPendentes()).toBe(0);
+    expect(confirmar).not.toHaveBeenCalled();
+  });
+});
+
+describe('recibo: número e documento mascarado', () => {
+  it('o número é a marca mais os 8 primeiros caracteres do id, em maiúsculas', () => {
+    expect(numeroDoRecibo('3f9a12bc-1111-2222-3333-444455556666')).toBe('USAI-3F9A12BC');
+    expect(numeroDoRecibo('cob-1')).toBe('USAI-COB1');
+  });
+
+  it('CPF e CNPJ mostram só o miolo; qualquer outra coisa não mostra nada', () => {
+    expect(mascararDocumento('52998224725')).toBe('***.982.247-**');
+    expect(mascararDocumento('529.982.247-25')).toBe('***.982.247-**');
+    expect(mascararDocumento('11222333000181')).toBe('**.222.333/0001-**');
+    expect(mascararDocumento('123')).toBeNull();
+    expect(mascararDocumento(null)).toBeNull();
+    expect(mascararDocumento(undefined)).toBeNull();
   });
 });
 
@@ -935,7 +1081,7 @@ describe('AssinaturasService.reenviarAcesso', () => {
     await expect(service.reenviarAcesso('assin-1')).rejects.toMatchObject({ statusCode: 429 });
   });
 
-  it('manda um link novo e invalida os anteriores', async () => {
+  it('manda um link novo SEM prazo e SEM derrubar os anteriores: todos valem até a senha ser criada', async () => {
     const prisma = buildPrismaMock();
     prisma.assinatura.findUnique.mockResolvedValue(assinatura);
     prisma.tokenAcesso.findMany.mockResolvedValue([
@@ -946,10 +1092,62 @@ describe('AssinaturasService.reenviarAcesso', () => {
 
     await service.reenviarAcesso('assin-1');
 
-    expect(prisma.tokenAcesso.updateMany).toHaveBeenCalledWith({
-      where: { userId: 'sindico-1', usadoEm: null },
-      data: { expiraEm: expect.any(Date) },
+    // nada de invalidar os links já enviados (o síndico pode clicar em qualquer um dos e-mails)
+    expect(prisma.tokenAcesso.updateMany).not.toHaveBeenCalled();
+    expect(prisma.tokenAcesso.create).toHaveBeenCalledWith({
+      data: {
+        userId: 'sindico-1',
+        tokenHash: expect.stringMatching(/^[0-9a-f]{64}$/),
+        expiraEm: null,
+      },
     });
     expect(mailer.enviar).toHaveBeenCalledTimes(1);
+  });
+
+  it('o e-mail reenviado traz o recibo do primeiro pagamento', async () => {
+    const prisma = buildPrismaMock();
+    prisma.assinatura.findUnique.mockResolvedValue({
+      ...assinatura,
+      planoCodigo: 'CONDOMINIO',
+      responsavel: { ...assinatura.responsavel, cpf: '52998224725' },
+    });
+    prisma.tokenAcesso.findMany.mockResolvedValue([]);
+    const pagoEm = new Date('2026-11-03T20:00:00Z');
+    prisma.cobrancaAssinatura.findFirst.mockResolvedValue({
+      id: 'aaaa1111-0000-0000-0000-000000000000',
+      periodoCodigo: 'TRIMESTRAL',
+      dias: 90,
+      valor: 852,
+      pagoEm,
+      invoiceUrl: 'https://asaas/c',
+    });
+    const mailer = mailerVazio();
+    const service = new AssinaturasService(prisma, buildAsaasMock(), mailer);
+
+    await service.reenviarAcesso('assin-1');
+
+    expect(prisma.cobrancaAssinatura.findFirst).toHaveBeenCalledWith({
+      where: { assinaturaId: 'assin-1', status: 'PAGO' },
+      orderBy: { pagoEm: 'asc' },
+    });
+    const { texto } = mailer.enviar.mock.calls[0][0];
+    expect(texto).toContain('RECIBO DE PAGAMENTO nº USAI-AAAA1111');
+    expect(texto).toContain('Plano Condomínio · Trimestral');
+    expect(texto).toMatch(/Valor pago: R\$\s852,00/);
+  });
+
+  it('sem nenhum pagamento registrado, reenvia o acesso mesmo assim (sem o bloco de recibo)', async () => {
+    const prisma = buildPrismaMock();
+    prisma.assinatura.findUnique.mockResolvedValue(assinatura);
+    prisma.tokenAcesso.findMany.mockResolvedValue([]);
+    prisma.cobrancaAssinatura.findFirst.mockResolvedValue(null);
+    const mailer = mailerVazio();
+    const service = new AssinaturasService(prisma, buildAsaasMock(), mailer);
+
+    await service.reenviarAcesso('assin-1');
+
+    const { texto } = mailer.enviar.mock.calls[0][0];
+    expect(texto).toContain('/definir-senha?token=');
+    expect(texto).not.toContain('RECIBO DE PAGAMENTO');
   });
 });

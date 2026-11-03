@@ -107,7 +107,15 @@ export class AsaasClient {
   }): Promise<AsaasCliente> {
     return this.requisitar<AsaasCliente>('/customers', {
       method: 'POST',
-      body: JSON.stringify({ name: input.nome, cpfCnpj: input.cpfCnpj, email: input.email }),
+      body: JSON.stringify({
+        name: input.nome,
+        cpfCnpj: input.cpfCnpj,
+        email: input.email,
+        // Os e-mails do Asaas ("Seu pagamento foi confirmado - Fatura ...") levam o nome e o CPF/CNPJ do
+        // titular da conta como se ele fosse o vendedor, e duplicam o que a USAI já envia (com o recibo
+        // e o acesso). A USAI avisa o cliente por conta própria, então desligamos os do Asaas.
+        notificationDisabled: true,
+      }),
     });
   }
 

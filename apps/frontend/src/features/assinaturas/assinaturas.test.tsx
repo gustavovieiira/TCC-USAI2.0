@@ -440,6 +440,45 @@ describe('AcompanharContratacaoPage', () => {
     expect(consultar.mock.calls.length).toBe(chamadas);
   });
 
+  it('depois de confirmado, explica que o link não tem prazo e que o login é e-mail + senha criada', async () => {
+    vi.spyOn(api, 'consultarContratacao').mockResolvedValue(
+      contratacao({ status: 'ATIVA', invoiceUrl: null }),
+    );
+
+    renderPage();
+
+    expect(await screen.findByText('Pagamento confirmado!')).toBeInTheDocument();
+    expect(screen.getByText(/funciona até você criar a senha, sem prazo/)).toBeInTheDocument();
+    expect(screen.queryByText(/48 horas/)).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/você entra sempre pela página/, { exact: false }).closest('p'),
+    ).toHaveTextContent(/e-mail e a senha que definiu/);
+  });
+
+  it('depois de confirmado, orienta a procurar o e-mail no spam e nas promoções', async () => {
+    vi.spyOn(api, 'consultarContratacao').mockResolvedValue(
+      contratacao({ status: 'ATIVA', invoiceUrl: null }),
+    );
+
+    renderPage();
+
+    expect(await screen.findByText('Pagamento confirmado!')).toBeInTheDocument();
+    const dica = screen.getByText(/Não chegou\?/).closest('p');
+    expect(dica).toHaveTextContent(/spam/);
+    expect(dica).toHaveTextContent(/promoções/);
+    expect(dica).toHaveTextContent(/USAI/);
+    expect(dica).toHaveTextContent(/não é spam/);
+  });
+
+  it('antes de pagar, a dica do spam ainda não aparece (o e-mail só sai depois do pagamento)', async () => {
+    vi.spyOn(api, 'consultarContratacao').mockResolvedValue(contratacao());
+
+    renderPage();
+
+    await screen.findByText('Falta só o pagamento');
+    expect(screen.queryByText(/Não chegou\?/)).not.toBeInTheDocument();
+  });
+
   it('reenvia o e-mail de acesso e avisa o resultado', async () => {
     vi.spyOn(api, 'consultarContratacao').mockResolvedValue(
       contratacao({ status: 'ATIVA', invoiceUrl: null }),
@@ -525,6 +564,38 @@ describe('DefinirSenhaPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Criar senha e entrar' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('expirou');
+  });
+
+  it('explica o login (e-mail e a senha criada, pela página Entrar) e oferece o link de entrar', () => {
+    renderPage('/definir-senha?token=abc123token');
+
+    expect(screen.getByText(/entra sempre pela página/, { exact: false })).toHaveTextContent(
+      /e-mail e a senha que definiu/,
+    );
+    expect(screen.getByRole('link', { name: 'Entrar' })).toHaveAttribute('href', '/login');
+  });
+
+  it('se a senha já foi criada, mostra a mensagem do servidor (entrar com e-mail e senha) e o link de entrar', async () => {
+    vi.spyOn(authApi, 'definirSenha').mockRejectedValue({
+      isAxiosError: true,
+      response: {
+        data: {
+          error: {
+            code: 'SENHA_JA_CRIADA',
+            message:
+              'A sua senha já foi criada. Entre pela página "Entrar", com o seu e-mail e a senha que você definiu.',
+          },
+        },
+      },
+    });
+
+    renderPage('/definir-senha?token=abc123token');
+    await userEvent.type(screen.getByLabelText('Nova senha'), 'minha-senha-nova');
+    await userEvent.type(screen.getByLabelText('Repita a senha'), 'minha-senha-nova');
+    await userEvent.click(screen.getByRole('button', { name: 'Criar senha e entrar' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/senha já foi criada/);
+    expect(screen.getByRole('link', { name: 'Entrar' })).toHaveAttribute('href', '/login');
   });
 
   it('sem token na URL, explica e leva ao login', () => {
