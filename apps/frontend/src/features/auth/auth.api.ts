@@ -41,3 +41,9 @@ export async function atualizarPerfil(payload: AtualizarPerfilPayload): Promise<
   const { data } = await apiClient.patch<StoredUser>('/auth/perfil', payload);
   return data;
 }
+
+/** Link do e-mail de acesso do síndico: define a primeira senha e já devolve a sessão. */
+export async function definirSenha(token: string, senha: string): Promise<AuthResponse> {
+  const { data } = await apiClient.post<AuthResponse>('/auth/definir-senha', { token, senha });
+  return data;
+}

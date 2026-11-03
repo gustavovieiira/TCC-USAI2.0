@@ -1,5 +1,8 @@
 import { AppError } from '@/common/errors';
 
+/** Status do Asaas que significam "dinheiro recebido": RECEIVED é o do PIX, CONFIRMED o de cartão/boleto. */
+export const STATUS_ASAAS_PAGO = ['RECEIVED', 'CONFIRMED'];
+
 export interface AsaasCliente {
   id: string;
 }

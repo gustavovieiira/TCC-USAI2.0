@@ -15,7 +15,9 @@ export type TipoNotificacao =
   | 'SAQUE_APROVADO'
   | 'SAQUE_PAGO'
   | 'SAQUE_REJEITADO'
-  | 'MURAL_RESPOSTA';
+  | 'MURAL_RESPOSTA'
+  | 'ASSINATURA_RENOVADA'
+  | 'ASSINATURA_SUSPENSA';
 
 export interface NovaNotificacao {
   userId: string;

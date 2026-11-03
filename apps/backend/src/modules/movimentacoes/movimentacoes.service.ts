@@ -18,7 +18,6 @@ import { NotificacoesService } from '@/modules/notificacoes/notificacoes.service
 import { calcularAssinatura, calcularHashIntegridade } from './movimentacoes.integridade';
 import {
   AceitarMovimentacaoInput,
-  AceiteDTO,
   AcessorioMovimentacao,
   ContextoAceite,
   DeclaracaoTermo,

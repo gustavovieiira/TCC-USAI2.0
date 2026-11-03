@@ -6,6 +6,7 @@ import { UPLOADS_DIR } from '@/common/uploads';
 import { metricsMiddleware } from '@/metrics/metricsMiddleware';
 import { metricsRegistry } from '@/metrics/registry';
 import { adminRouter } from '@/modules/admin/admin.routes';
+import { assinaturasRouter } from '@/modules/assinaturas/assinaturas.routes';
 import { authRouter } from '@/modules/auth/auth.routes';
 import { configuracaoRouter } from '@/modules/configuracao/configuracao.routes';
 import { conversasRouter } from '@/modules/conversas/conversas.routes';
@@ -34,6 +35,7 @@ export function createApp(): Express {
     res.end(await metricsRegistry.metrics());
   });
 
+  app.use('/api/assinaturas', assinaturasRouter);
   app.use('/api/auth', authRouter);
   app.use('/api/configuracao', configuracaoRouter);
   app.use('/api/conversas', conversasRouter);

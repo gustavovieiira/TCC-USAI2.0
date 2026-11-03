@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { asyncHandler } from '@/common/asyncHandler';
 import { authGuard, requireRole } from '@/common/authGuard';
+import { assinaturasController } from '@/modules/assinaturas/assinaturas.controller';
 import { sindicoController } from './sindico.controller';
 
 export const sindicoRouter = Router();
@@ -12,3 +13,5 @@ sindicoRouter.patch('/condominio/pin', asyncHandler(sindicoController.atualizarP
 sindicoRouter.get('/moradores', asyncHandler(sindicoController.listarMoradores));
 sindicoRouter.delete('/moradores/:id', asyncHandler(sindicoController.removerMorador));
 sindicoRouter.get('/locacoes', asyncHandler(sindicoController.listarLocacoesAtivas));
+sindicoRouter.get('/assinatura', asyncHandler(assinaturasController.painel));
+sindicoRouter.post('/assinatura/cobranca', asyncHandler(assinaturasController.gerarCobranca));

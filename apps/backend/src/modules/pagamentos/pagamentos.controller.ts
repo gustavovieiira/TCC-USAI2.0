@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { prisma } from '@/common/prisma';
 import { NotificacoesService } from '@/modules/notificacoes/notificacoes.service';
 import { logger } from '@/common/logger';
+import { assinaturasService } from '@/modules/assinaturas/assinaturas.controller';
 import { AsaasClient } from './asaas.client';
 import { asaasWebhookSchema } from './pagamentos.schemas';
 import { PagamentosService } from './pagamentos.service';
@@ -10,6 +11,7 @@ const pagamentosService = new PagamentosService(
   prisma,
   new AsaasClient(),
   new NotificacoesService(prisma),
+  assinaturasService,
 );
 
 /** Eventos do Asaas que valem como "PIX confirmado" — os demais são reconhecidos e ignorados. */

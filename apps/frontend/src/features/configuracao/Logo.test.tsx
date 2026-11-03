@@ -1,12 +1,18 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Logo } from '@/components/ui/Logo';
 import { LandingPage } from '@/pages/LandingPage';
 import { AuthShell } from '@/pages/AuthShell';
+import * as assinaturasApi from '@/features/assinaturas/assinaturas.api';
 import * as api from './configuracao.api';
 import { ConfiguracaoProvider } from './ConfiguracaoContext';
 import { ConfiguracaoDTO } from './configuracao.types';
+
+// A tela inicial lista os planos; aqui não interessa o conteúdo, só não ir à rede.
+beforeEach(() => {
+  vi.spyOn(assinaturasApi, 'listarPlanos').mockResolvedValue([]);
+});
 
 const comLogo: ConfiguracaoDTO = {
   logoUrl: 'http://localhost:3000/uploads/marca/logo-empresa.png',
@@ -130,9 +136,16 @@ describe('marca padrão da USAI e tela inicial', () => {
     expect(screen.getAllByRole('listitem').length).toBeGreaterThanOrEqual(4);
     expect(screen.getByText('Retire e devolva com termo')).toBeInTheDocument();
     expect(screen.getByText('Termo e documento com aceite')).toBeInTheDocument();
-    expect(
-      screen.getAllByRole('link', { name: /Cadastrar condomínio|Começar agora/ }).length,
-    ).toBeGreaterThan(1);
+    // chamadas para contratar (cabeçalho, abertura e faixa final)
+    const contratar = screen.getAllByRole('link', { name: /Contratar/ });
+    expect(contratar.length).toBeGreaterThan(1);
+    contratar.forEach((link) => expect(link).toHaveAttribute('href', '/contratar'));
+    expect(screen.getByRole('link', { name: /Cadastre-se com o link do síndico/ })).toHaveAttribute(
+      'href',
+      '/cadastro',
+    );
+    expect(screen.getByRole('heading', { name: 'Seu condomínio no ar' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Planos e preços' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Já tenho conta' })).toHaveAttribute('href', '/login');
     // sem configuração carregada, o rodapé institucional padrão é exibido
     expect(

@@ -23,3 +23,8 @@ export const atualizarPerfilSchema = z.object({
   apartamento: z.string().optional(),
   cpf: z.string().optional(),
 });
+
+export const definirSenhaSchema = z.object({
+  token: z.string().min(10, 'Link inválido'),
+  senha: z.string().min(8, 'Senha deve ter ao menos 8 caracteres'),
+});

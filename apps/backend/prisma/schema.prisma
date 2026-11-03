@@ -53,6 +53,7 @@ model Condominio {
   itens             Item[]
   posts             Post[]
   conversasPrivadas ConversaPrivada[]
+  assinatura        Assinatura?
 
   @@map("condominios")
 }
@@ -88,6 +89,8 @@ model User {
   movimentacoesRecebidas Movimentacao[] @relation("MovimentacaoRecebida")
   aceitesTermo          AceiteTermo[]
   eventosMovimentacao   EventoMovimentacao[]
+  assinaturasContratadas Assinatura[]       @relation("AssinaturaResponsavel")
+  tokensAcesso          TokenAcesso[]
 
   @@index([condominioId])
   @@map("users")
@@ -476,4 +479,62 @@ model EventoMovimentacao {
 
   @@index([movimentacaoId, createdAt])
   @@map("eventos_movimentacao")
+}
+
+/// Assinatura mensal de um condomínio (SaaS): o síndico escolhe o plano pela quantidade de moradores,
+/// paga a primeira mensalidade por PIX e, confirmado o pagamento, o condomínio é ativado. Condomínios
+/// cadastrados antes (pelo Admin) não têm assinatura e seguem sem limite.
+/// status: AGUARDANDO_PAGAMENTO | ATIVA | SUSPENSA
+model Assinatura {
+  id              String    @id @default(uuid())
+  condominioId    String    @unique
+  responsavelId   String
+  planoCodigo     String
+  valorMensal     Decimal   @db.Decimal(10, 2)
+  limiteMoradores Int
+  status          String
+  ativaAte        DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  condominio  Condominio           @relation(fields: [condominioId], references: [id])
+  responsavel User                 @relation("AssinaturaResponsavel", fields: [responsavelId], references: [id])
+  cobrancas   CobrancaAssinatura[]
+
+  @@index([status, ativaAte])
+  @@map("assinaturas")
+}
+
+/// Uma mensalidade cobrada por PIX (Asaas). status: PENDENTE | PAGO | CANCELADO
+model CobrancaAssinatura {
+  id            String    @id @default(uuid())
+  assinaturaId  String
+  asaasChargeId String    @unique
+  invoiceUrl    String
+  valor         Decimal   @db.Decimal(10, 2)
+  status        String
+  referencia    String
+  pagoEm        DateTime?
+  createdAt     DateTime  @default(now())
+
+  assinatura Assinatura @relation(fields: [assinaturaId], references: [id], onDelete: Cascade)
+
+  @@index([assinaturaId, status])
+  @@map("cobrancas_assinatura")
+}
+
+/// Link de uso único (válido por tempo limitado) enviado por e-mail pro síndico definir a própria
+/// senha. Só o hash (SHA-256) do token fica no banco.
+model TokenAcesso {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  expiraEm  DateTime
+  usadoEm   DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("tokens_acesso")
 }

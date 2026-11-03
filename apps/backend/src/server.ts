@@ -5,6 +5,7 @@ import { setSocketServer } from './realtime/emitter';
 import { createSocketServer } from './realtime/socket';
 import { logger } from '@/common/logger';
 import { prisma } from '@/common/prisma';
+import { assinaturasService } from '@/modules/assinaturas/assinaturas.controller';
 import { NotificacoesService } from '@/modules/notificacoes/notificacoes.service';
 import { AsaasClient } from '@/modules/pagamentos/asaas.client';
 import { PagamentosService } from '@/modules/pagamentos/pagamentos.service';
@@ -46,7 +47,12 @@ setInterval(() => {
  * `ASAAS_API_KEY` configurada, e nunca roda duas conferências ao mesmo tempo.
  */
 if (process.env.ASAAS_API_KEY) {
-  const pagamentosService = new PagamentosService(prisma, new AsaasClient(), notificacoesService);
+  const pagamentosService = new PagamentosService(
+    prisma,
+    new AsaasClient(),
+    notificacoesService,
+    assinaturasService,
+  );
   let conferindo = false;
 
   setInterval(() => {
@@ -65,3 +71,10 @@ if (process.env.ASAAS_API_KEY) {
 } else {
   logger.warn('ASAAS_API_KEY não configurada — conferência periódica de pagamentos desligada');
 }
+
+/** Assinaturas vencidas além da carência são suspensas (o condomínio fica inativo até o próximo PIX). */
+setInterval(() => {
+  assinaturasService
+    .suspenderVencidas()
+    .catch((error) => logger.error('Falha ao suspender assinaturas vencidas', { error }));
+}, UMA_HORA_MS);

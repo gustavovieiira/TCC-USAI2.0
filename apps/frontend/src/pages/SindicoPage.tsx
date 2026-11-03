@@ -3,7 +3,14 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { StatusBadge } from '@/components/ui/Badge';
+import { ListaRolavel } from '@/components/ui/ListaRolavel';
 import { Spinner } from '@/components/ui/Spinner';
+import {
+  buscarPainelAssinatura,
+  PainelAssinaturaDTO,
+} from '@/features/assinaturas/assinaturas.api';
+import { CartaoAssinatura } from '@/features/assinaturas/CartaoAssinatura';
+import { ConviteMoradores } from '@/features/assinaturas/ConviteMoradores';
 import { TextField } from '@/components/ui/TextField';
 import { extractErrorMessage } from '@/lib/apiClient';
 import { formatCurrency, formatDate } from '@/lib/format';
@@ -23,6 +30,7 @@ export function SindicoPage() {
   const [moradores, setMoradores] = useState<MoradorDTO[] | null>(null);
   const [locacoes, setLocacoes] = useState<LocacaoAtivaDTO[] | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [assinatura, setAssinatura] = useState<PainelAssinaturaDTO | null>(null);
   const [aba, setAba] = useState<Aba>('moradores');
 
   const [editandoPin, setEditandoPin] = useState(false);
@@ -30,6 +38,7 @@ export function SindicoPage() {
   const [salvandoPin, setSalvandoPin] = useState(false);
   const [erroPin, setErroPin] = useState<string | null>(null);
 
+  const [buscaMorador, setBuscaMorador] = useState('');
   const [removendoId, setRemovendoId] = useState<string | null>(null);
   const [erroRemocao, setErroRemocao] = useState<string | null>(null);
 
@@ -41,6 +50,11 @@ export function SindicoPage() {
         setLocacoes(loc);
       })
       .catch((err) => setErro(extractErrorMessage(err)));
+
+    // Condomínios antigos (sem plano) devolvem null; uma falha aqui não derruba o resto do painel.
+    buscarPainelAssinatura()
+      .then(setAssinatura)
+      .catch(() => setAssinatura(null));
   }, []);
 
   async function handleSalvarPin(event: FormEvent) {
@@ -78,6 +92,13 @@ export function SindicoPage() {
     }
   }
 
+  const termoMorador = buscaMorador.trim().toLowerCase();
+  const moradoresFiltrados = (moradores ?? []).filter(
+    (m) =>
+      !termoMorador ||
+      [m.nome, m.email, m.apartamento].some((campo) => campo?.toLowerCase().includes(termoMorador)),
+  );
+
   if (erro) {
     return <p className="text-sm text-carmim-700">{erro}</p>;
   }
@@ -97,12 +118,16 @@ export function SindicoPage() {
         <p className="text-sm text-ink-soft">{condominio.nome}</p>
       </div>
 
-      <Card className="flex flex-col gap-3">
-        <div>
-          <p className="font-meta text-xs uppercase tracking-wide text-ink-faint">Link de acesso</p>
-          <p className="font-meta text-sm text-ink">/cadastro?condominio={condominio.linkSlug}</p>
-        </div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        {assinatura && <CartaoAssinatura painel={assinatura} />}
+        <ConviteMoradores
+          nomeCondominio={condominio.nome}
+          linkSlug={condominio.linkSlug}
+          pin={condominio.pin}
+        />
+      </div>
 
+      <Card className="flex flex-col gap-3">
         {!editandoPin ? (
           <div className="flex items-center justify-between">
             <div>
@@ -170,55 +195,79 @@ export function SindicoPage() {
       {aba === 'moradores' && (
         <>
           {erroRemocao && <p className="text-sm text-carmim-700">{erroRemocao}</p>}
-          {moradores && moradores.length > 0 ? (
-            <div className="flex flex-col gap-2">
-              {moradores.map((morador) => (
-                <Card key={morador.id} className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="font-display font-semibold text-ink">{morador.nome}</p>
-                    <p className="truncate text-sm text-ink-soft">{morador.email}</p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-3">
-                    {morador.apartamento && (
-                      <span className="text-sm text-ink-soft">Apto {morador.apartamento}</span>
-                    )}
-                    <Button
-                      variant="danger"
-                      fullWidth={false}
-                      isLoading={removendoId === morador.id}
-                      onClick={() => handleRemoverMorador(morador.id, morador.nome)}
-                    >
-                      Remover
-                    </Button>
-                  </div>
-                </Card>
-              ))}
-            </div>
+          {moradores && moradores.length > 0 && (
+            <input
+              type="search"
+              aria-label="Buscar morador"
+              value={buscaMorador}
+              onChange={(e) => setBuscaMorador(e.target.value)}
+              placeholder={`Buscar entre ${moradores.length} ${moradores.length === 1 ? 'morador' : 'moradores'} (nome, e-mail ou apto)…`}
+              className="notch-sm min-h-[44px] w-full border border-ink/40 bg-paper-surface px-4 py-2.5
+                text-sm text-ink outline-none transition focus:border-ink"
+            />
+          )}
+          {moradores && moradores.length > 0 && moradoresFiltrados.length === 0 && (
+            <EmptyState
+              title="Nenhum morador encontrado"
+              description="Tente outro nome, e-mail ou apartamento."
+            />
+          )}
+          {moradoresFiltrados.length > 0 ? (
+            <ListaRolavel rotulo="Moradores" alturaMaxima="max-h-[calc(100vh-30rem)] min-h-[16rem]">
+              <div className="flex flex-col gap-2">
+                {moradoresFiltrados.map((morador) => (
+                  <Card key={morador.id} className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-display font-semibold text-ink">{morador.nome}</p>
+                      <p className="truncate text-sm text-ink-soft">{morador.email}</p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-3">
+                      {morador.apartamento && (
+                        <span className="text-sm text-ink-soft">Apto {morador.apartamento}</span>
+                      )}
+                      <Button
+                        variant="danger"
+                        fullWidth={false}
+                        isLoading={removendoId === morador.id}
+                        onClick={() => handleRemoverMorador(morador.id, morador.nome)}
+                      >
+                        Remover
+                      </Button>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </ListaRolavel>
           ) : (
-            <EmptyState title="Nenhum morador cadastrado ainda" />
+            moradores?.length === 0 && <EmptyState title="Nenhum morador cadastrado ainda" />
           )}
         </>
       )}
 
       {aba === 'locacoes' &&
         (locacoes && locacoes.length > 0 ? (
-          <div className="flex flex-col gap-2">
-            {locacoes.map((locacao) => (
-              <Card key={locacao.id} className="flex flex-col gap-1">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="font-display font-semibold text-ink">{locacao.item.titulo}</p>
-                  <StatusBadge status={locacao.status} />
-                </div>
-                <p className="text-sm text-ink-soft">
-                  {formatDate(locacao.dataInicio)} → {formatDate(locacao.dataFim)} · locatário{' '}
-                  {locacao.locatario.nome}
-                </p>
-                <p className="font-mono text-sm font-display font-semibold text-ink">
-                  {formatCurrency(locacao.valorTotal)}
-                </p>
-              </Card>
-            ))}
-          </div>
+          <ListaRolavel
+            rotulo="Locações ativas"
+            alturaMaxima="max-h-[calc(100vh-28rem)] min-h-[16rem]"
+          >
+            <div className="flex flex-col gap-2">
+              {locacoes.map((locacao) => (
+                <Card key={locacao.id} className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-display font-semibold text-ink">{locacao.item.titulo}</p>
+                    <StatusBadge status={locacao.status} />
+                  </div>
+                  <p className="text-sm text-ink-soft">
+                    {formatDate(locacao.dataInicio)} → {formatDate(locacao.dataFim)} · locatário{' '}
+                    {locacao.locatario.nome}
+                  </p>
+                  <p className="font-mono text-sm font-display font-semibold text-ink">
+                    {formatCurrency(locacao.valorTotal)}
+                  </p>
+                </Card>
+              ))}
+            </div>
+          </ListaRolavel>
         ) : (
           <EmptyState title="Nenhuma locação ativa no momento" />
         ))}

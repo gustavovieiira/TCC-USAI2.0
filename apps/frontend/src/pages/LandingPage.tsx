@@ -2,6 +2,7 @@ import { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Logo } from '@/components/ui/Logo';
 import { MarcaUsai } from '@/components/ui/MarcaUsai';
+import { PlanosPrecos } from '@/features/assinaturas/PlanosPrecos';
 import { useConfiguracao } from '@/features/configuracao/ConfiguracaoContext';
 
 function Icone({ children }: { children: ReactNode }) {
@@ -43,6 +44,25 @@ const PASSOS = [
     titulo: 'Retire e devolva com termo',
     texto:
       'Na entrega e na devolução, quem recebe confere o estado do item e assina o termo de responsabilidade. Tudo vira um documento numerado.',
+  },
+];
+
+const CONTRATACAO = [
+  {
+    titulo: 'Escolha o plano',
+    texto: 'O preço depende da quantidade de moradores. Use o calculador na seção de planos.',
+  },
+  {
+    titulo: 'Cadastre e pague por PIX',
+    texto: 'Informe os dados do condomínio e do síndico e pague a primeira mensalidade.',
+  },
+  {
+    titulo: 'Receba o acesso por e-mail',
+    texto: 'Com o pagamento confirmado, chega o link para criar a sua senha e entrar.',
+  },
+  {
+    titulo: 'Convide os moradores',
+    texto: 'No painel do síndico estão o link e o PIN do condomínio, prontos para compartilhar.',
   },
 ];
 
@@ -114,7 +134,10 @@ const RECURSOS: { titulo: string; texto: string; icone: ReactNode }[] = [
 /** Cartões de exemplo (ilustração da tela inicial, não são dados reais). */
 function Ilustracao() {
   return (
-    <div className="relative mx-auto flex w-full max-w-sm flex-col gap-3" aria-hidden="true">
+    <div
+      className="relative mx-auto flex w-full max-w-sm flex-col gap-3 lg:max-w-md"
+      aria-hidden="true"
+    >
       <div className="notch border border-paper-line bg-paper-surface p-4 shadow-paper-2">
         <p className="font-meta text-[10px] uppercase tracking-wide text-ink-faint">Catálogo</p>
         <p className="mt-1 font-display text-lg font-bold text-ink">Furadeira de impacto</p>
@@ -148,43 +171,49 @@ export function LandingPage() {
 
   return (
     <div className="min-h-screen bg-paper bg-cortica bg-cortica-grid">
-      <header className="mx-auto flex max-w-5xl items-center justify-between px-6 py-6">
+      <header className="mx-auto flex max-w-screen-2xl items-center justify-between px-6 py-6 lg:px-12">
         <Logo altura={40} className="text-ink" />
-        <nav className="flex gap-3">
+        <nav className="flex items-center gap-3">
+          <a
+            href="#planos"
+            className="hidden px-4 py-2 font-semibold text-ink-soft hover:text-ink sm:block"
+          >
+            Planos
+          </a>
           <Link to="/login" className="px-4 py-2 font-semibold text-ink-soft hover:text-ink">
             Entrar
           </Link>
           <Link
-            to="/cadastro"
+            to="/contratar"
             className="notch min-h-[44px] bg-barro-500 px-4 py-2 font-bold text-paper-surface
               shadow-press hover:bg-barro-700"
           >
-            Cadastrar condomínio
+            Contratar
           </Link>
         </nav>
       </header>
 
       <main>
-        <section className="mx-auto grid max-w-5xl items-center gap-12 px-6 py-14 md:grid-cols-[1.15fr_1fr] md:py-20">
+        <section className="mx-auto grid max-w-screen-2xl items-center gap-12 px-6 py-14 md:grid-cols-[1.1fr_1fr] md:py-24 lg:px-12 lg:gap-16">
           <div>
             <span className="notch-sm bg-barro-100 px-3 py-1 font-meta text-xs uppercase tracking-wider text-barro-700">
               o mural da portaria, não o dashboard
             </span>
-            <h1 className="mt-5 font-display text-4xl font-bold leading-[0.98] tracking-tight text-ink sm:text-5xl">
+            <h1 className="mt-5 font-display text-4xl font-bold leading-[0.98] tracking-tight text-ink sm:text-5xl lg:text-6xl xl:text-7xl">
               Compartilhe e alugue itens com seus vizinhos
             </h1>
-            <p className="mt-6 max-w-xl text-lg leading-relaxed text-ink-soft">
+            <p className="mt-6 max-w-2xl text-lg leading-relaxed lg:text-xl text-ink-soft">
               Chega de grupo de WhatsApp perdido. A USAI organiza o empréstimo e a locação de itens
               dentro do seu condomínio: catálogo, aprovação, pagamento por PIX, termo de
               responsabilidade e histórico em um só lugar.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
-                to="/cadastro"
+                to="/contratar"
                 className="notch min-h-[44px] bg-barro-500 px-6 py-3 font-bold text-paper-surface
                   shadow-press hover:bg-barro-700"
               >
-                Começar agora
+                Contratar para meu condomínio
               </Link>
               <Link
                 to="/login"
@@ -194,12 +223,18 @@ export function LandingPage() {
                 Já tenho conta
               </Link>
             </div>
+            <p className="mt-5 text-sm text-ink-soft">
+              Seu condomínio já usa a USAI?{' '}
+              <Link to="/cadastro" className="font-semibold text-barro-700 hover:underline">
+                Cadastre-se com o link do síndico
+              </Link>
+            </p>
           </div>
           <Ilustracao />
         </section>
 
         <section className="border-y border-paper-line bg-paper-surface/70">
-          <div className="mx-auto max-w-5xl px-6 py-14">
+          <div className="mx-auto max-w-screen-2xl px-6 py-14 lg:px-12">
             <h2 className="font-display text-3xl font-bold text-ink">Como funciona</h2>
             <p className="mt-1 text-ink-soft">
               Do anúncio à devolução, cada etapa fica registrada.
@@ -218,7 +253,7 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section className="mx-auto max-w-5xl px-6 py-14">
+        <section className="mx-auto max-w-screen-2xl px-6 py-14 lg:px-12">
           <h2 className="font-display text-3xl font-bold text-ink">Tudo num só lugar</h2>
           <dl className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {RECURSOS.map((recurso) => (
@@ -234,28 +269,46 @@ export function LandingPage() {
           </dl>
         </section>
 
+        <section className="mx-auto max-w-screen-2xl px-6 py-14 lg:px-12">
+          <h2 className="font-display text-3xl font-bold text-ink">Seu condomínio no ar</h2>
+          <p className="mt-1 text-ink-soft">Do pagamento ao primeiro vizinho cadastrado.</p>
+          <ol className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {CONTRATACAO.map((passo, indice) => (
+              <li key={passo.titulo} className="flex flex-col gap-2">
+                <span className="notch-sm flex h-10 w-10 items-center justify-center bg-barro-500 font-display text-lg font-bold text-paper-surface">
+                  {indice + 1}
+                </span>
+                <h3 className="font-display text-lg font-semibold text-ink">{passo.titulo}</h3>
+                <p className="text-sm leading-relaxed text-ink-soft">{passo.texto}</p>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <PlanosPrecos />
+
         <section className="bg-ink text-ink-inverse">
-          <div className="mx-auto flex max-w-5xl flex-col items-center gap-4 px-6 py-14 text-center">
+          <div className="mx-auto flex max-w-screen-2xl flex-col items-center gap-4 px-6 py-14 text-center">
             <MarcaUsai tamanho={56} />
             <h2 className="font-display text-3xl font-bold">
               Seu condomínio já tem tudo que precisa
             </h2>
             <p className="max-w-xl text-ink-inverse-soft">
-              Só falta organizar. Cadastre o condomínio, compartilhe o link com os vizinhos e comece
-              a emprestar.
+              Só falta organizar. Contrate o plano, compartilhe o link com os vizinhos e comece a
+              emprestar.
             </p>
             <Link
-              to="/cadastro"
+              to="/contratar"
               className="notch mt-2 min-h-[44px] bg-barro-500 px-6 py-3 font-bold text-paper-surface
                 shadow-press hover:bg-barro-400"
             >
-              Cadastrar condomínio
+              Contratar para o meu condomínio
             </Link>
           </div>
         </section>
       </main>
 
-      <footer className="mx-auto flex max-w-5xl flex-col gap-3 px-6 py-8 text-sm text-ink-soft">
+      <footer className="mx-auto flex max-w-screen-2xl flex-col gap-3 px-6 py-8 text-sm lg:px-12 text-ink-soft">
         <Logo altura={28} className="text-ink" />
         <p className="max-w-2xl text-xs text-ink-faint">{configuracao.rodapeInstitucional}</p>
         <p className="text-xs text-ink-faint">{configuracao.nomeInstitucional}</p>

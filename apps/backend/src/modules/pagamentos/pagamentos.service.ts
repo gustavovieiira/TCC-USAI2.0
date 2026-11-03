@@ -6,13 +6,12 @@ import { calcularRepasse } from '@/modules/locacoes/locacoes.service';
 import { formatarReais } from '@/modules/notificacoes/notificacoes.format';
 import { NotificacoesService } from '@/modules/notificacoes/notificacoes.service';
 import { emitirParaUsuario } from '@/realtime/emitter';
-import { AsaasClient } from './asaas.client';
+import type { AssinaturasService } from '@/modules/assinaturas/assinaturas.service';
+import { AsaasClient, STATUS_ASAAS_PAGO } from './asaas.client';
 import { CriarCobrancaResultado } from './pagamentos.types';
 
 const DIAS_ATE_VENCIMENTO = 2;
 
-/** Status do Asaas que significam "dinheiro recebido": RECEIVED é o do PIX, CONFIRMED o de cartão/boleto. */
-const STATUS_ASAAS_PAGO = ['RECEIVED', 'CONFIRMED'];
 const JANELA_CONFERENCIA_DIAS = 14;
 const LIMITE_CONFERENCIA = 100;
 const MS_POR_DIA = 24 * 60 * 60 * 1000;
@@ -27,6 +26,8 @@ export class PagamentosService {
     private readonly prisma: PrismaClient,
     private readonly asaas: AsaasClient,
     private readonly notificacoes?: NotificacoesService,
+    /** Mensalidades dos condomínios (SaaS) também chegam pelo webhook e pela conferência periódica. */
+    private readonly assinaturas?: AssinaturasService,
   ) {}
 
   /**
@@ -142,6 +143,8 @@ export class PagamentosService {
       }
     }
 
+    confirmados += (await this.assinaturas?.conferirPendentes()) ?? 0;
+
     return confirmados;
   }
 
@@ -152,6 +155,9 @@ export class PagamentosService {
    * marcado como órfão pro Admin reembolsar manualmente — não há estorno automático nesta versão.
    */
   async confirmarPagamento(asaasChargeId: string): Promise<void> {
+    // Cobrança de mensalidade de condomínio? Então não é uma locação: quem trata é a assinatura.
+    if (await this.assinaturas?.confirmarCobranca(asaasChargeId)) return;
+
     const resultado = await this.prisma.$transaction(async (tx) => {
       const flipPagamento = await tx.pagamento.updateMany({
         where: { asaasChargeId, status: 'PENDENTE' },

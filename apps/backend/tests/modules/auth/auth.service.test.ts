@@ -13,10 +13,19 @@ beforeAll(() => {
 });
 
 function buildPrismaMock() {
-  return {
+  const prisma: any = {
     condominio: { findUnique: jest.fn() },
-    user: { findUnique: jest.fn(), findFirst: jest.fn(), create: jest.fn(), update: jest.fn() },
-  } as any;
+    user: {
+      findUnique: jest.fn(),
+      findFirst: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      count: jest.fn().mockResolvedValue(0),
+    },
+    tokenAcesso: { findUnique: jest.fn(), updateMany: jest.fn() },
+  };
+  prisma.$transaction = jest.fn((callback: (tx: unknown) => unknown) => callback(prisma));
+  return prisma;
 }
 
 const condominioAtivo = {
@@ -276,5 +285,173 @@ describe('AuthService.refresh', () => {
     const service = new AuthService(prisma);
 
     await expect(service.refresh('token-invalido')).rejects.toBeInstanceOf(UnauthorizedError);
+  });
+});
+
+describe('AuthService — assinatura do condomínio', () => {
+  const senhaHash = bcrypt.hashSync('senha-correta', 10);
+  const moradorInput = {
+    linkSlug: 'residencial-teste',
+    pin: '1234',
+    nome: 'Carlos Mendes',
+    email: 'carlos@example.com',
+    senha: 'senha-forte-123',
+  };
+  const condominio = {
+    id: 'cond-1',
+    nome: 'Residencial Teste',
+    linkSlug: 'residencial-teste',
+    pin: '1234',
+    ativo: true,
+  };
+
+  it('barra o cadastro de morador quando o condomínio atingiu o limite do plano', async () => {
+    const prisma = buildPrismaMock();
+    prisma.condominio.findUnique.mockResolvedValue({
+      ...condominio,
+      assinatura: { limiteMoradores: 30, status: 'ATIVA' },
+    });
+    prisma.user.count.mockResolvedValue(30);
+
+    await expect(new AuthService(prisma).cadastrarMorador(moradorInput)).rejects.toMatchObject({
+      statusCode: 409,
+      code: 'LIMITE_MORADORES',
+    });
+    expect(prisma.user.create).not.toHaveBeenCalled();
+    expect(prisma.user.count).toHaveBeenCalledWith({
+      where: { condominioId: 'cond-1', papel: 'MORADOR', ativo: true },
+    });
+  });
+
+  it('cadastra normalmente enquanto há vaga no plano', async () => {
+    const prisma = buildPrismaMock();
+    prisma.condominio.findUnique.mockResolvedValue({
+      ...condominio,
+      assinatura: { limiteMoradores: 30, status: 'ATIVA' },
+    });
+    prisma.user.count.mockResolvedValue(29);
+    prisma.user.findUnique.mockResolvedValue(null);
+    prisma.user.create.mockImplementation(({ data }: any) =>
+      Promise.resolve({ id: 'u1', ...data }),
+    );
+
+    const result = await new AuthService(prisma).cadastrarMorador(moradorInput);
+
+    expect(result.user.papel).toBe('MORADOR');
+  });
+
+  it('não entra morador de condomínio com assinatura suspensa', async () => {
+    const prisma = buildPrismaMock();
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'u1',
+      email: 'ana@example.com',
+      senhaHash,
+      papel: 'MORADOR',
+      condominioId: 'cond-1',
+      ativo: true,
+      condominio: { assinatura: { status: 'SUSPENSA' } },
+    });
+
+    await expect(
+      new AuthService(prisma).login({ email: 'ana@example.com', senha: 'senha-correta' }),
+    ).rejects.toThrow(/suspenso/);
+  });
+
+  it('o síndico continua entrando com a assinatura suspensa (precisa pagar)', async () => {
+    const prisma = buildPrismaMock();
+    prisma.user.findUnique.mockResolvedValue({
+      id: 's1',
+      email: 'sindico@example.com',
+      senhaHash,
+      papel: 'SINDICO',
+      condominioId: 'cond-1',
+      ativo: true,
+      condominio: { assinatura: { status: 'SUSPENSA' } },
+    });
+
+    const result = await new AuthService(prisma).login({
+      email: 'sindico@example.com',
+      senha: 'senha-correta',
+    });
+
+    expect(result.user.papel).toBe('SINDICO');
+  });
+});
+
+describe('AuthService.definirSenha', () => {
+  const tokenValido = (extra: Record<string, unknown> = {}) => ({
+    id: 'tok-1',
+    userId: 's1',
+    usadoEm: null,
+    expiraEm: new Date(Date.now() + 60_000),
+    user: {
+      id: 's1',
+      nome: 'Sílvia',
+      email: 'silvia@exemplo.com',
+      papel: 'SINDICO',
+      condominioId: 'cond-1',
+      ativo: true,
+    },
+    ...extra,
+  });
+
+  it('define a senha, marca o link como usado e já entra', async () => {
+    const prisma = buildPrismaMock();
+    prisma.tokenAcesso.findUnique.mockResolvedValue(tokenValido());
+    prisma.tokenAcesso.updateMany.mockResolvedValue({ count: 1 });
+    prisma.user.update.mockImplementation(({ data }: any) =>
+      Promise.resolve({
+        id: 's1',
+        nome: 'Sílvia',
+        email: 'silvia@exemplo.com',
+        papel: 'SINDICO',
+        condominioId: 'cond-1',
+        ...data,
+      }),
+    );
+
+    const result = await new AuthService(prisma).definirSenha('token-da-url', 'minha-senha-nova');
+
+    // Busca pelo hash, nunca pelo token em si.
+    const buscado = prisma.tokenAcesso.findUnique.mock.calls[0][0].where.tokenHash;
+    expect(buscado).toMatch(/^[0-9a-f]{64}$/);
+    expect(buscado).not.toContain('token-da-url');
+    expect(prisma.tokenAcesso.updateMany).toHaveBeenCalledWith({
+      where: { id: 'tok-1', usadoEm: null },
+      data: { usadoEm: expect.any(Date) },
+    });
+    const senhaGravada = prisma.user.update.mock.calls[0][0].data.senhaHash;
+    expect(bcrypt.compareSync('minha-senha-nova', senhaGravada)).toBe(true);
+    expect(result.user.papel).toBe('SINDICO');
+    expect(result.accessToken).toEqual(expect.any(String));
+  });
+
+  it.each([
+    ['inexistente', null],
+    ['já usado', tokenValido({ usadoEm: new Date() })],
+    ['expirado', tokenValido({ expiraEm: new Date(Date.now() - 1000) })],
+  ])('recusa link %s', async (_nome, registro) => {
+    const prisma = buildPrismaMock();
+    prisma.tokenAcesso.findUnique.mockResolvedValue(registro);
+
+    await expect(
+      new AuthService(prisma).definirSenha('x'.repeat(20), 'minha-senha-nova'),
+    ).rejects.toMatchObject({
+      code: 'TOKEN_INVALIDO',
+    });
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it('recusa quando o mesmo link é usado em duas abas ao mesmo tempo', async () => {
+    const prisma = buildPrismaMock();
+    prisma.tokenAcesso.findUnique.mockResolvedValue(tokenValido());
+    prisma.tokenAcesso.updateMany.mockResolvedValue({ count: 0 });
+
+    await expect(
+      new AuthService(prisma).definirSenha('x'.repeat(20), 'minha-senha-nova'),
+    ).rejects.toMatchObject({
+      code: 'TOKEN_INVALIDO',
+    });
+    expect(prisma.user.update).not.toHaveBeenCalled();
   });
 });

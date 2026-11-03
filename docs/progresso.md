@@ -6,6 +6,70 @@
 
 ---
 
+## 2026-11-03 — Planos e contratação pelo síndico (modelo SaaS)
+
+**Pedido.** A tela inicial é a de um SaaS, então precisa de preços: cada síndico escolhe o plano pela
+quantidade de moradores, cadastra o condomínio, paga por PIX e, confirmado o pagamento, recebe o
+acesso por e-mail. Depois de entrar, o síndico repassa o link e o PIN aos moradores.
+Decidido com o usuário: cobrança **mensal por PIX**, e-mail por **SMTP configurável**, acesso por
+**link para criar a própria senha** (a senha nunca vai por e-mail). Faixas e preços são do usuário;
+os atuais (Essencial 30 moradores R$ 49, Condomínio 100 R$ 99, Grande 250 R$ 179) são provisórios.
+
+**Fluxo.** `/contratar` (plano + dados) → condomínio e síndico nascem **inativos** + cliente e cobrança
+PIX no Asaas → `/contratacao/:id` mostra o PIX e consulta o status a cada 5 s → o webhook (ou a
+conferência periódica de 30 s) confirma → condomínio e síndico ativados, 30 dias de vigência e e-mail
+com link de uso único (48 h) → `/definir-senha?token=…` cria a senha e já entra em `/sindico`.
+
+**Onde está.**
+- Backend `modules/assinaturas/`: `planos.ts` (**única fonte de verdade** de faixas e preços),
+  `assinaturas.service.ts` (contratar, confirmar, renovar, suspender), rotas públicas em
+  `/api/assinaturas` e do síndico em `/api/sindico/assinatura`.
+- Modelos novos (migração `20261103120000_assinaturas`): `Assinatura`, `CobrancaAssinatura`,
+  `TokenAcesso` (só o hash SHA-256 do token fica no banco).
+- `common/mailer.ts` (nodemailer; sem `SMTP_HOST` o e-mail vai pro log, dá pra testar local),
+  `common/documento.ts` (valida CPF/CNPJ), `common/rateLimit.ts` (limita contratações por IP).
+- O webhook do Asaas e a conferência periódica passaram a reconhecer também as mensalidades
+  (`PagamentosService` delega pra `AssinaturasService`); mensalidade e locação nunca se confundem.
+- Frontend: seção "Planos e preços" da tela inicial com calculador por moradores, páginas de
+  contratação, acompanhamento e criação de senha, e no painel do síndico os cartões **Convidar
+  moradores** (copiar link, PIN e mensagem pronta) e **Plano** (uso x limite, vencimento, PIX).
+
+**Regras.** Plano cheio barra o cadastro de novos moradores (409). Vencida há mais de 5 dias, a
+assinatura é **suspensa**: moradores não entram, o síndico sim (precisa pagar). Pagando, reativa.
+Condomínios cadastrados antes pelo Admin não têm assinatura e seguem sem limite.
+
+**Testes.** Backend 452 → 500, frontend 255 → 277. E2E real (MySQL + Asaas sandbox, PIX simulado pelo
+webhook) com 42 verificações: contratação, idempotência, ativação, e-mail, criação de senha, convite,
+limite, renovação e suspensão (`.scratch/e2e_saas.cjs`).
+
+**Limites conhecidos.** Sem SMTP configurado o e-mail só aparece no log. Não há "esqueci minha senha"
+nem cancelamento de assinatura. O limitador de contratações é em memória (uma instância só).
+
+---
+
+## 2026-10-27 — Telas com rolagem própria, filtros e uso da largura toda
+
+**Por quê.** Listas longas (mural, catálogo, locações...) esticavam a página inteira e o conteúdo ficava
+espremido no meio em monitor largo.
+
+- **`ListaRolavel`** (`components/ui/ListaRolavel.tsx`): lista com altura limitada à janela e rolagem
+  própria, focável por teclado (`role="region"` + `aria-label`). Cabeçalho, filtros e formulários ficam
+  sempre visíveis; a página tem a altura da janela e só a lista rola. Aplicada em Catálogo, Mural,
+  Locações, Conversas, Síndico (moradores e locações ativas) e comentários do post.
+- **`FiltroChips`** (`components/ui/FiltroChips.tsx`): filtro em botões com contagem (`aria-pressed`).
+- **Funções novas:** Catálogo busca também por categoria, descrição, fabricante e modelo (antes só o
+  título, embora o campo dissesse "categoria, vizinho"), mostra "N itens de M" e "Limpar filtros";
+  Locações filtra por situação (Todas / Em aberto / Ativas / Encerradas); Mural filtra por Avisos ou
+  Pedidos de ajuda; Síndico busca moradores por nome, e-mail ou apartamento.
+- **Largura:** o `AppShell` (cabeçalho + conteúdo) passou de `max-w-5xl` para `max-w-screen-2xl`; o
+  catálogo ganhou mais colunas em telas grandes. Páginas de leitura (Mural, Conversas) seguem estreitas
+  de propósito.
+
+**Testes:** +8 (255 no front); build, lint e prettier limpos. Medido no navegador a 1600×900: página
+com 900px de altura (sem rolagem da página), listas rolando por dentro.
+
+---
+
 ## 2026-10-27 — Logo da USAI e tela inicial redesenhada
 
 **O que foi feito.** A tela inicial parecia "básica" e o sistema ainda usava o logo padrão do Vite no

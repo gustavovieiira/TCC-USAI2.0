@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { SindicoPage } from './SindicoPage';
+import * as assinaturasApi from '@/features/assinaturas/assinaturas.api';
 import * as sindicoApi from '@/features/sindico/sindico.api';
 import { CondominioDTO, LocacaoAtivaDTO, MoradorDTO } from '@/features/sindico/sindico.types';
 
@@ -32,6 +33,7 @@ const locacaoAtiva: LocacaoAtivaDTO = {
 };
 
 function mockApis(overrides: { moradores?: MoradorDTO[]; locacoes?: LocacaoAtivaDTO[] } = {}) {
+  vi.spyOn(assinaturasApi, 'buscarPainelAssinatura').mockResolvedValue(null);
   vi.spyOn(sindicoApi, 'buscarCondominio').mockResolvedValue(condominio);
   vi.spyOn(sindicoApi, 'listarMoradores').mockResolvedValue(overrides.moradores ?? [morador]);
   vi.spyOn(sindicoApi, 'listarLocacoesAtivas').mockResolvedValue(
@@ -46,8 +48,36 @@ describe('SindicoPage', () => {
     render(<SindicoPage />);
 
     expect(await screen.findByText('Residencial Jardim Europa')).toBeInTheDocument();
-    expect(screen.getByText('1234')).toBeInTheDocument();
+    // o PIN aparece no cartão de convite e no de alteração
+    expect(screen.getAllByText('1234').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Ana Proprietária')).toBeInTheDocument();
+  });
+
+  it('busca moradores por nome, e-mail ou apartamento', async () => {
+    mockApis({
+      moradores: [
+        morador,
+        {
+          ...morador,
+          id: 'user-3',
+          nome: 'Carla Souza',
+          email: 'carla@example.com',
+          apartamento: '202',
+        },
+      ],
+    });
+
+    render(<SindicoPage />);
+    await screen.findByText('Ana Proprietária');
+
+    const busca = screen.getByRole('searchbox', { name: 'Buscar morador' });
+    await userEvent.type(busca, '202');
+    expect(screen.queryByText('Ana Proprietária')).not.toBeInTheDocument();
+    expect(screen.getByText('Carla Souza')).toBeInTheDocument();
+
+    await userEvent.clear(busca);
+    await userEvent.type(busca, 'zzz');
+    expect(screen.getByText('Nenhum morador encontrado')).toBeInTheDocument();
   });
 
   it('mostra as locações ativas ao trocar de aba', async () => {
@@ -66,14 +96,14 @@ describe('SindicoPage', () => {
     vi.spyOn(sindicoApi, 'atualizarPin').mockResolvedValue({ ...condominio, pin: '5678' });
 
     render(<SindicoPage />);
-    await screen.findByText('1234');
+    await screen.findAllByText('1234');
 
     await userEvent.click(screen.getByRole('button', { name: 'Alterar PIN' }));
     await userEvent.type(screen.getByLabelText('Novo PIN'), '5678');
     await userEvent.click(screen.getByRole('button', { name: 'Salvar' }));
 
     expect(sindicoApi.atualizarPin).toHaveBeenCalledWith('5678');
-    expect(await screen.findByText('5678')).toBeInTheDocument();
+    expect((await screen.findAllByText('5678')).length).toBeGreaterThanOrEqual(1);
   });
 
   it('mostra estado vazio quando não há moradores', async () => {

@@ -2,10 +2,13 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { RoleRoute } from '@/components/RoleRoute';
+import { AcompanharContratacaoPage } from '@/pages/AcompanharContratacaoPage';
 import { AdminPage } from '@/pages/AdminPage';
 import { CadastroPage } from '@/pages/CadastroPage';
 import { CatalogoPage } from '@/pages/CatalogoPage';
+import { ContratarPage } from '@/pages/ContratarPage';
 import { ConversaPage } from '@/pages/ConversaPage';
+import { DefinirSenhaPage } from '@/pages/DefinirSenhaPage';
 import { ItemDetalhePage } from '@/pages/ItemDetalhePage';
 import { LandingPage } from '@/pages/LandingPage';
 import { LoginPage } from '@/pages/LoginPage';
@@ -26,6 +29,9 @@ export default function App() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/cadastro" element={<CadastroPage />} />
+      <Route path="/contratar" element={<ContratarPage />} />
+      <Route path="/contratacao/:id" element={<AcompanharContratacaoPage />} />
+      <Route path="/definir-senha" element={<DefinirSenhaPage />} />
 
       <Route element={<ProtectedRoute />}>
         <Route element={<AppShell />}>

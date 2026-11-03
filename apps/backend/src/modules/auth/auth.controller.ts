@@ -4,6 +4,7 @@ import { AuthService } from './auth.service';
 import {
   atualizarPerfilSchema,
   cadastroMoradorSchema,
+  definirSenhaSchema,
   loginSchema,
   refreshTokenSchema,
 } from './auth.schemas';
@@ -20,6 +21,12 @@ export const authController = {
   async login(req: Request, res: Response) {
     const input = loginSchema.parse(req.body);
     const result = await authService.login(input);
+    res.status(200).json(result);
+  },
+
+  async definirSenha(req: Request, res: Response) {
+    const { token, senha } = definirSenhaSchema.parse(req.body);
+    const result = await authService.definirSenha(token, senha);
     res.status(200).json(result);
   },
 

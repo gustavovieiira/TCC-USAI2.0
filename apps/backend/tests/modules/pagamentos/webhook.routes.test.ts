@@ -20,6 +20,11 @@ jest.mock('@/common/prisma', () => {
       update: jest.fn(),
     },
     user: { update: jest.fn(), findMany: jest.fn().mockResolvedValue([]) },
+    // Mensalidades de condomínio (SaaS) também chegam por este webhook.
+    cobrancaAssinatura: { findUnique: jest.fn().mockResolvedValue(null), updateMany: jest.fn() },
+    assinatura: { findUniqueOrThrow: jest.fn(), update: jest.fn() },
+    condominio: { update: jest.fn() },
+    tokenAcesso: { updateMany: jest.fn(), create: jest.fn() },
     lancamento: { createMany: jest.fn().mockResolvedValue({ count: 0 }) },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
@@ -40,6 +45,7 @@ beforeAll(() => {
 beforeEach(() => {
   jest.clearAllMocks();
   (prisma.locacao.findMany as jest.Mock).mockResolvedValue([]);
+  (prisma.cobrancaAssinatura.findUnique as jest.Mock).mockResolvedValue(null);
 });
 
 describe('POST /api/webhooks/asaas', () => {
@@ -100,6 +106,48 @@ describe('POST /api/webhooks/asaas', () => {
         expect.objectContaining({ userId: null, tipo: 'TAXA_PLATAFORMA', valor: 10 }),
       ]),
     });
+  });
+
+  it('ativa o condomínio quando o PIX confirmado é a mensalidade de uma assinatura', async () => {
+    (prisma.cobrancaAssinatura.findUnique as jest.Mock).mockResolvedValue({
+      id: 'cobranca-1',
+      assinaturaId: 'assinatura-1',
+      asaasChargeId: 'pay_mensalidade',
+    });
+    (prisma.cobrancaAssinatura.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
+    (prisma.assinatura.findUniqueOrThrow as jest.Mock).mockResolvedValue({
+      id: 'assinatura-1',
+      condominioId: 'cond-novo',
+      responsavelId: 'sindico-1',
+      status: 'AGUARDANDO_PAGAMENTO',
+      ativaAte: null,
+      responsavel: { id: 'sindico-1', nome: 'Sílvia', email: 'silvia@exemplo.com' },
+      condominio: { nome: 'Residencial Aurora' },
+    });
+    const app = createApp();
+
+    const response = await request(app)
+      .post('/api/webhooks/asaas')
+      .set('asaas-access-token', WEBHOOK_TOKEN)
+      .send({ event: 'PAYMENT_RECEIVED', payment: { id: 'pay_mensalidade' } });
+
+    expect(response.status).toBe(200);
+    expect(prisma.assinatura.update).toHaveBeenCalledWith({
+      where: { id: 'assinatura-1' },
+      data: { status: 'ATIVA', ativaAte: expect.any(Date) },
+    });
+    expect(prisma.condominio.update).toHaveBeenCalledWith({
+      where: { id: 'cond-novo' },
+      data: { ativo: true },
+    });
+    // Primeiro pagamento: libera a conta do síndico e manda o link pra ele criar a senha.
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 'sindico-1' },
+      data: { ativo: true },
+    });
+    expect(prisma.tokenAcesso.create).toHaveBeenCalledTimes(1);
+    // E não confunde com uma locação.
+    expect(prisma.pagamento.updateMany).not.toHaveBeenCalled();
   });
 
   it('responde 200 e não faz nada pra eventos que não são de pagamento confirmado', async () => {
