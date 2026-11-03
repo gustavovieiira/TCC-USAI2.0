@@ -23,7 +23,7 @@ export function ListaRolavel({
     <div
       role="region"
       aria-label={rotulo}
-      tabIndex={0}
+      tabIndex={0} // NOSONAR: região rolável precisa de foco para rolar pelo teclado (WCAG 2.1.1)
       className={`${alturaMaxima} overflow-y-auto overscroll-contain pr-1 focus-visible:outline
         focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${className}`}
     >

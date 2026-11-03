@@ -35,7 +35,7 @@ export function AcompanharContratacaoPage() {
   }, [id]);
 
   useEffect(() => {
-    consultar();
+    consultar().catch(() => undefined);
   }, [consultar]);
 
   useEffect(() => {

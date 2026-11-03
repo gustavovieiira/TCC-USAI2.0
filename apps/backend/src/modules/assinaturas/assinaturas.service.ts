@@ -96,14 +96,22 @@ function mascararEmail(email: string): string {
   return `${usuario.slice(0, 1)}***@${dominio}`;
 }
 
+/** Tira os hífens do começo e do fim sem regex (as de ancoragem dupla têm custo super-linear). */
+function aparar(texto: string, caractere: string): string {
+  let inicio = 0;
+  let fim = texto.length;
+  while (inicio < fim && texto[inicio] === caractere) inicio += 1;
+  while (fim > inicio && texto[fim - 1] === caractere) fim -= 1;
+  return texto.slice(inicio, fim);
+}
+
 function slugificar(nome: string): string {
-  return nome
+  const semAcento = nome
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 40);
+    .replace(/[^a-z0-9]+/g, '-');
+  return aparar(semAcento, '-').slice(0, 40);
 }
 
 function gerarPin(): string {

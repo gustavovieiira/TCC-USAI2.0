@@ -343,6 +343,33 @@ describe('AssinaturasService.contratar', () => {
     expect(prisma.condominio.create).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['Residencial Aurora', /^residencial-aurora-[0-9a-f]{4}$/],
+    ['  !!! Jardim das Flores !!!  ', /^jardim-das-flores-[0-9a-f]{4}$/],
+    ['---Edifício São João---', /^edificio-sao-joao-[0-9a-f]{4}$/],
+    ['Condomínio   Vila   Nova', /^condominio-vila-nova-[0-9a-f]{4}$/],
+  ])('gera um link limpo (sem hífens soltos nas pontas) para "%s"', async (nome, padrao) => {
+    const prisma = buildPrismaMock();
+    prepararCriacao(prisma);
+    const service = new AssinaturasService(prisma, buildAsaasMock(), mailerVazio());
+
+    await service.contratar({ ...input, nomeCondominio: nome });
+
+    expect(prisma.condominio.create.mock.calls[0][0].data.linkSlug).toMatch(padrao);
+  });
+
+  it('um nome só de símbolos ainda gera um link válido', async () => {
+    const prisma = buildPrismaMock();
+    prepararCriacao(prisma);
+    const service = new AssinaturasService(prisma, buildAsaasMock(), mailerVazio());
+
+    await service.contratar({ ...input, nomeCondominio: '!!!???' });
+
+    expect(prisma.condominio.create.mock.calls[0][0].data.linkSlug).toMatch(
+      /^condominio-[0-9a-f]{4}$/,
+    );
+  });
+
   it('recusa plano que não existe', async () => {
     const service = new AssinaturasService(buildPrismaMock(), buildAsaasMock(), mailerVazio());
     await expect(service.contratar({ ...input, planoCodigo: 'XYZ' })).rejects.toMatchObject({

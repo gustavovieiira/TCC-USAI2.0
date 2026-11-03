@@ -62,5 +62,8 @@ export class SmtpMailer implements Mailer {
 
 /** URL pública do frontend, usada nos links enviados por e-mail. */
 export function urlDoApp(): string {
-  return (process.env.APP_URL ?? 'http://localhost:5173').replace(/\/+$/, '');
+  let url = process.env.APP_URL ?? 'http://localhost:5173';
+  // Tira as barras do final sem regex (uma regex como /\/+$/ tem custo super-linear em entradas longas).
+  while (url.endsWith('/')) url = url.slice(0, -1);
+  return url;
 }
