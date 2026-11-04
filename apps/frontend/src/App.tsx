@@ -9,6 +9,7 @@ import { CatalogoPage } from '@/pages/CatalogoPage';
 import { ContratarPage } from '@/pages/ContratarPage';
 import { ConversaPage } from '@/pages/ConversaPage';
 import { DefinirSenhaPage } from '@/pages/DefinirSenhaPage';
+import { EsqueciSenhaPage } from '@/pages/EsqueciSenhaPage';
 import { ItemDetalhePage } from '@/pages/ItemDetalhePage';
 import { LandingPage } from '@/pages/LandingPage';
 import { LoginPage } from '@/pages/LoginPage';
@@ -20,6 +21,7 @@ import { PerfilPage } from '@/pages/PerfilPage';
 import { PostDetalhePage } from '@/pages/PostDetalhePage';
 import { PublicarItemPage } from '@/pages/PublicarItemPage';
 import { NotificacoesPage } from '@/pages/NotificacoesPage';
+import { RedefinirSenhaPage } from '@/pages/RedefinirSenhaPage';
 import { SaquesPage } from '@/pages/SaquesPage';
 import { SindicoPage } from '@/pages/SindicoPage';
 
@@ -32,6 +34,8 @@ export default function App() {
       <Route path="/contratar" element={<ContratarPage />} />
       <Route path="/contratacao/:id" element={<AcompanharContratacaoPage />} />
       <Route path="/definir-senha" element={<DefinirSenhaPage />} />
+      <Route path="/esqueci-senha" element={<EsqueciSenhaPage />} />
+      <Route path="/redefinir-senha" element={<RedefinirSenhaPage />} />
 
       <Route element={<ProtectedRoute />}>
         <Route element={<AppShell />}>

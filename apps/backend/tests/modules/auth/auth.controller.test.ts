@@ -6,6 +6,13 @@ jest.mock('@/common/prisma', () => ({
   prisma: {
     condominio: { findUnique: jest.fn() },
     user: { findUnique: jest.fn(), findFirst: jest.fn(), create: jest.fn(), update: jest.fn() },
+    tokenAcesso: {
+      findUnique: jest.fn(),
+      findFirst: jest.fn(),
+      create: jest.fn(),
+      updateMany: jest.fn(),
+    },
+    $transaction: jest.fn(),
   },
 }));
 
@@ -263,5 +270,109 @@ describe('POST /api/auth/refresh', () => {
       .send({ refreshToken: 'token-invalido' });
 
     expect(response.status).toBe(401);
+  });
+});
+
+describe('POST /api/auth/esqueci-senha', () => {
+  const aguardarSegundoPlano = () => new Promise((resolver) => setImmediate(resolver));
+
+  it('conta existente: responde 202 e cria o link em segundo plano', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+      id: 'u1',
+      nome: 'Ana',
+      email: 'ana@example.com',
+      ativo: true,
+    });
+    (prisma.tokenAcesso.findFirst as jest.Mock).mockResolvedValue(null);
+    (prisma.tokenAcesso.create as jest.Mock).mockResolvedValue({});
+    const app = createApp();
+
+    const response = await request(app)
+      .post('/api/auth/esqueci-senha')
+      .send({ email: 'ana@example.com' });
+    await aguardarSegundoPlano();
+
+    expect(response.status).toBe(202);
+    expect(prisma.tokenAcesso.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('conta inexistente: a resposta é idêntica e nada é criado', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+    const app = createApp();
+
+    const existente = await request(app)
+      .post('/api/auth/esqueci-senha')
+      .send({ email: 'ninguem@example.com' });
+    await aguardarSegundoPlano();
+
+    expect(existente.status).toBe(202);
+    expect(existente.body.message).toMatch(/Se este e-mail tiver uma conta/);
+    expect(prisma.tokenAcesso.create).not.toHaveBeenCalled();
+  });
+
+  it('e-mail inválido: 400', async () => {
+    const app = createApp();
+
+    const response = await request(app)
+      .post('/api/auth/esqueci-senha')
+      .send({ email: 'nao-e-email' });
+
+    expect(response.status).toBe(400);
+  });
+});
+
+describe('POST /api/auth/redefinir-senha', () => {
+  it('troca a senha com um link válido e responde 200', async () => {
+    (prisma.tokenAcesso.findUnique as jest.Mock).mockResolvedValue({
+      id: 'tok-1',
+      userId: 'u1',
+      tipo: 'REDEFINICAO',
+      usadoEm: null,
+      expiraEm: new Date(Date.now() + 60_000),
+      user: { id: 'u1', ativo: true },
+    });
+    (prisma.tokenAcesso.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
+    (prisma.user.update as jest.Mock).mockResolvedValue({ id: 'u1' });
+    ((prisma as any).$transaction as jest.Mock).mockImplementation((cb: (tx: unknown) => unknown) =>
+      cb(prisma),
+    );
+    const app = createApp();
+
+    const response = await request(app)
+      .post('/api/auth/redefinir-senha')
+      .send({ token: 'r'.repeat(43), senha: 'senha-nova-123' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.message).toMatch(/Senha alterada/);
+  });
+
+  it('senha curta: 400 antes de olhar o link', async () => {
+    const app = createApp();
+
+    const response = await request(app)
+      .post('/api/auth/redefinir-senha')
+      .send({ token: 'r'.repeat(43), senha: 'curta' });
+
+    expect(response.status).toBe(400);
+    expect(prisma.tokenAcesso.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('link vencido: 400 com o código TOKEN_EXPIRADO', async () => {
+    (prisma.tokenAcesso.findUnique as jest.Mock).mockResolvedValue({
+      id: 'tok-1',
+      userId: 'u1',
+      tipo: 'REDEFINICAO',
+      usadoEm: null,
+      expiraEm: new Date(Date.now() - 1000),
+      user: { id: 'u1', ativo: true },
+    });
+    const app = createApp();
+
+    const response = await request(app)
+      .post('/api/auth/redefinir-senha')
+      .send({ token: 'r'.repeat(43), senha: 'senha-nova-123' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('TOKEN_EXPIRADO');
   });
 });

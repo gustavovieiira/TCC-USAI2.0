@@ -23,7 +23,12 @@ function buildPrismaMock() {
       update: jest.fn(),
       count: jest.fn().mockResolvedValue(0),
     },
-    tokenAcesso: { findUnique: jest.fn(), updateMany: jest.fn() },
+    tokenAcesso: {
+      findUnique: jest.fn(),
+      findFirst: jest.fn(),
+      create: jest.fn(),
+      updateMany: jest.fn(),
+    },
   };
   prisma.$transaction = jest.fn((callback: (tx: unknown) => unknown) => callback(prisma));
   return prisma;
@@ -386,6 +391,7 @@ describe('AuthService.definirSenha', () => {
   const tokenValido = (extra: Record<string, unknown> = {}) => ({
     id: 'tok-1',
     userId: 's1',
+    tipo: 'ACESSO',
     usadoEm: null,
     expiraEm: new Date(Date.now() + 60_000),
     user: {
@@ -551,6 +557,177 @@ describe('AuthService.definirSenha', () => {
     await expect(
       new AuthService(prisma).definirSenha(TOKEN, 'minha-senha-nova'),
     ).rejects.toMatchObject({ code: 'SENHA_JA_CRIADA' });
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+});
+
+describe('AuthService.definirSenha com link de redefinição', () => {
+  it('um link de "esqueci minha senha" não serve para o primeiro acesso', async () => {
+    const prisma = buildPrismaMock();
+    prisma.tokenAcesso.findUnique.mockResolvedValue({
+      id: 'tok-9',
+      userId: 's1',
+      tipo: 'REDEFINICAO',
+      usadoEm: null,
+      expiraEm: new Date(Date.now() + 60_000),
+      user: { id: 's1', ativo: true },
+    });
+
+    await expect(
+      new AuthService(prisma).definirSenha('k'.repeat(43), 'minha-senha-nova'),
+    ).rejects.toMatchObject({ code: 'TOKEN_INVALIDO' });
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+});
+
+describe('AuthService.solicitarRedefinicaoSenha', () => {
+  const mailerVazio = () => ({ enviar: jest.fn().mockResolvedValue(undefined) });
+  const usuario = { id: 's1', nome: 'Sílvia', email: 'silvia@exemplo.com', ativo: true };
+
+  it('envia o e-mail com um link de 43 caracteres que vale 1 hora, guardando só o hash', async () => {
+    const prisma = buildPrismaMock();
+    prisma.user.findUnique.mockResolvedValue(usuario);
+    prisma.tokenAcesso.findFirst.mockResolvedValue(null);
+    const mailer = mailerVazio();
+
+    const antes = Date.now();
+    await new AuthService(prisma, mailer).solicitarRedefinicaoSenha('silvia@exemplo.com');
+
+    const { data } = prisma.tokenAcesso.create.mock.calls[0][0];
+    expect(data.tipo).toBe('REDEFINICAO');
+    expect(data.userId).toBe('s1');
+    const prazo = data.expiraEm.getTime() - antes;
+    expect(prazo).toBeGreaterThanOrEqual(59 * 60 * 1000);
+    expect(prazo).toBeLessThanOrEqual(61 * 60 * 1000);
+
+    const email = mailer.enviar.mock.calls[0][0];
+    expect(email.para).toBe('silvia@exemplo.com');
+    const [, codigo] = /redefinir-senha\?token=(\S+)/.exec(email.texto) ?? [];
+    expect(codigo).toHaveLength(TAMANHO_TOKEN_ACESSO);
+    expect(data.tokenHash).toBe(crypto.createHash('sha256').update(codigo).digest('hex'));
+    expect(email.texto).toContain('1 hora');
+  });
+
+  it('e-mail sem conta: não cria link nem envia nada (e não avisa quem pediu)', async () => {
+    const prisma = buildPrismaMock();
+    prisma.user.findUnique.mockResolvedValue(null);
+    const mailer = mailerVazio();
+
+    await expect(
+      new AuthService(prisma, mailer).solicitarRedefinicaoSenha('ninguem@exemplo.com'),
+    ).resolves.toBeUndefined();
+
+    expect(prisma.tokenAcesso.create).not.toHaveBeenCalled();
+    expect(mailer.enviar).not.toHaveBeenCalled();
+  });
+
+  it('conta desativada: não envia', async () => {
+    const prisma = buildPrismaMock();
+    prisma.user.findUnique.mockResolvedValue({ ...usuario, ativo: false });
+    const mailer = mailerVazio();
+
+    await new AuthService(prisma, mailer).solicitarRedefinicaoSenha('silvia@exemplo.com');
+
+    expect(mailer.enviar).not.toHaveBeenCalled();
+  });
+
+  it('pedido repetido em menos de 1 minuto: não manda outro e-mail', async () => {
+    const prisma = buildPrismaMock();
+    prisma.user.findUnique.mockResolvedValue(usuario);
+    prisma.tokenAcesso.findFirst.mockResolvedValue({ id: 'recente' });
+    const mailer = mailerVazio();
+
+    await new AuthService(prisma, mailer).solicitarRedefinicaoSenha('silvia@exemplo.com');
+
+    expect(prisma.tokenAcesso.create).not.toHaveBeenCalled();
+    expect(mailer.enviar).not.toHaveBeenCalled();
+  });
+});
+
+describe('AuthService.redefinirSenha', () => {
+  const TOKEN = 'r'.repeat(43);
+
+  const registro = (extra: Record<string, unknown> = {}) => ({
+    id: 'tok-1',
+    userId: 's1',
+    tipo: 'REDEFINICAO',
+    usadoEm: null,
+    expiraEm: new Date(Date.now() + 60_000),
+    user: { id: 's1', ativo: true },
+    ...extra,
+  });
+
+  it('troca a senha, invalida os links pendentes da conta e não faz login', async () => {
+    const prisma = buildPrismaMock();
+    prisma.tokenAcesso.findUnique.mockResolvedValue(registro());
+    prisma.tokenAcesso.updateMany.mockResolvedValue({ count: 1 });
+    prisma.user.update.mockResolvedValue({ id: 's1' });
+
+    const resultado = await new AuthService(prisma).redefinirSenha(TOKEN, 'senha-nova-123');
+
+    expect(resultado).toBeUndefined();
+    expect(prisma.tokenAcesso.findUnique.mock.calls[0][0].where.tokenHash).toBe(
+      crypto.createHash('sha256').update(TOKEN).digest('hex'),
+    );
+    // 1ª chamada marca este link; 2ª, todos os outros pendentes da mesma conta.
+    expect(prisma.tokenAcesso.updateMany).toHaveBeenCalledTimes(2);
+    expect(prisma.tokenAcesso.updateMany.mock.calls[1][0].where).toEqual({
+      userId: 's1',
+      usadoEm: null,
+    });
+    const { data } = prisma.user.update.mock.calls[0][0];
+    expect(await bcrypt.compare('senha-nova-123', data.senhaHash)).toBe(true);
+  });
+
+  it.each([
+    ['cortado', 'r'.repeat(42), 'TOKEN_INCOMPLETO', {}],
+    ['de outro tipo (primeiro acesso)', TOKEN, 'TOKEN_INVALIDO', { tipo: 'ACESSO' }],
+    ['já usado', TOKEN, 'TOKEN_USADO', { usadoEm: new Date() }],
+    ['vencido', TOKEN, 'TOKEN_EXPIRADO', { expiraEm: new Date(Date.now() - 1000) }],
+    ['sem validade gravada', TOKEN, 'TOKEN_EXPIRADO', { expiraEm: null }],
+  ])(
+    'link %s: recusa com o código certo e não troca a senha',
+    async (_nome, token, code, extra) => {
+      const prisma = buildPrismaMock();
+      prisma.tokenAcesso.findUnique.mockResolvedValue(registro(extra as Record<string, unknown>));
+
+      await expect(
+        new AuthService(prisma).redefinirSenha(token, 'senha-nova-123'),
+      ).rejects.toMatchObject({
+        statusCode: 400,
+        code,
+      });
+      expect(prisma.user.update).not.toHaveBeenCalled();
+    },
+  );
+
+  it('link que não existe: TOKEN_INVALIDO', async () => {
+    const prisma = buildPrismaMock();
+    prisma.tokenAcesso.findUnique.mockResolvedValue(null);
+
+    await expect(
+      new AuthService(prisma).redefinirSenha(TOKEN, 'senha-nova-123'),
+    ).rejects.toMatchObject({ code: 'TOKEN_INVALIDO' });
+  });
+
+  it('conta desativada: não troca a senha', async () => {
+    const prisma = buildPrismaMock();
+    prisma.tokenAcesso.findUnique.mockResolvedValue(registro({ user: { id: 's1', ativo: false } }));
+
+    await expect(
+      new AuthService(prisma).redefinirSenha(TOKEN, 'senha-nova-123'),
+    ).rejects.toBeInstanceOf(UnauthorizedError);
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it('duas abas com o mesmo link ao mesmo tempo: a segunda recebe TOKEN_USADO', async () => {
+    const prisma = buildPrismaMock();
+    prisma.tokenAcesso.findUnique.mockResolvedValue(registro());
+    prisma.tokenAcesso.updateMany.mockResolvedValue({ count: 0 });
+
+    await expect(
+      new AuthService(prisma).redefinirSenha(TOKEN, 'senha-nova-123'),
+    ).rejects.toMatchObject({ code: 'TOKEN_USADO' });
     expect(prisma.user.update).not.toHaveBeenCalled();
   });
 });

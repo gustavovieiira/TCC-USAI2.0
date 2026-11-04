@@ -6,6 +6,41 @@
 
 ---
 
+## 2026-11-04 — "Esqueci minha senha" (recuperação por e-mail)
+
+**Problema.** Se o síndico (ou qualquer morador) perdesse a senha, não havia como recuperar a conta.
+
+**Como funciona.** Na tela de login há o atalho "Esqueci minha senha" (`/esqueci-senha`). A pessoa informa
+o e-mail e recebe, se houver conta ativa, um link para `/redefinir-senha` que vale **1 hora** e só pode ser
+usado **uma vez**. Depois de trocar a senha, ela volta para a página Entrar (não há login automático).
+
+**Decisões de segurança.**
+- A resposta de `POST /api/auth/esqueci-senha` é sempre a mesma (202 e a mesma mensagem), exista a conta ou
+  não, e o e-mail é enviado em segundo plano: nem o texto nem o tempo de resposta revelam quais e-mails estão
+  cadastrados.
+- No banco fica só o hash SHA-256 do código (como no link de primeiro acesso); o código tem 32 bytes
+  aleatórios (43 caracteres em base64url).
+- No máximo 1 pedido por minuto por conta e 10 por hora por IP (`criarLimitador`).
+- Ao trocar a senha, todos os links pendentes da conta deixam de valer. Link usado, vencido, cortado ou de
+  outro tipo é recusado com um código próprio (`TOKEN_USADO`, `TOKEN_EXPIRADO`, `TOKEN_INCOMPLETO`,
+  `TOKEN_INVALIDO`).
+- Conta desativada não recebe o e-mail nem consegue redefinir.
+
+**Onde mexer.**
+- Backend: `auth.service.ts` (`solicitarRedefinicaoSenha`, `redefinirSenha`; `definirSenha` agora recusa
+  links do tipo REDEFINICAO), `auth.emails.ts` (e-mail com a marca), `auth.controller.ts`/`auth.routes.ts`/
+  `auth.schemas.ts`.
+- Banco: `TokenAcesso` ganhou a coluna `tipo` (`ACESSO` = primeiro acesso, sem prazo; `REDEFINICAO` = 1 hora);
+  migração `20261104100000_token_acesso_tipo`.
+- Frontend: `EsqueciSenhaPage`, `RedefinirSenhaPage`, funções `esqueciSenha`/`redefinirSenha` em
+  `auth.api.ts` e o atalho em `LoginPage`.
+- Testes: unitários (serviço, e-mail, controller, páginas) e um E2E de 15 verificações contra um backend de
+  teste (`.scratch/e2e_esqueci_senha.cjs`, não versionado).
+- `tests/setupEnv.ts` esvazia `SMTP_HOST` em todos os testes: automatizado nunca manda e-mail de verdade
+  (o `.env` local tem o SMTP configurado e o Prisma o carrega sozinho).
+
+---
+
 ## 2026-11-04 — Canais de suporte (WhatsApp e e-mail)
 
 **Pedido.** Colocar `usaisuporte@gmail.com` como contato de suporte no fim da página e o WhatsApp

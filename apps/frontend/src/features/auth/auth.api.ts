@@ -42,6 +42,16 @@ export async function atualizarPerfil(payload: AtualizarPerfilPayload): Promise<
   return data;
 }
 
+/** "Esqueci minha senha": pede o e-mail com o link (a resposta é a mesma exista a conta ou não). */
+export async function esqueciSenha(email: string): Promise<void> {
+  await apiClient.post('/auth/esqueci-senha', { email });
+}
+
+/** Conclui o "Esqueci minha senha" com o link do e-mail; não faz login, a pessoa entra depois. */
+export async function redefinirSenha(token: string, senha: string): Promise<void> {
+  await apiClient.post('/auth/redefinir-senha', { token, senha });
+}
+
 /** Link do e-mail de acesso do síndico: define a primeira senha e já devolve a sessão. */
 export async function definirSenha(token: string, senha: string): Promise<AuthResponse> {
   const { data } = await apiClient.post<AuthResponse>('/auth/definir-senha', { token, senha });

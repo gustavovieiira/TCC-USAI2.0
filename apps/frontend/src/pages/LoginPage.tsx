@@ -17,7 +17,12 @@ export function LoginPage() {
           navigate(homeRouteFor(result.user.papel));
         }}
       />
-      <p className="mt-6 text-center text-sm text-ink-soft">
+      <p className="mt-4 text-center text-sm">
+        <Link to="/esqueci-senha" className="font-semibold text-barro-700 hover:underline">
+          Esqueci minha senha
+        </Link>
+      </p>
+      <p className="mt-4 text-center text-sm text-ink-soft">
         Recebeu um link de convite do seu condomínio?{' '}
         <Link to="/cadastro" className="font-semibold text-barro-700 hover:underline">
           Cadastre-se por aqui

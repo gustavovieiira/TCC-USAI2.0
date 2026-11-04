@@ -4,6 +4,8 @@ import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
 import { AppError, ConflictError, NotFoundError, UnauthorizedError } from '@/common/errors';
 import { logger } from '@/common/logger';
+import { Mailer, SmtpMailer, urlDoApp } from '@/common/mailer';
+import { emailRedefinicaoSenha } from './auth.emails';
 import {
   AtualizarPerfilInput,
   AuthResult,
@@ -20,6 +22,14 @@ export const BCRYPT_ROUNDS = 10;
 
 /** Tamanho do código do link de acesso: 32 bytes aleatórios em base64url, sem preenchimento. */
 export const TAMANHO_TOKEN_ACESSO = 43;
+
+/** Tipos de link guardados em `tokens_acesso`. */
+const TIPO_ACESSO = 'ACESSO';
+const TIPO_REDEFINICAO = 'REDEFINICAO';
+/** Quanto tempo vale o link do "Esqueci minha senha". */
+export const VALIDADE_REDEFINICAO_MIN = 60;
+/** Intervalo mínimo entre dois pedidos de redefinição da mesma conta (evita encher a caixa de e-mail). */
+const INTERVALO_REDEFINICAO_MS = 60 * 1000;
 
 const SENHA_JA_CRIADA =
   'A sua senha já foi criada. Entre pela página "Entrar", com o seu e-mail e a senha que você definiu.';
@@ -50,7 +60,10 @@ function normalizarCpf(cpf: string): string {
 }
 
 export class AuthService {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly mailer: Mailer = new SmtpMailer(),
+  ) {}
 
   private getSecrets() {
     return {
@@ -212,6 +225,15 @@ export class AuthService {
       );
     }
 
+    // Link de redefinição de senha não serve para o primeiro acesso (e vice-versa).
+    if (registro.tipo !== TIPO_ACESSO) {
+      throw new AppError(
+        'Este link não é válido. Peça outro e-mail na página de acompanhamento da contratação.',
+        400,
+        'TOKEN_INVALIDO',
+      );
+    }
+
     if (registro.usadoEm) {
       throw new AppError(SENHA_JA_CRIADA, 400, 'SENHA_JA_CRIADA');
     }
@@ -252,6 +274,113 @@ export class AuthService {
 
     const authenticatedUser = toAuthenticatedUser(user);
     return { ...this.issueTokens(authenticatedUser), user: authenticatedUser };
+  }
+
+  /**
+   * "Esqueci minha senha": se o e-mail for de uma conta ativa, envia um link para escolher uma senha
+   * nova (vale 1 hora, uso único). Não devolve nada de propósito: quem chama responde sempre a mesma
+   * coisa, exista a conta ou não, para ninguém descobrir quais e-mails estão cadastrados.
+   */
+  async solicitarRedefinicaoSenha(email: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user?.ativo) return;
+
+    const recente = await this.prisma.tokenAcesso.findFirst({
+      where: {
+        userId: user.id,
+        tipo: TIPO_REDEFINICAO,
+        createdAt: { gt: new Date(Date.now() - INTERVALO_REDEFINICAO_MS) },
+      },
+    });
+    if (recente) return;
+
+    const token = crypto.randomBytes(32).toString('base64url');
+    await this.prisma.tokenAcesso.create({
+      data: {
+        userId: user.id,
+        tokenHash: crypto.createHash('sha256').update(token).digest('hex'),
+        tipo: TIPO_REDEFINICAO,
+        expiraEm: new Date(Date.now() + VALIDADE_REDEFINICAO_MIN * 60 * 1000),
+      },
+    });
+
+    await this.mailer.enviar(
+      emailRedefinicaoSenha({
+        para: user.email,
+        nome: user.nome,
+        link: `${urlDoApp()}/redefinir-senha?token=${encodeURIComponent(token)}`,
+        validadeMinutos: VALIDADE_REDEFINICAO_MIN,
+      }),
+    );
+  }
+
+  /**
+   * Conclui o "Esqueci minha senha": troca a senha com o link recebido por e-mail. Não faz login — a
+   * pessoa entra pela página "Entrar" com a senha nova. Todos os links pendentes da conta deixam de valer.
+   */
+  async redefinirSenha(token: string, senha: string): Promise<void> {
+    if (token.length !== TAMANHO_TOKEN_ACESSO) {
+      throw new AppError(
+        'Este link parece estar incompleto: ele foi cortado ao ser copiado. Abra-o direto pelo botão do e-mail ou peça outro em "Esqueci minha senha".',
+        400,
+        'TOKEN_INCOMPLETO',
+      );
+    }
+
+    const registro = await this.prisma.tokenAcesso.findUnique({
+      where: { tokenHash: crypto.createHash('sha256').update(token).digest('hex') },
+      include: { user: true },
+    });
+
+    if (registro?.tipo !== TIPO_REDEFINICAO) {
+      throw new AppError(
+        'Este link não é válido. Peça outro em "Esqueci minha senha".',
+        400,
+        'TOKEN_INVALIDO',
+      );
+    }
+    if (registro.usadoEm) {
+      throw new AppError(
+        'Este link já foi usado. Se precisar, peça outro em "Esqueci minha senha".',
+        400,
+        'TOKEN_USADO',
+      );
+    }
+    if (!registro.expiraEm || registro.expiraEm < new Date()) {
+      throw new AppError(
+        'Este link expirou. Peça outro em "Esqueci minha senha".',
+        400,
+        'TOKEN_EXPIRADO',
+      );
+    }
+    if (!registro.user.ativo) {
+      throw new UnauthorizedError('Esta conta não está ativa');
+    }
+
+    const senhaHash = await bcrypt.hash(senha, BCRYPT_ROUNDS);
+    const trocou = await this.prisma.$transaction(async (tx) => {
+      // Marca como usado só se ainda não foi (duas abas com o mesmo link: a segunda falha).
+      const marcado = await tx.tokenAcesso.updateMany({
+        where: { id: registro.id, usadoEm: null },
+        data: { usadoEm: new Date() },
+      });
+      if (marcado.count === 0) return false;
+
+      await tx.tokenAcesso.updateMany({
+        where: { userId: registro.userId, usadoEm: null },
+        data: { usadoEm: new Date() },
+      });
+      await tx.user.update({ where: { id: registro.userId }, data: { senhaHash } });
+      return true;
+    });
+
+    if (!trocou) {
+      throw new AppError(
+        'Este link já foi usado. Se precisar, peça outro em "Esqueci minha senha".',
+        400,
+        'TOKEN_USADO',
+      );
+    }
   }
 
   /**

@@ -536,6 +536,8 @@ model TokenAcesso {
   id        String    @id @default(uuid())
   userId    String
   tokenHash String    @unique
+  /// ACESSO = primeiro acesso do síndico (sem prazo); REDEFINICAO = "esqueci minha senha" (vale 1 hora).
+  tipo      String    @default("ACESSO") @db.VarChar(20)
   expiraEm  DateTime?
   usadoEm   DateTime?
   createdAt DateTime  @default(now())
