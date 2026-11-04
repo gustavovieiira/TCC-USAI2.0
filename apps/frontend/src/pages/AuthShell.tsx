@@ -1,4 +1,5 @@
 import { PropsWithChildren } from 'react';
+import { ContatoSuporte } from '@/components/ui/ContatoSuporte';
 import { Logo } from '@/components/ui/Logo';
 
 interface AuthShellProps {
@@ -16,6 +17,7 @@ export function AuthShell({ title, subtitle, children }: PropsWithChildren<AuthS
           <p className="mt-1 text-sm text-ink-soft">{subtitle}</p>
         </div>
         {children}
+        <ContatoSuporte className="mt-6 border-t border-paper-line pt-4 text-center text-xs text-ink-soft" />
       </div>
     </div>
   );

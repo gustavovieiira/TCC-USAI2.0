@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { ContatoSuporte } from '@/components/ui/ContatoSuporte';
 import { Logo } from '@/components/ui/Logo';
 import { MarcaUsai } from '@/components/ui/MarcaUsai';
 import { PlanosPrecos } from '@/features/assinaturas/PlanosPrecos';
@@ -581,6 +582,10 @@ export function LandingPage() {
 
       <footer className="mx-auto flex max-w-screen-2xl flex-col gap-3 px-6 py-8 text-sm text-ink-soft lg:px-12">
         <Logo altura={28} className="text-ink" />
+        <ContatoSuporte
+          className="max-w-2xl text-sm text-ink-soft"
+          mensagem="Olá! Vim pela página da USAI e gostaria de tirar uma dúvida."
+        />
         <p className="max-w-2xl text-xs text-ink-faint">{configuracao.rodapeInstitucional}</p>
         <p className="text-xs text-ink-faint">{configuracao.nomeInstitucional}</p>
       </footer>

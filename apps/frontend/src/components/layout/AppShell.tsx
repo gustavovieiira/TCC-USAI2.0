@@ -3,6 +3,7 @@ import { useConversaNotifications } from '@/features/conversas/useConversaNotifi
 import { Logo } from '@/components/ui/Logo';
 import { NotificacoesContext, useNotificacoes } from '@/features/notificacoes/useNotificacoes';
 import { getStoredUser, homeRouteFor, Papel } from '@/lib/authStorage';
+import { linkWhatsAppSuporte, SUPORTE_WHATSAPP_EXIBICAO } from '@/lib/suporte';
 import { NotificacoesBell } from './NotificacoesBell';
 import { ProfileMenu } from './ProfileMenu';
 
@@ -88,6 +89,18 @@ export function AppShell() {
             </nav>
 
             <div className="flex items-center gap-1">
+              <a
+                href={linkWhatsAppSuporte('Olá! Preciso de ajuda com a USAI.')}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Falar com o suporte pelo WhatsApp"
+                title={`Suporte pelo WhatsApp ${SUPORTE_WHATSAPP_EXIBICAO}`}
+                className="flex min-h-[44px] items-center gap-1.5 rounded px-2 text-sm font-semibold
+                  text-ink-inverse-soft transition hover:bg-ink-inverse/10 hover:text-ink-inverse"
+              >
+                <IconSuporte className="h-5 w-5" />
+                <span className="hidden lg:inline">Suporte</span>
+              </a>
               <NotificacoesBell />
               <ProfileMenu user={user} />
             </div>
@@ -191,6 +204,20 @@ export function AppShell() {
         )}
       </div>
     </NotificacoesContext.Provider>
+  );
+}
+
+function IconSuporte({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+      <path
+        d="M4 13v-1a8 8 0 0116 0v1M4 13h2.5a1 1 0 011 1v3a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm16 0h-2.5a1 1 0 00-1 1v3a1 1 0 001 1H19a1 1 0 001-1v-4zM17 19c0 1.1-2 2-5 2"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 

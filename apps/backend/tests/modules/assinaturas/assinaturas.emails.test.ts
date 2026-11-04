@@ -182,6 +182,18 @@ describe('dica para quem encontra o e-mail no spam', () => {
   });
 });
 
+describe('contatos de suporte no e-mail', () => {
+  it('o HTML e o texto trazem o WhatsApp e o e-mail de suporte', () => {
+    const { html, texto } = emailAcessoSindico(base);
+
+    expect(html).toContain('href="https://wa.me/5547999252028"');
+    expect(html).toContain('(47) 99925-2028');
+    expect(html).toContain('href="mailto:usaisuporte@gmail.com"');
+    expect(texto).toContain('(47) 99925-2028');
+    expect(texto).toContain('usaisuporte@gmail.com');
+  });
+});
+
 describe('explicação do login no e-mail', () => {
   it('diz que o login é o e-mail do síndico mais a senha que ele criar, e leva à página Entrar', () => {
     const { html, texto } = emailAcessoSindico(base);

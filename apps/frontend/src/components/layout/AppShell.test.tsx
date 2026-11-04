@@ -57,6 +57,27 @@ describe('AppShell', () => {
     expect(screen.getAllByRole('link', { name: 'Catálogo' })).toHaveLength(2);
   });
 
+  it('tem no header o atalho do suporte, que abre o WhatsApp da USAI', () => {
+    vi.spyOn(authStorage, 'getStoredUser').mockReturnValue({
+      id: 'user-1',
+      nome: 'Bruno Locatario',
+      email: 'bruno@example.com',
+      papel: 'MORADOR',
+      condominioId: 'cond-1',
+      apartamento: null,
+    });
+
+    renderShell('/catalogo');
+
+    const link = screen.getByRole('link', { name: /suporte pelo whatsapp/i });
+    expect(link).toHaveAttribute(
+      'href',
+      expect.stringMatching(/^https:\/\/wa\.me\/5547999252028\?text=/),
+    );
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'));
+  });
+
   it('leva pra página de perfil ao clicar no chip da conta no header', async () => {
     vi.spyOn(authStorage, 'getStoredUser').mockReturnValue({
       id: 'user-sindico',

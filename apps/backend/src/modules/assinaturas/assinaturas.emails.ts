@@ -93,6 +93,11 @@ export function assuntoDoAcesso(nomeCondominio: string): string {
   return nome ? `${nome} está ativo na USAI` : 'Seu condomínio está ativo na USAI';
 }
 
+/** Canais de suporte mostrados no rodapé do e-mail. */
+const SUPORTE_EMAIL = 'usaisuporte@gmail.com';
+const SUPORTE_WHATSAPP = '(47) 99925-2028';
+const SUPORTE_WHATSAPP_LINK = 'https://wa.me/5547999252028';
+
 const DICA_SPAM =
   'Este e-mail caiu no spam? Marque como "não é spam" para receber os próximos avisos da USAI na caixa de entrada.';
 
@@ -295,6 +300,7 @@ function montarHtml(input: DadosEmailAcesso): string {
               <p style="margin:0 0 6px;font-family:${FONTE_TITULO};font-size:18px;font-weight:700;color:${COR.tinta}">USAI</p>
               <p style="margin:0 0 10px;font-family:${FONTE_TEXTO};font-size:12px;line-height:19px;color:${COR.tintaSuave}">Você recebeu este e-mail porque o condomínio ${condominio} foi contratado na USAI com este endereço.<br><a href="${site}" style="color:${COR.tintaSuave}">${site}</a></p>
               <p style="margin:0 0 10px;font-family:${FONTE_TEXTO};font-size:12px;line-height:19px;color:${COR.tintaSuave}">${escapar(DICA_SPAM)}</p>
+              <p style="margin:0 0 10px;font-family:${FONTE_TEXTO};font-size:12px;line-height:19px;color:${COR.tintaSuave}">Precisa de ajuda? Fale com o suporte pelo WhatsApp <a href="${SUPORTE_WHATSAPP_LINK}" style="color:${COR.tintaSuave}">${SUPORTE_WHATSAPP}</a> ou por e-mail em <a href="mailto:${SUPORTE_EMAIL}" style="color:${COR.tintaSuave}">${SUPORTE_EMAIL}</a>.</p>
             </td>
           </tr>
 
@@ -352,7 +358,15 @@ function montarTexto(input: DadosEmailAcesso): string {
 
   linhas.push('', 'PRÓXIMOS PASSOS');
   PASSOS.forEach((passo, indice) => linhas.push(`${indice + 1}. ${passo.titulo}: ${passo.texto}`));
-  linhas.push('', DICA_SPAM, '', 'USAI — vizinhos que compartilham', urlDoApp());
+  linhas.push(
+    '',
+    DICA_SPAM,
+    '',
+    `Precisa de ajuda? WhatsApp ${SUPORTE_WHATSAPP} ou e-mail ${SUPORTE_EMAIL}`,
+    '',
+    'USAI — vizinhos que compartilham',
+    urlDoApp(),
+  );
 
   return linhas.join('\n');
 }

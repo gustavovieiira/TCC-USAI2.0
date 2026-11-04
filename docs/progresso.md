@@ -6,6 +6,23 @@
 
 ---
 
+## 2026-11-04 — Canais de suporte (WhatsApp e e-mail)
+
+**Pedido.** Colocar `usaisuporte@gmail.com` como contato de suporte no fim da página e o WhatsApp
+(47) 99925-2028 como suporte dentro da plataforma.
+
+**O que mudou.**
+- `apps/frontend/src/lib/suporte.ts`: um único lugar com e-mail, número e o link `wa.me` (com mensagem
+  já escrita). Para trocar um contato, é só mexer aqui.
+- `components/ui/ContatoSuporte.tsx`: bloco "Precisa de ajuda?" com os dois canais. Aparece no rodapé
+  da tela inicial e nas telas de acesso (`AuthShell`: entrar, cadastro, definir senha, contratar).
+- `AppShell`: atalho "Suporte" no cabeçalho de quem está logado (morador, síndico e admin), que abre o
+  WhatsApp numa nova aba.
+- E-mail de acesso do síndico (`assinaturas.emails.ts`): rodapé com os dois contatos, em HTML e em texto.
+- Testes novos: `ContatoSuporte.test.tsx`, atalho no `AppShell.test.tsx` e contatos no e-mail.
+
+---
+
 ## 2026-11-03 — Planos e contratação pelo síndico (modelo SaaS)
 
 **Pedido.** A tela inicial é a de um SaaS, então precisa de preços: cada síndico escolhe o plano pela
