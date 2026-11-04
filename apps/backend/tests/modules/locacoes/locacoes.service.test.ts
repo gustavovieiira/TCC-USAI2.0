@@ -263,6 +263,36 @@ describe('LocacoesService.listarComoLocatario / listarComoProprietario', () => {
     );
     expect(result).toHaveLength(1);
   });
+
+  it('na lista do proprietário traz só o nome e o apartamento de quem pediu', async () => {
+    const prisma = buildPrismaMock();
+    prisma.locacao.findMany.mockResolvedValue([
+      {
+        ...locacaoBase,
+        locatario: { nome: 'Bruno Locatário', apartamento: '202', email: 'nao@vazar.com' },
+      },
+    ]);
+
+    const service = new LocacoesService(prisma);
+    const [locacao] = await service.listarComoProprietario(CONDOMINIO_ID, OWNER_ID);
+
+    expect(prisma.locacao.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: { item: true, locatario: { select: { nome: true, apartamento: true } } },
+      }),
+    );
+    expect(locacao.locatario).toEqual({ nome: 'Bruno Locatário', apartamento: '202' });
+  });
+
+  it('na lista do locatário não inclui o campo locatario', async () => {
+    const prisma = buildPrismaMock();
+    prisma.locacao.findMany.mockResolvedValue([locacaoBase]);
+
+    const service = new LocacoesService(prisma);
+    const [locacao] = await service.listarComoLocatario(CONDOMINIO_ID, LOCATARIO_ID);
+
+    expect(locacao).not.toHaveProperty('locatario');
+  });
 });
 
 describe('calcularRepasse', () => {

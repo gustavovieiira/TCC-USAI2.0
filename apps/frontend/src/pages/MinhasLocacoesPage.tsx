@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -55,11 +55,18 @@ export function MinhasLocacoesPage() {
       ? ultimaRecebida.id
       : null;
 
+  const primeiraCarga = useRef(true);
+
   useEffect(() => {
     Promise.all([listarComoLocatario(), listarComoProprietario()])
       .then(([locatario, proprietario]) => {
         setComoLocatario(locatario);
         setComoProprietario(proprietario);
+        // Quem só emprestou (nunca alugou) abre direto em "Recebidas": é lá que estão os pedidos para aprovar.
+        if (primeiraCarga.current && locatario.length === 0 && proprietario.length > 0) {
+          setAba('proprietario');
+        }
+        primeiraCarga.current = false;
       })
       .catch((err) => setErro(extractErrorMessage(err)));
   }, [recarregarComNotificacao]);
@@ -158,7 +165,19 @@ export function MinhasLocacoesPage() {
         </button>
       </div>
 
-      {erro && <p className="text-sm text-carmim-700">{erro}</p>}
+      {erro && (
+        <p role="alert" className="text-sm text-carmim-700">
+          {erro}
+          {/CPF/.test(erro) && (
+            <>
+              {' '}
+              <Link to="/perfil" className="font-semibold text-barro-700 underline">
+                Abrir meu perfil
+              </Link>
+            </>
+          )}
+        </p>
+      )}
 
       {!lista && !erro && (
         <div className="flex justify-center py-16">
@@ -210,6 +229,14 @@ export function MinhasLocacoesPage() {
                           </h3>
                           <StatusBadge status={locacao.status} />
                         </div>
+                        {aba === 'proprietario' && locacao.locatario && (
+                          <p className="mt-1 text-sm text-ink-soft">
+                            <span className="font-semibold text-ink">Pedido de:</span>{' '}
+                            {locacao.locatario.nome}
+                            {locacao.locatario.apartamento &&
+                              ` · Apto ${locacao.locatario.apartamento}`}
+                          </p>
+                        )}
                         <p className="mt-1 text-sm text-ink-soft">
                           {formatDate(locacao.dataInicio)} → {formatDate(locacao.dataFim)}
                         </p>

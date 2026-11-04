@@ -6,6 +6,37 @@
 
 ---
 
+## 2026-11-04 — Rodada de testes de usabilidade antes do deploy
+
+**O que foi testado.** Todos os fluxos, pela API e pela tela (navegador), com o Asaas no **sandbox** e um
+servidor SMTP falso local (`.scratch/smtp_sink.cjs`) que recebe os e-mails sem entregar a ninguém:
+contratação do síndico (PIX no sandbox, e-mail com recibo, criação de senha), cadastro de morador com PIN,
+publicar item (diária mínima de R$ 5), pedido, aprovação, pagamento, retirada com aceite por senha, chat,
+saque, extrato, comissão do condomínio, painel do síndico, as sete abas do Admin e o "esqueci minha senha"
+(o link que chega no e-mail troca a senha; link reusado, vencido ou cortado é recusado). Também foram
+conferidos o redirecionamento de quem não tem permissão, o endereço inexistente, o tamanho de celular
+(320 e 360 px) em todas as telas e o servidor compilado (`node dist/server.js`) em modo produção.
+Resultado dos roteiros de API: 139 + 51 + 12 + 15 + 7 verificações, todas ok.
+
+**O que foi corrigido no caminho.**
+- Locações: quem empresta passou a ver **quem pediu** (nome e apartamento) no cartão de "Recebidas"; antes
+  aprovava sem saber a quem. Quem só emprestou (nunca alugou) já abre em "Recebidas".
+- Pagamento sem CPF no perfil: o aviso agora tem o link "Abrir meu perfil".
+- Celular: a tela "Publicar item" estourava a largura em 27 px (`fieldset` e a linha de acessórios sem
+  `min-w-0`); o cabeçalho da tela inicial também não cabia abaixo de ~330 px.
+- Cadastro de morador: dica "mínimo de 8 caracteres" e link "Já tem conta? Entrar".
+- Acompanhar contratação: `<div>` dentro de `<p>` (aviso de HTML inválido no console).
+- API: cabeçalhos de segurança (`nosniff`, anti-iframe, `Referrer-Policy`, HSTS só em HTTPS) e sem
+  `X-Powered-By` (`common/securityHeaders.ts`). Sem `Cross-Origin-Resource-Policy` de propósito, para as
+  fotos de `/uploads` carregarem no front de outra origem.
+
+**Para o deploy (achados, ainda não resolvidos no código).**
+- `GET /metrics` é público: restringir no proxy (ou só na rede interna).
+- Sem `CORS_ORIGINS` a API recusa o front publicado (comportamento esperado e já documentado).
+- O limitador de requisições usa o IP: atrás de proxy é preciso `trust proxy`.
+
+---
+
 ## 2026-11-04 — "Esqueci minha senha" (recuperação por e-mail)
 
 **Problema.** Se o síndico (ou qualquer morador) perdesse a senha, não havia como recuperar a conta.

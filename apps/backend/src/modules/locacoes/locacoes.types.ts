@@ -18,6 +18,8 @@ export interface LocacaoDTO {
   finalidade: string | null;
   status: StatusLocacao;
   createdAt: Date;
+  /** Quem pediu (nome e apartamento); vem na lista do proprietário e na criação do pedido. */
+  locatario?: { nome: string; apartamento: string | null };
   item: {
     id: string;
     titulo: string;

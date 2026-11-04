@@ -2,6 +2,7 @@ import cors from 'cors';
 import express, { Express } from 'express';
 import { origensPermitidas } from '@/common/cors';
 import { errorHandler } from '@/common/errorHandler';
+import { securityHeaders } from '@/common/securityHeaders';
 import { UPLOADS_DIR } from '@/common/uploads';
 import { metricsMiddleware } from '@/metrics/metricsMiddleware';
 import { metricsRegistry } from '@/metrics/registry';
@@ -22,6 +23,9 @@ import { sindicoRouter } from '@/modules/sindico/sindico.routes';
 export function createApp(): Express {
   const app = express();
 
+  // Não anuncia o framework (X-Powered-By) e envia os cabeçalhos de segurança básicos.
+  app.disable('x-powered-by');
+  app.use(securityHeaders);
   app.use(cors({ origin: origensPermitidas() }));
   app.use(express.json());
   app.use(metricsMiddleware);

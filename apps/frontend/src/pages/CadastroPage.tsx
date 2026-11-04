@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { CadastroForm } from '@/features/auth/cadastro/CadastroForm';
 import { homeRouteFor, saveSession } from '@/lib/authStorage';
 import { AuthShell } from './AuthShell';
@@ -52,6 +52,12 @@ export function CadastroPage() {
           navigate(homeRouteFor(result.user.papel));
         }}
       />
+      <p className="mt-6 text-center text-sm text-ink-soft">
+        Já tem conta?{' '}
+        <Link to="/login" className="font-semibold text-barro-700 hover:underline">
+          Entrar
+        </Link>
+      </p>
     </AuthShell>
   );
 }

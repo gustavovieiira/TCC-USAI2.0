@@ -121,6 +121,43 @@ describe('MinhasLocacoesPage', () => {
     expect(screen.getByRole('button', { name: 'Rejeitar' })).toBeInTheDocument();
   });
 
+  it('o dono vê quem pediu a locação (nome e apartamento), e o locatário não vê esse campo', async () => {
+    vi.spyOn(locacoesApi, 'listarComoLocatario').mockResolvedValue([buildLocacao()]);
+    vi.spyOn(locacoesApi, 'listarComoProprietario').mockResolvedValue([
+      buildLocacao({ locatario: { nome: 'Bruno Locatário', apartamento: '202' } }),
+    ]);
+
+    renderPage();
+
+    expect(await screen.findByText('Furadeira Bosch')).toBeInTheDocument();
+    expect(screen.queryByText(/Pedido de:/)).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Recebidas' }));
+
+    expect(await screen.findByText(/Pedido de:/)).toBeInTheDocument();
+    expect(screen.getByText(/Bruno Locatário · Apto 202/)).toBeInTheDocument();
+  });
+
+  it('quem só emprestou (nunca alugou) já abre em "Recebidas", onde estão os pedidos para aprovar', async () => {
+    vi.spyOn(locacoesApi, 'listarComoLocatario').mockResolvedValue([]);
+    vi.spyOn(locacoesApi, 'listarComoProprietario').mockResolvedValue([buildLocacao()]);
+
+    renderPage();
+
+    expect(await screen.findByRole('button', { name: 'Aprovar' })).toBeInTheDocument();
+    expect(screen.queryByText('Você ainda não alugou nada')).not.toBeInTheDocument();
+  });
+
+  it('quem já alugou continua abrindo em "Como locatário"', async () => {
+    vi.spyOn(locacoesApi, 'listarComoLocatario').mockResolvedValue([buildLocacao()]);
+    vi.spyOn(locacoesApi, 'listarComoProprietario').mockResolvedValue([buildLocacao({ id: 'l2' })]);
+
+    renderPage();
+
+    expect(await screen.findByText('Furadeira Bosch')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Aprovar' })).not.toBeInTheDocument();
+  });
+
   it('aprova a locação e atualiza o status na tela', async () => {
     vi.spyOn(locacoesApi, 'listarComoLocatario').mockResolvedValue([]);
     vi.spyOn(locacoesApi, 'listarComoProprietario').mockResolvedValue([buildLocacao()]);
@@ -167,6 +204,28 @@ describe('MinhasLocacoesPage', () => {
       'https://sandbox.asaas.com/i/pay_123',
       '_blank',
       'noopener,noreferrer',
+    );
+  });
+
+  it('sem CPF no perfil, o aviso de erro leva direto ao perfil', async () => {
+    vi.spyOn(locacoesApi, 'listarComoLocatario').mockResolvedValue([
+      buildLocacao({ status: 'APROVADA' }),
+    ]);
+    vi.spyOn(locacoesApi, 'listarComoProprietario').mockResolvedValue([]);
+    vi.spyOn(pagamentosApi, 'criarCobranca').mockRejectedValue({
+      isAxiosError: true,
+      response: {
+        data: { error: { message: 'Cadastre seu CPF no perfil antes de pagar uma locação' } },
+      },
+    });
+
+    renderPage();
+    await userEvent.click(await screen.findByRole('button', { name: 'Pagar agora' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Cadastre seu CPF no perfil');
+    expect(screen.getByRole('link', { name: 'Abrir meu perfil' })).toHaveAttribute(
+      'href',
+      '/perfil',
     );
   });
 

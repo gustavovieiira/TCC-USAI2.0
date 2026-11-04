@@ -50,7 +50,11 @@ export function calcularRepasse(valorBruto: number): {
   return { taxaPlataforma: arredondarCentavos(valorBruto - valorLiquido), valorLiquido };
 }
 
-type LocacaoComItem = Locacao & { item: Item };
+/** O locatário vem junto só quando a consulta o inclui (ex.: a lista do proprietário). */
+type LocacaoComItem = Locacao & {
+  item: Item;
+  locatario?: { nome: string; apartamento: string | null } | null;
+};
 
 function toLocacaoDTO(locacao: LocacaoComItem): LocacaoDTO {
   return {
@@ -63,6 +67,10 @@ function toLocacaoDTO(locacao: LocacaoComItem): LocacaoDTO {
     finalidade: locacao.finalidade,
     status: locacao.status,
     createdAt: locacao.createdAt,
+    // Só nome e apartamento: o dono precisa saber a quem está emprestando, nada além disso.
+    ...(locacao.locatario
+      ? { locatario: { nome: locacao.locatario.nome, apartamento: locacao.locatario.apartamento } }
+      : {}),
     item: {
       id: locacao.item.id,
       titulo: locacao.item.titulo,
@@ -233,7 +241,7 @@ export class LocacoesService {
   async listarComoProprietario(condominioId: string, ownerId: string): Promise<LocacaoDTO[]> {
     const locacoes = await this.prisma.locacao.findMany({
       where: { item: { condominioId, ownerId } },
-      include: { item: true },
+      include: { item: true, locatario: { select: { nome: true, apartamento: true } } },
       orderBy: { createdAt: 'desc' },
     });
 

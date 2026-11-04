@@ -69,6 +69,7 @@ export function CadastroForm({ linkSlug, onSuccess }: CadastroFormProps) {
         value={senha}
         onChange={(e) => setSenha(e.target.value)}
       />
+      <p className="-mt-2 text-xs text-ink-faint">Use pelo menos 8 caracteres.</p>
       <TextField
         label="Apartamento (opcional)"
         name="apartamento"

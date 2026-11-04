@@ -317,7 +317,7 @@ export function LandingPage() {
 
   return (
     <div className="min-h-screen bg-paper bg-cortica bg-cortica-grid">
-      <header className="mx-auto flex max-w-screen-2xl items-center justify-between px-6 py-6 lg:px-12">
+      <header className="mx-auto flex max-w-screen-2xl items-center justify-between px-4 py-6 sm:px-6 lg:px-12">
         <Logo altura={40} className="text-ink" />
         <nav className="flex items-center gap-1 sm:gap-3" aria-label="Principal">
           <a

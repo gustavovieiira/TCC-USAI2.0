@@ -157,7 +157,7 @@ export function PublicarItemPage() {
             Mínimo de R$ 5,00 por diária (o menor valor que a cobrança por PIX aceita).
           </p>
 
-          <fieldset className="flex flex-col gap-3 border border-paper-line p-3">
+          <fieldset className="flex min-w-0 flex-col gap-3 border border-paper-line p-3">
             <legend className="px-1 text-sm font-medium text-ink">
               Identificação do bem (opcional)
             </legend>
@@ -212,7 +212,7 @@ export function PublicarItemPage() {
                 </ul>
               )}
               <div className="flex items-end gap-2">
-                <div className="flex-1">
+                <div className="min-w-0 flex-1">
                   <TextField
                     label="Novo acessório"
                     name="novoAcessorio"

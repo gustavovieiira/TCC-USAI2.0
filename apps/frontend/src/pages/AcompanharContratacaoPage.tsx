@@ -116,13 +116,13 @@ export function AcompanharContratacaoPage() {
           </a>
         )}
 
-        <p
+        <div
           role="status"
           className="mt-5 flex items-center justify-center gap-2 text-center text-sm text-ink-soft"
         >
           <Spinner />
-          Aguardando a confirmação do pagamento. Esta página atualiza sozinha.
-        </p>
+          <p>Aguardando a confirmação do pagamento. Esta página atualiza sozinha.</p>
+        </div>
         <p className="mt-3 text-center text-xs text-ink-faint">
           Pode fechar esta página: quando o PIX for confirmado, o acesso chega em{' '}
           {contratacao.emailMascarado}.
