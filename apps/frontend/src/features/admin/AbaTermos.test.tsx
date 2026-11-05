@@ -13,7 +13,7 @@ const termoDevolucao: TermoDTO = {
   id: 'termo-3',
   tipo: 'DEVOLUCAO',
   versao: 1,
-  titulo: 'Termo de Responsabilidade — Devolução do Item',
+  titulo: 'Termo de Responsabilidade: Devolução do Item',
   clausulas: ['O proprietário declara ter recebido o item.'],
   declaracoes: [
     { id: 'recebimento', texto: 'Declaro que recebi o item descrito neste documento.' },
@@ -34,7 +34,7 @@ describe('AbaTermos', () => {
     expect(within(retirada).getByText('Versão 2')).toBeInTheDocument();
     expect(within(retirada).getByText('Versão 1')).toBeInTheDocument();
     expect(within(retirada).getByText('em vigor')).toBeInTheDocument();
-    expect(within(retirada).getAllByText('Modelo — pendente de revisão')).toHaveLength(2);
+    expect(within(retirada).getAllByText('Modelo, pendente de revisão')).toHaveLength(2);
     expect(screen.getByText(/revisão jurídica da empresa\/condomínio/)).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Termo de Devolução' })).toBeInTheDocument();
   });
@@ -174,7 +174,7 @@ describe('AbaDocumentos (auditoria)', () => {
     expect(screen.getByText('Aguardando aceite')).toBeInTheDocument();
     expect(screen.getByText('Concluída')).toBeInTheDocument();
     expect(
-      screen.getByText(/Projetor Epson — entregue por Davi Dono, recebido por Carla Locataria/),
+      screen.getByText(/Projetor Epson: entregue por Davi Dono, recebido por Carla Locataria/),
     ).toBeInTheDocument();
   });
 

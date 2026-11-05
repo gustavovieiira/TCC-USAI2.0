@@ -9,7 +9,7 @@ import { ConfiguracaoDTO } from '@/features/configuracao/configuracao.types';
 
 const padrao: ConfiguracaoDTO = {
   logoUrl: null,
-  nomeInstitucional: 'USAI — Compartilhamento entre vizinhos',
+  nomeInstitucional: 'USAI: compartilhamento entre vizinhos',
   rodapeInstitucional: 'Rodapé padrão',
 };
 const comLogo: ConfiguracaoDTO = {
@@ -31,7 +31,7 @@ function arquivo(nome: string, tipo: string, tamanho = 10) {
   return new File([new Uint8Array(tamanho)], nome, { type: tipo });
 }
 
-describe('AbaIdentidade — logo oficial', () => {
+describe('AbaIdentidade: logo oficial', () => {
   beforeEach(() => {
     URL.createObjectURL = vi.fn(() => 'blob:previa');
     URL.revokeObjectURL = vi.fn();
@@ -139,7 +139,7 @@ describe('AbaIdentidade — logo oficial', () => {
   });
 });
 
-describe('AbaIdentidade — textos institucionais', () => {
+describe('AbaIdentidade: textos institucionais', () => {
   it('os campos vêm preenchidos com o que está salvo e salvar envia nome e rodapé', async () => {
     const salvar = vi.spyOn(api, 'atualizarTextosInstitucionais').mockResolvedValue({
       ...comLogo,

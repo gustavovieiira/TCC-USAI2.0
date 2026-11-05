@@ -33,7 +33,7 @@ describe('dividirTaxa', () => {
     expect(dividirTaxa(10, 1)).toEqual([10]);
   });
 
-  it('o que sobra da divisão vai, um centavo por vez, pros primeiros — a soma é sempre a taxa inteira', () => {
+  it('o que sobra da divisão vai, um centavo por vez, pros primeiros, a soma é sempre a taxa inteira', () => {
     expect(dividirTaxa(10, 3)).toEqual([3.34, 3.33, 3.33]);
     expect(dividirTaxa(0.1, 3)).toEqual([0.04, 0.03, 0.03]);
 

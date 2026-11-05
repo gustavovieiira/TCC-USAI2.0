@@ -1,13 +1,13 @@
-const PAPEIS = [
-  'bg-barro-100 text-barro-700',
-  'bg-jade-100 text-jade-700',
-  'bg-mostarda-100 text-mostarda-700',
-  'bg-roxo-100 text-roxo-500',
+const CORES = [
+  'bg-fachada-coral text-fachada-tinta',
+  'bg-fachada-luz text-fachada-tinta',
+  'bg-fachada-folha text-fachada-tinta',
+  'bg-fachada-predio-claro text-fachada-papel',
 ];
 
-function papelPorNome(nome: string): string {
+function corPorNome(nome: string): string {
   const hash = Array.from(nome).reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  return PAPEIS[hash % PAPEIS.length];
+  return CORES[hash % CORES.length];
 }
 
 const SIZE_CLASSES = {
@@ -16,14 +16,14 @@ const SIZE_CLASSES = {
   lg: 'h-14 w-14 text-xl',
 };
 
-/** Avatar de papel: quadrado recortado com iniciais em tinta — nunca círculo genérico. */
+/** Avatar redondo com a inicial do nome, numa das cores da fachada (a mesma pessoa tem sempre a mesma cor). */
 export function Avatar({ nome, size = 'md' }: { nome: string; size?: keyof typeof SIZE_CLASSES }) {
   const inicial = nome.trim().charAt(0).toUpperCase() || '?';
 
   return (
     <div
-      className={`notch-sm flex shrink-0 items-center justify-center font-display font-semibold
-        ${SIZE_CLASSES[size]} ${papelPorNome(nome)}`}
+      className={`flex shrink-0 items-center justify-center rounded-full font-marca font-extrabold
+        ${SIZE_CLASSES[size]} ${corPorNome(nome)}`}
     >
       {inicial}
     </div>

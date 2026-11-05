@@ -54,7 +54,7 @@ function toAuthenticatedUser(user: {
   };
 }
 
-/** Mantém só os dígitos — aceita o CPF com ou sem pontuação (Asaas exige só números). */
+/** Mantém só os dígitos, aceita o CPF com ou sem pontuação (Asaas exige só números). */
 function normalizarCpf(cpf: string): string {
   return cpf.replace(/\D/g, '');
 }
@@ -83,7 +83,7 @@ export class AuthService {
   }
 
   /**
-   * RF01/RF02/RN03 — cadastro do morador via link exclusivo + PIN do condomínio.
+   * RF01/RF02/RN03, cadastro do morador via link exclusivo + PIN do condomínio.
    * O PIN é validado apenas neste momento; não é reutilizado depois do vínculo criado.
    */
   async cadastrarMorador(input: CadastroMoradorInput): Promise<AuthResult> {
@@ -136,7 +136,7 @@ export class AuthService {
     return { ...this.issueTokens(authenticatedUser), user: authenticatedUser };
   }
 
-  /** RF03 — login com e-mail e senha, válido para todos os perfis. */
+  /** RF03, login com e-mail e senha, válido para todos os perfis. */
   async login(input: LoginInput): Promise<AuthResult> {
     const user = await this.prisma.user.findUnique({
       where: { email: input.email },
@@ -163,7 +163,7 @@ export class AuthService {
 
   /**
    * Morador/síndico/admin edita os próprios dados: nome, apartamento e CPF (necessário pro
-   * locatário pagar uma locação via Asaas — M3). CPF fica de fora do update quando não enviado,
+   * locatário pagar uma locação via Asaas, M3). CPF fica de fora do update quando não enviado,
    * pra não apagar um valor já cadastrado.
    */
   async atualizarPerfil(userId: string, input: AtualizarPerfilInput): Promise<AuthenticatedUser> {
@@ -173,7 +173,7 @@ export class AuthService {
       cpf = normalizarCpf(input.cpf);
 
       if (cpf.length !== 11) {
-        throw new AppError('CPF inválido — deve ter 11 dígitos', 400, 'CPF_INVALIDO');
+        throw new AppError('CPF inválido: deve ter 11 dígitos', 400, 'CPF_INVALIDO');
       }
 
       const existente = await this.prisma.user.findFirst({
@@ -315,7 +315,7 @@ export class AuthService {
   }
 
   /**
-   * Conclui o "Esqueci minha senha": troca a senha com o link recebido por e-mail. Não faz login — a
+   * Conclui o "Esqueci minha senha": troca a senha com o link recebido por e-mail. Não faz login, a
    * pessoa entra pela página "Entrar" com a senha nova. Todos os links pendentes da conta deixam de valer.
    */
   async redefinirSenha(token: string, senha: string): Promise<void> {

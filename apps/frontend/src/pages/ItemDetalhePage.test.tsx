@@ -95,7 +95,7 @@ describe('ItemDetalhePage', () => {
   });
 });
 
-describe('ItemDetalhePage — identificação do bem e finalidade', () => {
+describe('ItemDetalhePage: identificação do bem e finalidade', () => {
   const morador = {
     id: 'user-locatario',
     nome: 'Bruno',

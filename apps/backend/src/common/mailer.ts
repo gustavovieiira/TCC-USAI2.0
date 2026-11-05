@@ -21,7 +21,7 @@ export interface Email {
 
 /**
  * Envio de e-mail por SMTP (nodemailer). Configure `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`,
- * `SMTP_PASS` e `MAIL_FROM` no `.env` — funciona com Gmail (senha de app), Outlook ou o SMTP da
+ * `SMTP_PASS` e `MAIL_FROM` no `.env`, funciona com Gmail (senha de app), Outlook ou o SMTP da
  * instituição. Sem `SMTP_HOST` o e-mail não sai: o conteúdo vai pro log do servidor, o que permite
  * testar o fluxo inteiro localmente (ex.: copiar o link de acesso do log).
  */
@@ -68,7 +68,7 @@ export class SmtpMailer implements Mailer {
     const transporte = this.obterTransporte();
 
     if (!transporte) {
-      logger.warn('SMTP não configurado — e-mail NÃO enviado, conteúdo abaixo (somente log)', {
+      logger.warn('SMTP não configurado: e-mail NÃO enviado, conteúdo abaixo (somente log)', {
         para: email.para,
         assunto: email.assunto,
         texto: email.texto,

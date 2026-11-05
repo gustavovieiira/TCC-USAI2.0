@@ -147,13 +147,13 @@ export function ConversaPage() {
                 <div
                   className={`notch max-w-[75%] px-4 py-2 text-sm ${
                     ehMinha
-                      ? 'bg-barro-500 text-paper-surface'
+                      ? 'bg-barro-500 text-ink'
                       : 'border border-paper-line bg-paper-surface text-ink'
                   }`}
                 >
                   <p className="whitespace-pre-line">{mensagem.conteudo}</p>
                   <p
-                    className={`mt-1 font-meta text-[10px] ${ehMinha ? 'text-barro-100' : 'text-ink-faint'}`}
+                    className={`mt-1 font-meta text-xs ${ehMinha ? 'text-barro-100' : 'text-ink-faint'}`}
                   >
                     {formatTime(mensagem.createdAt)}
                   </p>

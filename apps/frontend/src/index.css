@@ -12,13 +12,13 @@ body {
   @apply bg-paper font-sans text-ink;
 }
 
-/* Foco visível: anel duplo (tinta + offset no papel) — ver docs/design-system.md */
+/* Foco visível: anel duplo (tinta + offset no papel), ver docs/design-system.md */
 :focus-visible {
   @apply outline outline-2 outline-offset-2 outline-ink;
 }
 
 /*
- * MUNDO "A FACHADA" — a USAI é um prédio brasileiro visto à noite; cada janela é um vizinho. Cores chapadas,
+ * MUNDO "A FACHADA", a USAI é um prédio brasileiro visto à noite; cada janela é um vizinho. Cores chapadas,
  * sem texturas de mentira. Use `.mundo-fachada` na raiz de uma tela. As animações respeitam
  * `prefers-reduced-motion` (no fim deste bloco).
  */

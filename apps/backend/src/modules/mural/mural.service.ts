@@ -40,9 +40,9 @@ function toComentarioDTO(comentario: ComentarioComAutor): ComentarioDTO {
 }
 
 /**
- * Mural: feed único do condomínio, no espírito de uma rede social — qualquer morador, síndico ou
+ * Mural: feed único do condomínio, no espírito de uma rede social, qualquer morador, síndico ou
  * admin pode publicar (um pedido de ajuda com status, ou um aviso/post livre), e qualquer vizinho do
- * mesmo condomínio pode comentar publicamente. Sem numeração de RF própria — recurso adicionado
+ * mesmo condomínio pode comentar publicamente. Sem numeração de RF própria, recurso adicionado
  * depois da RFC original, a partir do uso real da plataforma.
  */
 export class MuralService {
@@ -97,7 +97,7 @@ export class MuralService {
     };
   }
 
-  /** Qualquer morador do condomínio pode comentar — é um mural público, não uma conversa privada. */
+  /** Qualquer morador do condomínio pode comentar, é um mural público, não uma conversa privada. */
   async responder(
     postId: string,
     condominioId: string,

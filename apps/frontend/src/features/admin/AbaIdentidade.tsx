@@ -16,7 +16,7 @@ const TIPOS_ACEITOS = ['image/png', 'image/jpeg', 'image/webp'];
 const LIMITE_BYTES = 2 * 1024 * 1024;
 
 /**
- * Identidade da plataforma: a logo oficial (upload, mantida como enviada — sem recompressão, com a
+ * Identidade da plataforma: a logo oficial (upload, mantida como enviada, sem recompressão, com a
  * proporção original) e o nome e rodapé institucionais que saem nos documentos. A troca vale pro
  * app inteiro na hora (cabeçalho, tela inicial, login e documentos).
  */

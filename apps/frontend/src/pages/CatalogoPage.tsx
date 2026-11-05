@@ -110,14 +110,14 @@ export function CatalogoPage() {
           description={
             itens.length === 0
               ? 'Seja o primeiro morador a anunciar um item pros vizinhos.'
-              : 'Ninguém cadastrou isso ainda — mas alguém no condomínio provavelmente tem. Pergunta no mural?'
+              : 'Ninguém cadastrou isso ainda, mas alguém no condomínio provavelmente tem. Pergunte no mural.'
           }
           action={
             itens.length === 0 && (
               <Link
                 to="/itens/novo"
                 className="notch inline-flex min-h-[44px] items-center bg-barro-500 px-4 py-2
-                  text-sm font-bold text-paper-surface shadow-press hover:bg-barro-700"
+                  text-sm font-bold text-ink shadow-press hover:bg-barro-700"
               >
                 Publicar item
               </Link>
@@ -148,8 +148,8 @@ export function CatalogoPage() {
             alturaMaxima="max-h-[calc(100vh-26rem)] min-h-[20rem]"
           >
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
-              {itensFiltrados.map((item) => (
-                <ItemCard key={item.id} item={item} />
+              {itensFiltrados.map((item, indice) => (
+                <ItemCard key={item.id} item={item} indice={indice} />
               ))}
             </div>
           </ListaRolavel>

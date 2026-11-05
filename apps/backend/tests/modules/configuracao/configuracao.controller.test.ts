@@ -40,7 +40,7 @@ function token(papel: 'ADMIN' | 'MORADOR' | 'SINDICO') {
 }
 
 describe('GET /api/configuracao (pública)', () => {
-  it('responde sem login — o cabeçalho, a tela inicial e o login precisam da logo', async () => {
+  it('responde sem login, o cabeçalho, a tela inicial e o login precisam da logo', async () => {
     const response = await request(createApp()).get('/api/configuracao');
 
     expect(response.status).toBe(200);
@@ -101,7 +101,7 @@ describe('POST /api/admin/configuracao/logo', () => {
     });
   });
 
-  it('recusa SVG e outros formatos (400) — SVG pode carregar script', async () => {
+  it('recusa SVG e outros formatos (400), SVG pode carregar script', async () => {
     for (const [nome, tipo] of [
       ['logo.svg', 'image/svg+xml'],
       ['logo.gif', 'image/gif'],

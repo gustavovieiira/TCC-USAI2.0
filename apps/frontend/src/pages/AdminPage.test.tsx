@@ -48,7 +48,7 @@ function mockApis(overrides: { condominios?: CondominioAdminDTO[]; saques?: Saqu
   );
 }
 
-describe('AdminPage — aba Financeiro', () => {
+describe('AdminPage: aba Financeiro', () => {
   it('mostra o resumo e os saques pendentes', async () => {
     mockApis();
 
@@ -224,7 +224,7 @@ describe('AdminPage — aba Financeiro', () => {
   });
 });
 
-describe('AdminPage — taxas e extratos', () => {
+describe('AdminPage: taxas e extratos', () => {
   it('mostra pra onde foi a taxa dos aluguéis: síndicos e plataforma', async () => {
     mockApis();
 
@@ -257,7 +257,7 @@ describe('AdminPage — taxas e extratos', () => {
   });
 });
 
-describe('AdminPage — aba Condomínios', () => {
+describe('AdminPage: aba Condomínios', () => {
   it('cria um condomínio novo', async () => {
     mockApis();
     vi.spyOn(adminApi, 'criarCondominio').mockResolvedValue({
@@ -303,7 +303,7 @@ describe('AdminPage — aba Condomínios', () => {
   });
 });
 
-describe('AdminPage — aba Síndicos', () => {
+describe('AdminPage: aba Síndicos', () => {
   it('cria a conta de síndico pro condomínio selecionado', async () => {
     mockApis();
     vi.spyOn(adminApi, 'criarSindico').mockResolvedValue({

@@ -34,7 +34,7 @@ export interface CriarPostInput {
   conteudo: string;
   tipo: TipoPost;
   categoria?: string;
-  /** Só usado quando o autor é ADMIN (não tem condomínio próprio) — precisa escolher pra qual. */
+  /** Só usado quando o autor é ADMIN (não tem condomínio próprio), precisa escolher pra qual. */
   condominioId?: string;
 }
 

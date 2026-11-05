@@ -4,9 +4,9 @@ export type StatusSaque = 'PENDENTE' | 'APROVADO' | 'REJEITADO' | 'PAGO';
 export interface SaqueDTO {
   id: string;
   userId: string;
-  /** Nome de quem solicitou — só vem preenchido na listagem do Admin USAI. */
+  /** Nome de quem solicitou, só vem preenchido na listagem do Admin USAI. */
   solicitanteNome?: string;
-  /** Idem — só na visão do Admin. */
+  /** Idem, só na visão do Admin. */
   solicitanteCondominio?: string | null;
   valor: number;
   chavePixUsada: string;
@@ -66,7 +66,7 @@ export interface MovimentoExtratoDTO {
   pagoEm?: string | null;
 }
 
-/** Aluguel que o usuário PAGOU como locatário — não mexe no saldo. */
+/** Aluguel que o usuário PAGOU como locatário, não mexe no saldo. */
 export interface PagamentoExtratoDTO {
   id: string;
   /** Locação paga (rastreio da origem). */

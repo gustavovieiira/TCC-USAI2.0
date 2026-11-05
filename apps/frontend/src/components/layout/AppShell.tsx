@@ -57,7 +57,7 @@ export function AppShell() {
   return (
     <NotificacoesContext.Provider value={notificacoes}>
       <div className="min-h-screen bg-paper">
-        <header className="no-print sticky top-0 z-20 bg-ink text-ink-inverse">
+        <header className="no-print sticky top-0 z-20 bg-fachada-noite text-fachada-papel">
           <div className="mx-auto flex max-w-screen-2xl items-center justify-between gap-4 px-4 py-3 md:px-6 lg:px-10">
             <NavLink
               to={homeRouteFor(user?.papel)}
@@ -73,7 +73,7 @@ export function AppShell() {
                   to={to}
                   className={({ isActive }) =>
                     `relative px-3 py-2 text-sm font-semibold transition ${
-                      isActive ? 'text-barro-400' : 'text-ink-inverse-soft hover:text-ink-inverse'
+                      isActive ? 'text-fachada-luz' : 'text-ink-inverse-soft hover:text-ink-inverse'
                     }`
                   }
                 >
@@ -120,20 +120,28 @@ export function AppShell() {
               key={to}
               to={to}
               className={({ isActive }) =>
-                `relative flex flex-1 flex-col items-center gap-0.5 py-2.5 text-xs font-semibold
-                transition ${isActive ? 'text-barro-700' : 'text-ink-faint'}`
+                `relative flex flex-1 flex-col items-center gap-0.5 pb-2 pt-2 text-xs font-semibold
+                transition-colors ${isActive ? 'text-ink' : 'text-ink-faint'}`
               }
             >
-              <span className="relative">
-                <Icon className="h-6 w-6" />
-                {to === '/conversas' && hasUnread && (
+              {({ isActive }) => (
+                <>
+                  {/* o item da página atual é uma janela acesa */}
                   <span
-                    className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-carmim-500"
-                    aria-label="Mensagens não lidas"
-                  />
-                )}
-              </span>
-              {label}
+                    className={`relative flex h-8 w-14 items-center justify-center rounded-full transition-colors
+                      duration-300 ${isActive ? 'bg-fachada-luz shadow-[0_0_14px_rgb(255_194_75/0.55)]' : ''}`}
+                  >
+                    <Icon className="h-6 w-6" />
+                    {to === '/conversas' && hasUnread && (
+                      <span
+                        className="absolute right-1.5 top-0.5 h-2 w-2 rounded-full bg-carmim-500"
+                        aria-label="Mensagens não lidas"
+                      />
+                    )}
+                  </span>
+                  {label}
+                </>
+              )}
             </NavLink>
           ))}
         </nav>
@@ -142,12 +150,10 @@ export function AppShell() {
           <button
             type="button"
             onClick={abrirAviso}
-            className="notch fixed right-4 top-20 z-30 max-w-xs border border-paper-line
+            className="notch entra fixed right-4 top-20 z-30 max-w-xs border border-paper-line
             bg-paper-surface p-4 text-left shadow-paper-2 transition hover:bg-paper"
           >
-            <p className="font-meta text-[10px] uppercase tracking-wide text-ink-faint">
-              Notificação
-            </p>
+            <p className="font-meta text-xs uppercase tracking-wide text-ink-faint">Notificação</p>
             <p className="mt-1 text-sm font-semibold text-ink">{avisoToast.titulo}</p>
             <p className="mt-0.5 text-xs text-ink-soft">{avisoToast.mensagem}</p>
             <span
@@ -178,7 +184,7 @@ export function AppShell() {
             className="notch fixed bottom-20 right-4 z-30 max-w-xs border border-paper-line
             bg-paper-surface p-4 text-left shadow-paper-2 transition hover:bg-paper md:bottom-6"
           >
-            <p className="font-meta text-[10px] uppercase tracking-wide text-ink-faint">
+            <p className="font-meta text-xs uppercase tracking-wide text-ink-faint">
               Nova mensagem
             </p>
             <p className="mt-1 text-sm font-semibold text-ink">{toast.nome}</p>

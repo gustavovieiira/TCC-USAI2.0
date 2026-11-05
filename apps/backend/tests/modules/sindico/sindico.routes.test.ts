@@ -14,7 +14,7 @@ function tokenPara(papel: 'MORADOR' | 'SINDICO'): string {
   });
 }
 
-describe('RBAC de /api/sindico — rotas exclusivas do papel SINDICO', () => {
+describe('RBAC de /api/sindico: rotas exclusivas do papel SINDICO', () => {
   const app = createApp();
 
   it('bloqueia morador tentando ver o painel do condomínio', async () => {

@@ -17,7 +17,7 @@ function tokenPara(papel: 'MORADOR' | 'ADMIN'): string {
   );
 }
 
-describe('RBAC de /api/saques — rotas de avaliação são exclusivas do Admin USAI', () => {
+describe('RBAC de /api/saques: rotas de avaliação são exclusivas do Admin USAI', () => {
   const app = createApp();
 
   it('bloqueia morador tentando listar todas as solicitações de saque', async () => {

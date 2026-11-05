@@ -3,7 +3,7 @@ import { logger } from '@/common/logger';
 
 /**
  * Erros de rede em que o pedido NÃO chegou ao Asaas, então repetir é seguro: conexão reaproveitada
- * que o servidor já tinha fechado (ECONNRESET/EPIPE/UND_ERR_SOCKET/UND_ERR_CLOSED — acontece na
+ * que o servidor já tinha fechado (ECONNRESET/EPIPE/UND_ERR_SOCKET/UND_ERR_CLOSED, acontece na
  * primeira chamada depois de um tempo parado), conexão recusada, DNS e timeout ao conectar.
  */
 const ERROS_SEGUROS_PARA_REPETIR = new Set([
@@ -51,7 +51,7 @@ interface AsaasErroBody {
 /**
  * Wrapper fino sobre a API REST do Asaas (sandbox por padrão, ver ASAAS_BASE_URL). Só PIX é
  * suportado nesta versão (M3). As credenciais só são lidas no momento da chamada, não no
- * construtor — assim um `ASAAS_API_KEY` ausente não quebra nada que só instancie o client (ex.:
+ * construtor, assim um `ASAAS_API_KEY` ausente não quebra nada que só instancie o client (ex.:
  * os testes de outros módulos que sobem o app inteiro).
  */
 export class AsaasClient {
@@ -139,14 +139,14 @@ export class AsaasClient {
     });
   }
 
-  /** Consulta o status atual da cobrança — base da conferência periódica (rede de segurança do webhook). */
+  /** Consulta o status atual da cobrança, base da conferência periódica (rede de segurança do webhook). */
   async buscarCobranca(chargeId: string): Promise<AsaasStatusCobranca> {
     return this.requisitar<AsaasStatusCobranca>(`/payments/${encodeURIComponent(chargeId)}`, {
       method: 'GET',
     });
   }
 
-  /** Best-effort — usado quando uma locação concorrente já foi paga; nunca deve derrubar o chamador. */
+  /** Best-effort, usado quando uma locação concorrente já foi paga; nunca deve derrubar o chamador. */
   async cancelarCobranca(chargeId: string): Promise<void> {
     try {
       await fetch(`${this.baseUrl()}/payments/${chargeId}`, {

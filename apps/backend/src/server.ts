@@ -23,7 +23,7 @@ httpServer.listen(PORT, () => {
 });
 
 /**
- * Conversas privadas do Mural são efêmeras (no máximo 7 dias) e apagadas de vez — cada operação
+ * Conversas privadas do Mural são efêmeras (no máximo 7 dias) e apagadas de vez, cada operação
  * sobre uma conversa já limpa as expiradas daquele condomínio (ver `ConversasService`), mas essa
  * varredura periódica garante a exclusão mesmo que ninguém mais volte a acessar o recurso.
  */
@@ -69,7 +69,7 @@ if (process.env.ASAAS_API_KEY) {
 
   logger.info('Conferência periódica de pagamentos do Asaas ativa (a cada 30s)');
 } else {
-  logger.warn('ASAAS_API_KEY não configurada — conferência periódica de pagamentos desligada');
+  logger.warn('ASAAS_API_KEY não configurada: conferência periódica de pagamentos desligada');
 }
 
 /** Assinaturas vencidas além da carência são suspensas (o condomínio fica inativo até o próximo PIX). */

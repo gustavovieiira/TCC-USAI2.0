@@ -1,20 +1,20 @@
 # USAI 2.0
 
 Plataforma web para compartilhamento e locação de itens ociosos entre moradores de condomínios
-residenciais. Projeto de Portfólio (TCC) — Engenharia de Software, Católica SC.
+residenciais. Projeto de Portfólio (TCC), Engenharia de Software, Católica SC.
 
 ## O problema
 
 Hoje o empréstimo e locação de itens entre vizinhos de condomínio acontece de forma informal, via
 grupos de WhatsApp: sem catálogo, sem histórico, sem controle de pagamento. A USAI organiza esse ciclo
-inteiro — anúncio, solicitação, aprovação, pagamento, acompanhamento e devolução — dentro de um ambiente
+inteiro, anúncio, solicitação, aprovação, pagamento, acompanhamento e devolução, dentro de um ambiente
 privado por condomínio.
 
 ## Perfis de usuário
 
-- **Morador** — anuncia, solicita e aluga itens dentro do próprio condomínio.
-- **Síndico** — gerencia o link de acesso e o PIN do condomínio, acompanha as locações ativas.
-- **Admin USAI** — controla o financeiro global da plataforma, aprova/rejeita saques, gerencia os
+- **Morador**, anuncia, solicita e aluga itens dentro do próprio condomínio.
+- **Síndico**, gerencia o link de acesso e o PIN do condomínio, acompanha as locações ativas.
+- **Admin USAI**, controla o financeiro global da plataforma, aprova/rejeita saques, gerencia os
   condomínios cadastrados.
 
 ## Stack
@@ -64,4 +64,4 @@ A documentação de arquitetura, requisitos e decisões técnicas vive na
 
 ## Status
 
-Em desenvolvimento — Portfólio 2026/2, entrega prevista para 30/11/2026.
+Em desenvolvimento, Portfólio 2026/2, entrega prevista para 30/11/2026.

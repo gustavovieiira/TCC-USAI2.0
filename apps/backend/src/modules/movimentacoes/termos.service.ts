@@ -7,7 +7,7 @@ import { CriarTermoInput, TermoDTO } from './movimentacoes.types';
  * Termos de responsabilidade configuráveis pelo Admin. Editar NÃO altera o texto existente:
  * cria uma nova versão (as anteriores ficam intactas, porque os aceites já dados apontam pra elas).
  * Toda versão nasce como MODELO e só vira APROVADO quando o Admin registra que a revisão da
- * empresa/condomínio aconteceu — até lá, a tela deixa claro que o texto não foi validado
+ * empresa/condomínio aconteceu, até lá, a tela deixa claro que o texto não foi validado
  * juridicamente.
  */
 export class TermosService {

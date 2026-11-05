@@ -18,7 +18,7 @@ function buildPrismaMock() {
     logAuditoria: { create: jest.fn() },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
-  // Nos testes, a transação roda contra o mesmo mock — equivalente o bastante ao Prisma real pra
+  // Nos testes, a transação roda contra o mesmo mock, equivalente o bastante ao Prisma real pra
   // verificar a lógica de saldo sem precisar simular um client de transação à parte.
   prisma.$transaction = jest.fn((callback: (tx: unknown) => unknown) => callback(prisma));
 
@@ -463,7 +463,7 @@ describe('SaquesService.extrato', () => {
   });
 });
 
-describe('SaquesService — notificações', () => {
+describe('SaquesService: notificações', () => {
   function comNotificacoes() {
     const notificacoes = {
       notificar: jest.fn().mockResolvedValue(undefined),
@@ -615,7 +615,7 @@ describe('SaquesService.marcarComoPago', () => {
   });
 });
 
-describe('SaquesService — saque pago continua fora do saldo', () => {
+describe('SaquesService: saque pago continua fora do saldo', () => {
   it('o saldo desconta saques APROVADO e PAGO (o valor sai do saldo já na aprovação)', async () => {
     const prisma = buildPrismaMock();
     comSaldoRecebido(prisma, 100);

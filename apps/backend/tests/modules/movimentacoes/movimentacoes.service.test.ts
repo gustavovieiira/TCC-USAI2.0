@@ -177,7 +177,7 @@ describe('MovimentacoesService.registrar', () => {
       observacoes: 'Pequeno risco na tampa',
       termoId: 'termo-1',
     });
-    // a foto dos dados guarda item, partes e finalidade — o documento não muda se eles mudarem depois
+    // a foto dos dados guarda item, partes e finalidade, o documento não muda se eles mudarem depois
     expect(dados.snapshot.item).toMatchObject({
       titulo: 'Furadeira Bosch',
       fabricante: 'Bosch',

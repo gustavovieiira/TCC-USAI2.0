@@ -252,7 +252,7 @@ export function PublicarItemPage() {
               ) : (
                 <div
                   className="notch-sm flex h-16 w-16 items-center justify-center bg-paper
-                  font-meta text-[10px] text-ink-faint"
+                  font-meta text-xs text-ink-faint"
                 >
                   SEM FOTO
                 </div>

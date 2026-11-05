@@ -8,7 +8,7 @@ const textoOpcional = z
   .transform((valor) => (valor === '' ? undefined : valor))
   .optional();
 
-/** Acessórios que acompanham o item — conferidos na retirada e na devolução. */
+/** Acessórios que acompanham o item, conferidos na retirada e na devolução. */
 const acessoriosSchema = z
   .array(z.string().trim().min(1, 'Acessório vazio').max(80, 'Máximo de 80 caracteres'))
   .max(30, 'No máximo 30 acessórios');

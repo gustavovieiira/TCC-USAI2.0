@@ -64,11 +64,11 @@ export class SaquesService {
   ) {}
 
   /**
-   * Saldo líquido disponível pra saque: soma do valor das locações já pagas ao dono (RN — ver
+   * Saldo líquido disponível pra saque: soma do valor das locações já pagas ao dono (RN, ver
    * `STATUS_QUE_GERAM_SALDO`), já descontada a taxa da plataforma (soma de `Locacao.valorLiquido`,
-   * gravado ao confirmar cada pagamento — ver `calcularRepasse`), menos o que já foi sacado
-   * (APROVADO ou PAGO — o valor sai do saldo na aprovação, antes mesmo do PIX ser transferido) e
-   * menos o que já está em análise (PENDENTE) — assim, duas solicitações pendentes ao mesmo tempo não conseguem,
+   * gravado ao confirmar cada pagamento, ver `calcularRepasse`), menos o que já foi sacado
+   * (APROVADO ou PAGO, o valor sai do saldo na aprovação, antes mesmo do PIX ser transferido) e
+   * menos o que já está em análise (PENDENTE), assim, duas solicitações pendentes ao mesmo tempo não conseguem,
    * juntas, sacar mais do que a pessoa realmente recebeu. REJEITADO não desconta (o valor volta a
    * ficar disponível). A transição pra PAGA é feita pelo M3 (`pagamentos.service.ts`), disparada
    * pelo webhook do Asaas confirmando o pagamento do locatário.
@@ -150,7 +150,7 @@ export class SaquesService {
    * locação, quem pagou, quem é o dono), a base de cálculo e a taxa aplicada. Separa duas coisas
    * pra não confundir: o que mexe no SALDO (aluguéis recebidos, comissões do condomínio e saques)
    * e o que a pessoa PAGOU como locatário (informativo, não mexe no saldo). O `saldoDisponivel`
-   * vem do mesmo `calcularSaldo`, então os números batem. Da contraparte só saem id e nome — nunca
+   * vem do mesmo `calcularSaldo`, então os números batem. Da contraparte só saem id e nome, nunca
    * e-mail, CPF ou chave PIX de outra pessoa; a chave do próprio usuário sai mascarada, salvo na
    * visão do Admin (que precisa dela pra transferir).
    */
@@ -278,7 +278,7 @@ export class SaquesService {
     return saques.map((saque) => toSaqueDTO(saque));
   }
 
-  /** Admin USAI — visão global das solicitações, com o nome de quem pediu, opcionalmente filtrada por status. */
+  /** Admin USAI, visão global das solicitações, com o nome de quem pediu, opcionalmente filtrada por status. */
   async listarTodas(filtro: ListarSaquesFiltro = {}): Promise<SaqueDTO[]> {
     const saques = await this.prisma.solicitacaoSaque.findMany({
       where: filtro.status ? { status: filtro.status } : undefined,
@@ -289,7 +289,7 @@ export class SaquesService {
     return saques.map((saque) => toSaqueDTO(saque, saque.user));
   }
 
-  /** Admin USAI aprova — grava em LogAuditoria para rastreabilidade financeira. */
+  /** Admin USAI aprova, grava em LogAuditoria para rastreabilidade financeira. */
   async aprovar(saqueId: string, adminId: string): Promise<SaqueDTO> {
     await this.buscarPendenteOuFalhar(saqueId);
 
@@ -346,7 +346,7 @@ export class SaquesService {
     return toSaqueDTO(atualizado, atualizado.user);
   }
 
-  /** Admin USAI rejeita — exige motivo, também auditado. */
+  /** Admin USAI rejeita, exige motivo, também auditado. */
   async rejeitar(saqueId: string, adminId: string, input: RejeitarSaqueInput): Promise<SaqueDTO> {
     await this.buscarPendenteOuFalhar(saqueId);
 

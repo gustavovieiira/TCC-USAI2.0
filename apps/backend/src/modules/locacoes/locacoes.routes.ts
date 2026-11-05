@@ -15,7 +15,7 @@ locacoesRouter.get('/recebidas', asyncHandler(locacoesController.listarComoPropr
 locacoesRouter.post('/:id/aprovar', asyncHandler(locacoesController.aprovar));
 locacoesRouter.post('/:id/rejeitar', asyncHandler(locacoesController.rejeitar));
 
-/** M3 — gera/recupera o link de pagamento PIX (Asaas) de uma locação aprovada. */
+/** M3, gera/recupera o link de pagamento PIX (Asaas) de uma locação aprovada. */
 locacoesRouter.use('/:id/pagamento', pagamentosRouter);
 
 /** Retirada e devolução do item, com termo de responsabilidade e aceite. */

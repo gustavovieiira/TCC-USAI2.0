@@ -18,8 +18,8 @@ const LIMITE_CONFERENCIA = 100;
 const MS_POR_DIA = 24 * 60 * 60 * 1000;
 
 /**
- * M3 — cobrança do locatário via Asaas (PIX) e confirmação por webhook. O dono do item recebe o
- * valor via saque manual já existente (`saques.service.ts`), não por split automático do Asaas —
+ * M3, cobrança do locatário via Asaas (PIX) e confirmação por webhook. O dono do item recebe o
+ * valor via saque manual já existente (`saques.service.ts`), não por split automático do Asaas,
  * ver `docs/progresso.md` pra decisão de produto completa.
  */
 export class PagamentosService {
@@ -121,7 +121,7 @@ export class PagamentosService {
   /**
    * Rede de segurança do webhook: pergunta ao Asaas o status das cobranças ainda pendentes e
    * confirma as que já foram pagas, pelo mesmo caminho do webhook (`confirmarPagamento`, que é
-   * idempotente — se os dois chegarem, o segundo não faz nada). Cobre webhook atrasado, fila
+   * idempotente, se os dois chegarem, o segundo não faz nada). Cobre webhook atrasado, fila
    * pausada (o Asaas pausa após 15 falhas seguidas) e ambiente sem endereço público (dev local).
    * Uma cobrança que falha na consulta não impede a conferência das demais. Retorna quantas
    * foram confirmadas nesta rodada.
@@ -161,7 +161,7 @@ export class PagamentosService {
    * Disparado pelo webhook do Asaas quando um PIX é confirmado. Idempotente contra reentrega do
    * mesmo evento (o `updateMany` guardado por status garante isso). Se a locação já não está mais
    * APROVADA (perdeu a corrida pra outra locação concorrente que pagou primeiro), o pagamento fica
-   * marcado como órfão pro Admin reembolsar manualmente — não há estorno automático nesta versão.
+   * marcado como órfão pro Admin reembolsar manualmente, não há estorno automático nesta versão.
    */
   async confirmarPagamento(asaasChargeId: string, recebido = true): Promise<void> {
     // Cobrança de mensalidade de condomínio? Então não é uma locação: quem trata é a assinatura
@@ -187,7 +187,7 @@ export class PagamentosService {
       if (flipLocacao.count === 0) {
         await tx.pagamento.update({ where: { id: pagamento.id }, data: { status: 'PAGO_ORFAO' } });
         logger.error(
-          'Pagamento Asaas confirmado pra uma locação que não está mais APROVADA (corrida perdida) — reembolso manual necessário',
+          'Pagamento Asaas confirmado pra uma locação que não está mais APROVADA (corrida perdida). Reembolso manual necessário',
           { asaasChargeId, locacaoId: pagamento.locacaoId },
         );
         const perdida = await tx.locacao.findUnique({

@@ -8,7 +8,7 @@ const ITENS_UPLOADS_DIR = path.join(UPLOADS_DIR, 'itens');
 fs.mkdirSync(ITENS_UPLOADS_DIR, { recursive: true });
 
 /**
- * Só estes três formatos — evita aceitar algo como image/svg+xml, que pode carregar script e
+ * Só estes três formatos, evita aceitar algo como image/svg+xml, que pode carregar script e
  * criar XSS armazenado se servido de volta pelo navegador.
  */
 const MIME_PARA_EXTENSAO: Record<string, string> = {
@@ -19,13 +19,13 @@ const MIME_PARA_EXTENSAO: Record<string, string> = {
 
 const storage = multer.diskStorage({
   destination: (_req, _file, callback) => callback(null, ITENS_UPLOADS_DIR),
-  // Nome gerado, nunca o original — evita path traversal e colisão de arquivos.
+  // Nome gerado, nunca o original, evita path traversal e colisão de arquivos.
   filename: (_req, file, callback) => {
     callback(null, `${randomUUID()}${MIME_PARA_EXTENSAO[file.mimetype] ?? ''}`);
   },
 });
 
-/** Uso: `uploadImagemItem(req, res, callback)` — ver itens.controller.ts#uploadImagem. */
+/** Uso: `uploadImagemItem(req, res, callback)`, ver itens.controller.ts#uploadImagem. */
 export const uploadImagemItem = multer({
   storage,
   limits: { fileSize: 5 * 1024 * 1024 },

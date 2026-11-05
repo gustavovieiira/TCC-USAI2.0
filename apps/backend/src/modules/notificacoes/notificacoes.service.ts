@@ -22,7 +22,7 @@ function toNotificacaoDTO(notificacao: Notificacao): NotificacaoDTO {
 
 /**
  * Avisos persistidos (sino + página). Os outros services chamam `notificar` depois que a ação
- * principal já deu certo — por isso `notificar` nunca lança: uma falha aqui vira log, jamais
+ * principal já deu certo, por isso `notificar` nunca lança: uma falha aqui vira log, jamais
  * derruba um pagamento ou um pedido de locação que já foi gravado.
  */
 export class NotificacoesService {

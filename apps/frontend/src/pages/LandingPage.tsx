@@ -1,11 +1,11 @@
 import { CSSProperties, ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { JanelasAcendendo } from '@/components/fachada/JanelasAcendendo';
-import { ContatoSuporte } from '@/components/ui/ContatoSuporte';
 import { Logo } from '@/components/ui/Logo';
 import { PlanosPrecos } from '@/features/assinaturas/PlanosPrecos';
 import { useConfiguracao } from '@/features/configuracao/ConfiguracaoContext';
 import { CenaHero } from '@/features/landing/CenaHero';
+import { RodapeLanding } from '@/features/landing/RodapeLanding';
 import {
   CONTRATACAO,
   DESTINO_DO_CAIXA,
@@ -191,7 +191,7 @@ export function LandingPage() {
   const { configuracao } = useConfiguracao();
 
   return (
-    <div className="mundo-fachada min-h-screen font-sans">
+    <div id="topo" className="mundo-fachada min-h-screen font-sans">
       <div className="relative">
         <header
           className={`${MIOLO} absolute inset-x-0 top-0 z-20 flex items-center justify-between py-5`}
@@ -449,22 +449,11 @@ export function LandingPage() {
         </section>
       </main>
 
-      <div className="bg-fachada-noite-fundo">
-        <footer
-          className={`${MIOLO} flex flex-col gap-3 pb-10 pt-10 text-sm text-fachada-papel-suave`}
-        >
-          <Logo altura={30} className="text-fachada-papel" />
-          <ContatoSuporte
-            escuro
-            className="max-w-2xl text-sm text-fachada-papel-suave"
-            mensagem="Olá! Vim pela página da USAI e gostaria de tirar uma dúvida."
-          />
-          <p className="max-w-2xl text-xs text-fachada-papel-suave/80">
-            {configuracao.rodapeInstitucional}
-          </p>
-          <p className="text-xs text-fachada-papel-suave/80">{configuracao.nomeInstitucional}</p>
-        </footer>
-      </div>
+      <RodapeLanding
+        miolo={MIOLO}
+        rodapeInstitucional={configuracao.rodapeInstitucional}
+        nomeInstitucional={configuracao.nomeInstitucional}
+      />
     </div>
   );
 }

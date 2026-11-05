@@ -20,7 +20,7 @@ export function ProfileMenu({ user }: ProfileMenuProps) {
       <span className="hidden flex-col items-start leading-tight sm:flex">
         <span className="whitespace-nowrap text-sm font-semibold text-ink-inverse">{nome}</span>
         {user?.apartamento && (
-          <span className="font-meta text-[10px] uppercase tracking-wide text-ink-inverse-soft">
+          <span className="font-meta text-xs uppercase tracking-wide text-ink-inverse-soft">
             Apto {user.apartamento}
           </span>
         )}

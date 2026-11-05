@@ -1,16 +1,26 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Card } from '@/components/ui/Card';
 import { CardClicavel } from '@/components/ui/CardClicavel';
 import { Detalhe, DetalheModal } from '@/components/ui/DetalheModal';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { FiltroChips } from '@/components/ui/FiltroChips';
 import { Spinner } from '@/components/ui/Spinner';
 import { formatCurrency, formatDateTime } from '@/lib/format';
 import { detalheMovimento, detalhePagamento } from './detalhes';
+import {
+  FILTROS_PERIODO,
+  FILTROS_TIPO,
+  FiltroPeriodoExtrato,
+  FiltroTipoExtrato,
+  filtrarMovimentos,
+  filtrarPagamentos,
+  totaisDosMovimentos,
+} from './extrato.filtros';
 import { ExtratoDTO, MovimentoExtratoDTO, PagamentoExtratoDTO } from './saques.types';
 
 /**
  * De quem é o extrato que está na tela: do próprio usuário ("você") ou, na visão do Admin, de
- * outra pessoa ("ele/ela"). Só muda o texto — os números e os cartões são os mesmos.
+ * outra pessoa ("ele/ela"). Só muda o texto, os números e os cartões são os mesmos.
  */
 export type Perspectiva = 'proprio' | 'terceiro';
 
@@ -128,7 +138,23 @@ export function ListaExtrato({
   perspectiva = 'proprio',
 }: ExtratoViewProps) {
   const [detalhe, setDetalhe] = useState<Detalhe | null>(null);
+  const [tipo, setTipo] = useState<FiltroTipoExtrato>('TODOS');
+  const [periodo, setPeriodo] = useState<FiltroPeriodoExtrato>('TUDO');
   const t = TEXTOS[perspectiva];
+
+  const movimentosDoPeriodo = useMemo(
+    () => filtrarMovimentos(extrato?.movimentos ?? [], 'TODOS', periodo),
+    [extrato, periodo],
+  );
+  const movimentos = useMemo(
+    () => movimentosDoPeriodo.filter((m) => tipo === 'TODOS' || m.tipo === tipo),
+    [movimentosDoPeriodo, tipo],
+  );
+  const pagamentos = useMemo(
+    () => filtrarPagamentos(extrato?.pagamentos ?? [], periodo),
+    [extrato, periodo],
+  );
+  const totais = useMemo(() => totaisDosMovimentos(movimentos), [movimentos]);
 
   if (!extrato) {
     return semErro ? (
@@ -137,6 +163,18 @@ export function ListaExtrato({
       </div>
     ) : null;
   }
+
+  const temComissao = extrato.movimentos.some((m) => m.tipo === 'COMISSAO');
+  const opcoesTipo = FILTROS_TIPO.filter((f) => f.valor !== 'COMISSAO' || temComissao).map((f) => ({
+    valor: f.valor,
+    rotulo: f.rotulo,
+    total: movimentosDoPeriodo.filter((m) => f.valor === 'TODOS' || m.tipo === f.valor).length,
+  }));
+  const filtrando = tipo !== 'TODOS' || periodo !== 'TUDO';
+  const limpar = () => {
+    setTipo('TODOS');
+    setPeriodo('TUDO');
+  };
 
   return (
     <div className="flex flex-col gap-8">
@@ -147,11 +185,62 @@ export function ListaExtrato({
           <span className="font-semibold text-jade-700">Entrou</span> {t.entrou}{' '}
           <span className="font-semibold text-carmim-700">Saiu</span> {t.saiu}
         </p>
+
+        {extrato.movimentos.length > 0 && (
+          <div className="mb-4 flex flex-col gap-3">
+            <FiltroChips
+              rotulo="Filtrar movimentações por tipo"
+              valor={tipo}
+              onChange={setTipo}
+              opcoes={opcoesTipo}
+            />
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <label className="flex items-center gap-2 text-sm text-ink-soft">
+                Período
+                <select
+                  value={periodo}
+                  onChange={(e) => setPeriodo(e.target.value as FiltroPeriodoExtrato)}
+                  className="notch-sm border border-paper-line bg-paper-surface px-3 py-1.5 text-sm font-semibold text-ink"
+                >
+                  {FILTROS_PERIODO.map((f) => (
+                    <option key={f.valor} value={f.valor}>
+                      {f.rotulo}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {filtrando && (
+                <button
+                  type="button"
+                  onClick={limpar}
+                  className="text-sm font-semibold text-fachada-coral-texto underline underline-offset-2 hover:no-underline"
+                >
+                  Limpar filtros
+                </button>
+              )}
+            </div>
+            {filtrando && movimentos.length > 0 && (
+              <p className="text-sm text-ink-soft" aria-live="polite">
+                {movimentos.length === 1 ? '1 movimentação' : `${movimentos.length} movimentações`}
+                {': entrou '}
+                <span className="font-semibold text-jade-700">{formatCurrency(totais.entrou)}</span>
+                {', saiu '}
+                <span className="font-semibold text-carmim-700">{formatCurrency(totais.saiu)}</span>
+              </p>
+            )}
+          </div>
+        )}
+
         {extrato.movimentos.length === 0 ? (
           <EmptyState title="Nenhuma movimentação ainda" description={t.vazio} />
+        ) : movimentos.length === 0 ? (
+          <EmptyState
+            title="Nada com esses filtros"
+            description="Nenhuma movimentação nesse tipo e período. Mude os filtros acima."
+          />
         ) : (
           <div className="flex max-h-[32rem] flex-col gap-3 overflow-y-auto pr-1">
-            {extrato.movimentos.map((movimento) => (
+            {movimentos.map((movimento) => (
               <LinhaMovimento
                 key={`${movimento.tipo}-${movimento.id}`}
                 movimento={movimento}
@@ -163,12 +252,12 @@ export function ListaExtrato({
         )}
       </section>
 
-      {extrato.pagamentos.length > 0 && (
+      {pagamentos.length > 0 && (
         <section>
           <h2 className="mb-1 font-display font-semibold text-ink">{t.pagou}</h2>
           <p className="mb-3 text-sm text-ink-soft">{t.pagouDescricao}</p>
           <div className="flex max-h-[24rem] flex-col gap-3 overflow-y-auto pr-1">
-            {extrato.pagamentos.map((pagamento) => (
+            {pagamentos.map((pagamento) => (
               <LinhaPagamento
                 key={pagamento.id}
                 pagamento={pagamento}
@@ -184,7 +273,7 @@ export function ListaExtrato({
 
 const ROTULO_STATUS_SAQUE = {
   EM_ANALISE: { texto: 'Em análise', classe: 'bg-mostarda-100 text-mostarda-700' },
-  APROVADO: { texto: 'Aprovado — PIX a caminho', classe: 'bg-barro-100 text-barro-700' },
+  APROVADO: { texto: 'Aprovado, PIX a caminho', classe: 'bg-barro-100 text-barro-700' },
   PAGO: { texto: 'PIX enviado', classe: 'bg-jade-100 text-jade-700' },
   REJEITADO: { texto: 'Rejeitado', classe: 'bg-carmim-100 text-carmim-700' },
 } as const;

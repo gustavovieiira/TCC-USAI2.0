@@ -1,4 +1,4 @@
-/** Mantém só os dígitos — aceita CPF/CNPJ com ou sem pontuação (o Asaas exige só números). */
+/** Mantém só os dígitos, aceita CPF/CNPJ com ou sem pontuação (o Asaas exige só números). */
 export function normalizarDocumento(valor: string): string {
   return valor.replace(/\D/g, '');
 }

@@ -40,7 +40,7 @@ function textoParaDeclaracoes(texto: string): DeclaracaoTermo[] | null {
 }
 
 /**
- * Termos de responsabilidade (um por tipo de operação). Editar cria uma NOVA versão — as anteriores
+ * Termos de responsabilidade (um por tipo de operação). Editar cria uma NOVA versão, as anteriores
  * ficam como estão porque os aceites já registrados apontam pra elas. Toda versão nasce como
  * "modelo" e só passa a "aprovada" quando o Admin registra que a revisão da empresa aconteceu.
  */
@@ -151,7 +151,7 @@ export function AbaTermos() {
                   >
                     {termo.statusRevisao === 'APROVADO'
                       ? `Aprovado em ${termo.aprovadoEm ? formatDate(termo.aprovadoEm) : ''}`
-                      : 'Modelo — pendente de revisão'}
+                      : 'Modelo, pendente de revisão'}
                   </span>
                 </div>
                 <p className="text-sm text-ink-soft">{termo.titulo}</p>

@@ -171,4 +171,37 @@ describe('MinhasConversasPage', () => {
     expect(await screen.findByLabelText('3 mensagens não lidas')).toHaveTextContent('3');
     expect(screen.getAllByLabelText(/não lidas?$/)).toHaveLength(1);
   });
+
+  it('filtra só as conversas com mensagem não lida e volta para todas', async () => {
+    vi.spyOn(conversasApi, 'listarUsuariosDoCondominio').mockResolvedValue([]);
+    vi.spyOn(conversasApi, 'listarMinhasConversas').mockResolvedValue([
+      buildConversa({ id: 'c-1', naoLidas: 2 }),
+      buildConversa({
+        id: 'c-2',
+        naoLidas: 0,
+        outroParticipante: { id: 'user-carla', nome: 'Carla Sindica', papel: 'SINDICO' },
+      }),
+    ]);
+
+    renderPage();
+
+    expect(await screen.findByText('Carla Sindica')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /Não lidas/ }));
+    expect(screen.queryByText('Carla Sindica')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /^Todas/ }));
+    expect(screen.getByText('Carla Sindica')).toBeInTheDocument();
+  });
+
+  it('avisa quando não há nenhuma conversa não lida', async () => {
+    vi.spyOn(conversasApi, 'listarUsuariosDoCondominio').mockResolvedValue([]);
+    vi.spyOn(conversasApi, 'listarMinhasConversas').mockResolvedValue([
+      buildConversa({ id: 'c-1', naoLidas: 0 }),
+    ]);
+
+    renderPage();
+
+    await userEvent.click(await screen.findByRole('button', { name: /Não lidas/ }));
+    expect(screen.getByText('Nenhuma conversa não lida')).toBeInTheDocument();
+  });
 });

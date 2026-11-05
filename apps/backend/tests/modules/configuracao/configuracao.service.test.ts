@@ -48,7 +48,7 @@ describe('ConfiguracaoService.obter', () => {
   });
 });
 
-describe('ConfiguracaoService — logo e textos', () => {
+describe('ConfiguracaoService: logo e textos', () => {
   it('definir a logo grava, audita e devolve a configuração', async () => {
     const prisma = buildPrismaMock();
 
@@ -68,7 +68,7 @@ describe('ConfiguracaoService — logo e textos', () => {
     });
   });
 
-  it('trocar a logo apaga o arquivo antigo — só dentro da pasta da logo', async () => {
+  it('trocar a logo apaga o arquivo antigo, só dentro da pasta da logo', async () => {
     const pasta = fs.mkdtempSync(path.join(os.tmpdir(), 'usai-logo-'));
     const antigo = path.join(pasta, 'logo-antiga.png');
     const intocavel = path.join(os.tmpdir(), `usai-fora-${Date.now()}.txt`);

@@ -137,7 +137,7 @@ export function ContratarPage() {
 
       <div className="relative">
         <header className="mx-auto flex max-w-6xl items-center justify-between px-5 py-6 sm:px-8">
-          <Link to="/" aria-label="USAI — voltar para a tela inicial">
+          <Link to="/" aria-label="USAI, voltar para a tela inicial">
             <Logo altura={36} className="text-fachada-papel" />
           </Link>
           <Link

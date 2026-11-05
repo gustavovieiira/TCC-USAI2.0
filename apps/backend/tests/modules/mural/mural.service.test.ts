@@ -283,7 +283,7 @@ describe('MuralService.excluir', () => {
   });
 });
 
-describe('MuralService.responder — notificações', () => {
+describe('MuralService.responder: notificações', () => {
   const comentarioDoBruno = {
     id: 'comentario-1',
     postId: 'post-1',

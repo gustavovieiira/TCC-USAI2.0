@@ -234,10 +234,10 @@ model ComentarioPost {
 }
 
 /// Chat privado 1:1 aberto a partir do Mural (autor de um post ou de um comentário). Efêmero por
-/// design: expira 7 dias depois de criado (`expiraEm`) e é apagado de vez — não reaproveita o
+/// design: expira 7 dias depois de criado (`expiraEm`) e é apagado de vez, não reaproveita o
 /// padrão do chat de locação (que dura o ciclo todo da locação).
 /// Chat 1:1. Dois tipos: conversa aberta no Mural (efêmera, `expiraEm` = 7 dias) e o chat de uma
-/// locação (`locacaoId` preenchido, sem expiração — dura enquanto a locação existir). Participante A
+/// locação (`locacaoId` preenchido, sem expiração, dura enquanto a locação existir). Participante A
 /// é quem abriu; no chat da locação, A = locatário e B = dono do item.
 model ConversaPrivada {
   id                  String    @id @default(uuid())
@@ -320,7 +320,7 @@ model Notificacao {
 /// (do próprio usuário e, pro Admin, de qualquer um) é montado daqui. `userId` nulo = conta da USAI.
 ///
 /// Tipos: ALUGUEL_RECEBIDO (dono, valor líquido), COMISSAO_CONDOMINIO (síndico, fatia dos 10%),
-/// TAXA_PLATAFORMA (USAI — condomínio sem síndico, ou aluguéis anteriores à comissão do síndico),
+/// TAXA_PLATAFORMA (USAI, condomínio sem síndico, ou aluguéis anteriores à comissão do síndico),
 /// ALUGUEL_PAGO (locatário, informativo: não mexe no saldo).
 model Lancamento {
   id             String   @id @default(uuid())
@@ -377,7 +377,7 @@ enum EstadoConservacao {
 }
 
 /// Texto do termo de responsabilidade de um tipo de operação. Cada alteração cria uma NOVA versão
-/// (as anteriores nunca mudam — os aceites já dados apontam pra elas). `statusRevisao` deixa claro
+/// (as anteriores nunca mudam, os aceites já dados apontam pra elas). `statusRevisao` deixa claro
 /// que o texto é um modelo até a empresa/condomínio aprovar; a USAI não o apresenta como validado
 /// juridicamente antes disso.
 model TermoResponsabilidade {
@@ -385,9 +385,9 @@ model TermoResponsabilidade {
   tipo         TipoMovimentacao
   versao       Int
   titulo       String
-  /// string[] — cláusulas, em ordem.
+  /// string[], cláusulas, em ordem.
   clausulas    Json
-  /// { id, texto }[] — declarações que o usuário precisa marcar (todas obrigatórias).
+  /// { id, texto }[], declarações que o usuário precisa marcar (todas obrigatórias).
   declaracoes  Json
   /// MODELO (pendente de revisão) ou APROVADO.
   statusRevisao String          @default("MODELO")
@@ -418,11 +418,11 @@ model Movimentacao {
   recebidoPorId   String
   ocorridoEm      DateTime
   estadoConservacao EstadoConservacao
-  /// { nome, conferido }[] — acessórios relacionados e se acompanham a operação.
+  /// { nome, conferido }[], acessórios relacionados e se acompanham a operação.
   acessorios      Json
   observacoes     String?            @db.Text
   termoId         String
-  /// Foto dos dados do documento no momento do registro (partes, item, locação) — o documento
+  /// Foto dos dados do documento no momento do registro (partes, item, locação), o documento
   /// continua igual mesmo que o item ou o perfil mudem depois.
   snapshot        Json
   hashIntegridade String?            @db.VarChar(64)
@@ -450,7 +450,7 @@ model AceiteTermo {
   movimentacaoId String
   userId        String
   termoId       String
-  /// { id, texto }[] — o texto exato que foi marcado.
+  /// { id, texto }[], o texto exato que foi marcado.
   declaracoes   Json
   aceitoEm      DateTime @default(now())
   ip            String?  @db.VarChar(64)

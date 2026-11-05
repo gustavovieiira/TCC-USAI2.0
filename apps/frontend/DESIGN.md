@@ -1,5 +1,5 @@
 ---
-name: USAI — A Fachada
+name: USAI, A Fachada
 description: Um prédio brasileiro visto à noite; cada janela acesa é um vizinho com algo para emprestar.
 colors:
   noite: '#0D3B44'
@@ -113,7 +113,7 @@ components:
     padding: '36px 28px 28px'
 ---
 
-# Design System: USAI — A Fachada
+# Design System: USAI: A Fachada
 
 ## Overview
 

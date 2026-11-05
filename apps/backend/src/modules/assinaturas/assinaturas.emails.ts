@@ -317,7 +317,7 @@ function montarTexto(input: DadosEmailAcesso): string {
   const linhas = [
     `Olá, ${input.nomeSindico}!`,
     '',
-    `PAGAMENTO CONFIRMADO — o condomínio "${input.nomeCondominio}" já está ativo na USAI.`,
+    `PAGAMENTO CONFIRMADO: o condomínio "${input.nomeCondominio}" já está ativo na USAI.`,
     '',
     'Para entrar pela primeira vez, crie a sua senha neste link:',
     input.link,
@@ -364,7 +364,7 @@ function montarTexto(input: DadosEmailAcesso): string {
     '',
     `Precisa de ajuda? WhatsApp ${SUPORTE_WHATSAPP} ou e-mail ${SUPORTE_EMAIL}`,
     '',
-    'USAI — vizinhos que compartilham',
+    'USAI, vizinhos que compartilham',
     urlDoApp(),
   );
 

@@ -240,7 +240,7 @@ describe('MinhasLocacoesPage', () => {
   });
 });
 
-describe('MinhasLocacoesPage — finalidade e retirada/devolução', () => {
+describe('MinhasLocacoesPage: finalidade e retirada/devolução', () => {
   it('mostra a finalidade do uso informada no pedido', async () => {
     vi.spyOn(locacoesApi, 'listarComoLocatario').mockResolvedValue([]);
     vi.spyOn(locacoesApi, 'listarComoProprietario').mockResolvedValue([

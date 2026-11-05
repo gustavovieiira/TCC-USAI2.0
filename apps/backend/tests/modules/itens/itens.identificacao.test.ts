@@ -11,7 +11,7 @@ const itemBase = {
 };
 
 describe('identificação do bem no item', () => {
-  it('fabricante, modelo, nº de série e acessórios são opcionais — o item antigo continua válido', () => {
+  it('fabricante, modelo, nº de série e acessórios são opcionais, o item antigo continua válido', () => {
     expect(criarItemSchema.safeParse(itemBase).success).toBe(true);
   });
 

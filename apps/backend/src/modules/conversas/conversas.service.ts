@@ -78,7 +78,7 @@ function lidoEmDe(conversa: ConversaPrivada, userId: string): Date | null {
 /**
  * Chat 1:1 do condomínio, de dois tipos que aparecem juntos na página de Conversas:
  * - **Mural**: aberto a partir do autor de um post/comentário, pra tirar uma dúvida sem virar
- *   comentário público. Efêmero: expira 7 dias depois e é apagado de vez (não só ocultado) — daí a
+ *   comentário público. Efêmero: expira 7 dias depois e é apagado de vez (não só ocultado), daí a
  *   checagem em toda operação (`expirarAntigas`), além da varredura periódica em `server.ts`.
  * - **Locação**: o chat entre locatário e dono do item (`locacaoId` preenchido), sem expiração,
  *   criado na primeira vez que alguém abre a conversa da locação.
@@ -140,8 +140,8 @@ export class ConversasService {
   }
 
   /**
-   * Abre (criando na primeira vez) o chat de uma locação. Só quem participa dela — o locatário e o
-   * dono do item — e só dentro do próprio condomínio. `upsert` por `locacaoId` (único) evita duas
+   * Abre (criando na primeira vez) o chat de uma locação. Só quem participa dela, o locatário e o
+   * dono do item, e só dentro do próprio condomínio. `upsert` por `locacaoId` (único) evita duas
    * conversas se os dois lados clicarem ao mesmo tempo.
    */
   async abrirPorLocacao(
@@ -182,7 +182,7 @@ export class ConversasService {
     return toConversaDTO(conversa, meuId, await this.contarNaoLidasDe(conversa, meuId));
   }
 
-  /** Pra busca de "com quem eu quero conversar" — todo mundo do condomínio, exceto eu mesmo. */
+  /** Pra busca de "com quem eu quero conversar", todo mundo do condomínio, exceto eu mesmo. */
   async listarUsuariosDoCondominio(
     condominioId: string,
     meuId: string,
@@ -220,7 +220,7 @@ export class ConversasService {
     return dtos.sort((a, b) => ultimaAtividade(b) - ultimaAtividade(a));
   }
 
-  /** Total de mensagens não lidas em todas as conversas — alimenta a bolinha do menu. */
+  /** Total de mensagens não lidas em todas as conversas, alimenta a bolinha do menu. */
   async contarNaoLidas(condominioId: string, meuId: string): Promise<number> {
     await this.expirarAntigas(condominioId);
 
@@ -343,7 +343,7 @@ export class ConversasService {
     return conversa;
   }
 
-  /** Conversas do Mural são efêmeras (no máximo 7 dias) — apagadas de vez. Chat de locação não expira. */
+  /** Conversas do Mural são efêmeras (no máximo 7 dias), apagadas de vez. Chat de locação não expira. */
   private async expirarAntigas(condominioId: string): Promise<void> {
     await this.prisma.conversaPrivada.deleteMany({
       where: { condominioId, expiraEm: { lt: new Date() } },

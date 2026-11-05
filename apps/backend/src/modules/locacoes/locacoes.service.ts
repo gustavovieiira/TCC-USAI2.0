@@ -9,17 +9,17 @@ import { CriarLocacaoInput, LocacaoDTO } from './locacoes.types';
 const MS_POR_DIA = 1000 * 60 * 60 * 24;
 
 /**
- * Status que efetivamente reservam o item no período (bloqueiam sobreposição) — também usado pelo
+ * Status que efetivamente reservam o item no período (bloqueiam sobreposição), também usado pelo
  * painel do síndico (`sindico.service.ts`) como definição de "locação ativa". Uma locação
  * PENDENTE/APROVADA sem pagamento NÃO ocupa o período de propósito (RN de disponibilidade do M3):
  * vários moradores podem pedir/ter aprovado o mesmo período, e só quem paga primeiro (evento do
- * Asaas em `pagamentos.service.ts#confirmarPagamento`) trava o item de verdade — nesse momento, as
+ * Asaas em `pagamentos.service.ts#confirmarPagamento`) trava o item de verdade, nesse momento, as
  * demais locações concorrentes pro mesmo item/período são canceladas automaticamente.
  */
 export const STATUS_QUE_OCUPAM_PERIODO: StatusLocacao[] = ['PAGA', 'EM_ANDAMENTO'];
 
 /**
- * Status em que o pagamento já foi recebido pelo dono do item — usado por `saques.service.ts` pra
+ * Status em que o pagamento já foi recebido pelo dono do item, usado por `saques.service.ts` pra
  * calcular o saldo sacável (já descontada a taxa da plataforma, ver `TAXA_PLATAFORMA`). Uma vez que
  * a locação chega em PAGA, o valor conta pro saldo mesmo que ela avance pro ciclo seguinte
  * (EM_ANDAMENTO/CONCLUIDA); só não conta enquanto ainda é PENDENTE/APROVADA (aprovada pelo dono,
@@ -28,7 +28,7 @@ export const STATUS_QUE_OCUPAM_PERIODO: StatusLocacao[] = ['PAGA', 'EM_ANDAMENTO
  */
 export const STATUS_QUE_GERAM_SALDO: StatusLocacao[] = ['PAGA', 'EM_ANDAMENTO', 'CONCLUIDA'];
 
-/** RN — 10% retido pela plataforma; o dono recebe 90% do valor da locação via saque manual (M3). */
+/** RN, 10% retido pela plataforma; o dono recebe 90% do valor da locação via saque manual (M3). */
 export const TAXA_PLATAFORMA = 0.1;
 
 function arredondarCentavos(valor: number): number {
@@ -39,7 +39,7 @@ function arredondarCentavos(valor: number): number {
  * Divide o valor pago pelo locatário entre a taxa da plataforma e o que o dono recebe. Arredonda
  * o líquido a centavos e deixa a taxa como a diferença, então `taxa + líquido` fecha sempre com o
  * valor pago. O resultado é GRAVADO na locação quando o pagamento confirma (ver
- * `pagamentos.service.ts#confirmarPagamento`) — assim saldo e extrato somam os mesmos números e
+ * `pagamentos.service.ts#confirmarPagamento`), assim saldo e extrato somam os mesmos números e
  * o histórico não muda se `TAXA_PLATAFORMA` mudar um dia.
  */
 export function calcularRepasse(valorBruto: number): {
@@ -99,8 +99,8 @@ export class LocacoesService {
   ) {}
 
   /**
-   * RF10/RF11 — solicita a locação de um item por um período, calculando o valor automaticamente.
-   * RN04 — o próprio dono do item não pode solicitar a locação dele.
+   * RF10/RF11, solicita a locação de um item por um período, calculando o valor automaticamente.
+   * RN04, o próprio dono do item não pode solicitar a locação dele.
    */
   async solicitar(
     condominioId: string,
@@ -168,7 +168,7 @@ export class LocacoesService {
     return toLocacaoDTO(locacao);
   }
 
-  /** RF12 — apenas o proprietário do item pode aprovar a solicitação. */
+  /** RF12, apenas o proprietário do item pode aprovar a solicitação. */
   async aprovar(locacaoId: string, ownerId: string): Promise<LocacaoDTO> {
     const locacao = await this.buscarComItemOuFalhar(locacaoId);
 
@@ -190,14 +190,14 @@ export class LocacoesService {
       userId: atualizada.locatarioId,
       tipo: 'LOCACAO_APROVADA',
       titulo: 'Seu pedido foi aprovado',
-      mensagem: `O dono aprovou "${atualizada.item.titulo}". Pague o PIX para garantir o período — quem pagar primeiro fica com o item.`,
+      mensagem: `O dono aprovou "${atualizada.item.titulo}". Pague o PIX para garantir o período. Quem pagar primeiro fica com o item.`,
       link: '/locacoes',
     });
 
     return toLocacaoDTO(atualizada);
   }
 
-  /** RF12 — o proprietário também pode rejeitar; a locação vai para CANCELADA. */
+  /** RF12, o proprietário também pode rejeitar; a locação vai para CANCELADA. */
   async rejeitar(locacaoId: string, ownerId: string): Promise<LocacaoDTO> {
     const locacao = await this.buscarComItemOuFalhar(locacaoId);
 
@@ -226,7 +226,7 @@ export class LocacoesService {
     return toLocacaoDTO(atualizada);
   }
 
-  /** RF14 — locações em que o usuário autenticado é o locatário. */
+  /** RF14, locações em que o usuário autenticado é o locatário. */
   async listarComoLocatario(condominioId: string, locatarioId: string): Promise<LocacaoDTO[]> {
     const locacoes = await this.prisma.locacao.findMany({
       where: { locatarioId, item: { condominioId } },
@@ -237,7 +237,7 @@ export class LocacoesService {
     return locacoes.map(toLocacaoDTO);
   }
 
-  /** RF12/RF14 — locações recebidas para itens do usuário autenticado (visão do proprietário). */
+  /** RF12/RF14, locações recebidas para itens do usuário autenticado (visão do proprietário). */
   async listarComoProprietario(condominioId: string, ownerId: string): Promise<LocacaoDTO[]> {
     const locacoes = await this.prisma.locacao.findMany({
       where: { item: { condominioId, ownerId } },

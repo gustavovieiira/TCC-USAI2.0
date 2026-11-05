@@ -11,7 +11,7 @@ export async function abrirConversa(input: AbrirConversaInput): Promise<Conversa
   return data;
 }
 
-/** Abre (criando na primeira vez) o chat de uma locação — só locatário e dono. */
+/** Abre (criando na primeira vez) o chat de uma locação, só locatário e dono. */
 export async function abrirConversaDaLocacao(locacaoId: string): Promise<ConversaDTO> {
   const { data } = await apiClient.post<ConversaDTO>(`/conversas/locacao/${locacaoId}`);
   return data;
@@ -31,7 +31,7 @@ export async function marcarConversaComoLida(id: string): Promise<void> {
   window.dispatchEvent(new Event(EVENTO_CONVERSAS_LIDAS));
 }
 
-/** Todo mundo do condomínio (exceto quem está buscando) — pra achar com quem começar uma conversa. */
+/** Todo mundo do condomínio (exceto quem está buscando), pra achar com quem começar uma conversa. */
 export async function listarUsuariosDoCondominio(): Promise<ParticipanteDTO[]> {
   const { data } = await apiClient.get<ParticipanteDTO[]>('/conversas/usuarios');
   return data;

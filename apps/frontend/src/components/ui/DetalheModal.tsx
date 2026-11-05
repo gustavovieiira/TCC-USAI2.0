@@ -27,7 +27,7 @@ interface DetalheModalProps {
 
 /**
  * Detalhes de um card (saque, recebimento, pagamento). O botão imprime só o bloco do recibo
- * (ver `@media print` em index.css) — no diálogo de impressão do navegador dá pra salvar em PDF.
+ * (ver `@media print` em index.css), no diálogo de impressão do navegador dá pra salvar em PDF.
  */
 export function DetalheModal({ detalhe, onFechar }: DetalheModalProps) {
   const { configuracao } = useConfiguracao();
@@ -37,7 +37,7 @@ export function DetalheModal({ detalhe, onFechar }: DetalheModalProps) {
       <section className="recibo-print flex flex-col gap-4">
         <header className="border-b border-paper-line pb-3">
           <Logo altura={36} className="text-ink" />
-          <p className="mt-1 font-meta text-[10px] uppercase tracking-wide text-ink-faint">
+          <p className="mt-1 font-meta text-xs uppercase tracking-wide text-ink-faint">
             {configuracao.nomeInstitucional}
           </p>
           <h2 className="mt-1 pr-6 font-display text-xl font-bold text-ink">{detalhe.titulo}</h2>

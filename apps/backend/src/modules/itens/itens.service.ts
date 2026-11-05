@@ -31,7 +31,7 @@ function toItemDTO(item: ItemComImagens): ItemDTO {
 export class ItensService {
   constructor(private readonly prisma: PrismaClient) {}
 
-  /** RF06 — publica um item para locação, vinculado ao condomínio do morador autenticado. */
+  /** RF06, publica um item para locação, vinculado ao condomínio do morador autenticado. */
   async criar(condominioId: string, ownerId: string, input: CriarItemInput): Promise<ItemDTO> {
     const item = await this.prisma.item.create({
       data: {
@@ -53,7 +53,7 @@ export class ItensService {
     return toItemDTO(item);
   }
 
-  /** RF08 — catálogo de itens ativos do condomínio, opcionalmente filtrado por categoria (RN02). */
+  /** RF08, catálogo de itens ativos do condomínio, opcionalmente filtrado por categoria (RN02). */
   async listarPorCondominio(
     condominioId: string,
     filtro: ListarItensFiltro = {},
@@ -84,7 +84,7 @@ export class ItensService {
     return toItemDTO(item);
   }
 
-  /** RF07 — apenas o proprietário do item pode editar seu anúncio. */
+  /** RF07, apenas o proprietário do item pode editar seu anúncio. */
   async atualizar(itemId: string, ownerId: string, input: AtualizarItemInput): Promise<ItemDTO> {
     const existente = await this.prisma.item.findUnique({ where: { id: itemId } });
 
@@ -105,7 +105,7 @@ export class ItensService {
     return toItemDTO(item);
   }
 
-  /** RF07 — remoção é lógica (ativo=false) para preservar o histórico de locações já realizadas. */
+  /** RF07, remoção é lógica (ativo=false) para preservar o histórico de locações já realizadas. */
   async remover(itemId: string, ownerId: string): Promise<void> {
     const existente = await this.prisma.item.findUnique({ where: { id: itemId } });
 

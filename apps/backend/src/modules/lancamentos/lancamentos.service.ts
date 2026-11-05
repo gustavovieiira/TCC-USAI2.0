@@ -39,7 +39,7 @@ function tituloCurto(titulo: string): string {
 
 /**
  * Divide a taxa do condomínio em partes iguais entre `quantidade` síndicos, em centavos: o que
- * sobrar da divisão vai, um centavo por vez, pros primeiros — assim a soma das partes é SEMPRE a
+ * sobrar da divisão vai, um centavo por vez, pros primeiros, assim a soma das partes é SEMPRE a
  * taxa inteira (nenhum centavo some nem aparece).
  */
 export function dividirTaxa(taxa: number, quantidade: number): number[] {
@@ -72,7 +72,7 @@ export interface ResultadoRegistro {
 
 /**
  * Registra no livro-razão tudo o que um pagamento confirmado movimenta, dentro da MESMA transação
- * que passa a locação pra PAGA — ou os lançamentos existem todos, ou nenhum:
+ * que passa a locação pra PAGA, ou os lançamentos existem todos, ou nenhum:
  * - o dono recebe o valor líquido (aluguel menos os 10%);
  * - os 10% vão pra conta dos síndicos ativos do condomínio (divididos igualmente); sem síndico
  *   ativo, ficam com a plataforma;

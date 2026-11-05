@@ -12,7 +12,7 @@ import { CLASSE_STATUS, ROTULO_STATUS, ROTULO_TIPO } from './rotulos';
 
 interface MovimentacoesLocacaoProps {
   locacao: LocacaoDTO;
-  /** Id de quem está olhando — define se é o dono (entrega) ou o locatário (devolve). */
+  /** Id de quem está olhando, define se é o dono (entrega) ou o locatário (devolve). */
   userId: string | undefined;
 }
 
@@ -21,7 +21,7 @@ const STATUS_COM_MOVIMENTACAO: LocacaoDTO['status'][] = ['PAGA', 'EM_ANDAMENTO',
 
 /**
  * Retirada e devolução do item dentro do card da locação: o histórico dos documentos (com o aceite
- * de cada um) e o botão da próxima etapa pra quem pode executá-la — o dono registra a entrega, o
+ * de cada um) e o botão da próxima etapa pra quem pode executá-la, o dono registra a entrega, o
  * locatário registra a devolução; quem recebe assina o termo na tela do documento.
  */
 export function MovimentacoesLocacao({ locacao, userId }: MovimentacoesLocacaoProps) {

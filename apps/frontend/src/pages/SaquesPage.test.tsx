@@ -47,7 +47,7 @@ function buildSaque(overrides: Partial<MovimentoExtratoDTO> = {}): MovimentoExtr
   };
 }
 
-describe('SaquesPage — extrato', () => {
+describe('SaquesPage: extrato', () => {
   it('mostra o saldo disponível e os totais do resumo', async () => {
     vi.spyOn(saquesApi, 'buscarExtrato').mockResolvedValue(
       buildExtrato({
@@ -150,7 +150,7 @@ describe('SaquesPage — extrato', () => {
   });
 });
 
-describe('SaquesPage — detalhes e recibo', () => {
+describe('SaquesPage: detalhes e recibo', () => {
   it('saque aprovado aparece como "PIX a caminho" e a soma vai pro card "Aprovado, a caminho"', async () => {
     vi.spyOn(saquesApi, 'buscarExtrato').mockResolvedValue(
       buildExtrato({
@@ -168,7 +168,7 @@ describe('SaquesPage — detalhes e recibo', () => {
 
     render(<SaquesPage />);
 
-    expect(await screen.findByText('Aprovado — PIX a caminho')).toBeInTheDocument();
+    expect(await screen.findByText('Aprovado, PIX a caminho')).toBeInTheDocument();
     expect(screen.getByText('Aprovado, a caminho').nextSibling).toHaveTextContent(/40,00/);
   });
 
@@ -249,7 +249,7 @@ describe('SaquesPage — detalhes e recibo', () => {
   });
 });
 
-describe('SaquesPage — síndico com comissões do condomínio', () => {
+describe('SaquesPage: síndico com comissões do condomínio', () => {
   const comissao: MovimentoExtratoDTO = {
     id: 'l-1',
     tipo: 'COMISSAO',
@@ -348,7 +348,7 @@ describe('SaquesPage — síndico com comissões do condomínio', () => {
   });
 });
 
-describe('SaquesPage — pedir saque', () => {
+describe('SaquesPage: pedir saque', () => {
   async function abrirAbaPedirSaque() {
     await screen.findByText('Nenhuma movimentação ainda');
     await userEvent.click(screen.getByRole('button', { name: 'Pedir saque' }));

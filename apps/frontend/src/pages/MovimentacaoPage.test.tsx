@@ -17,14 +17,14 @@ function renderPage() {
   );
 }
 
-describe('MovimentacaoPage — o documento', () => {
+describe('MovimentacaoPage: o documento', () => {
   it('mostra todas as informações: nº, partes, item, locação, operação, termo, declarações e histórico', async () => {
     vi.spyOn(api, 'buscarMovimentacao').mockResolvedValue(buildDetalhe());
 
     renderPage();
 
     expect(
-      await screen.findByRole('heading', { name: /Termo de Responsabilidade — Retirada/ }),
+      await screen.findByRole('heading', { name: /Termo de Responsabilidade: Retirada/ }),
     ).toBeInTheDocument();
     expect(screen.getByText('USAI-2026-000007')).toBeInTheDocument();
     // partes: nome completo, unidade, condomínio e CPF mascarado
@@ -44,14 +44,14 @@ describe('MovimentacaoPage — o documento', () => {
     expect(screen.getByText(/Cabo HDMI/)).toHaveTextContent('não entregue');
     expect(screen.getByText('Pequeno risco na lateral')).toBeInTheDocument();
     // termo completo
-    expect(screen.getByText(/Termo de responsabilidade — versão 2/i)).toBeInTheDocument();
+    expect(screen.getByText(/Termo de responsabilidade, versão 2/i)).toBeInTheDocument();
     expect(screen.getByText(/É vedado emprestar, ceder ou sublocar/)).toBeInTheDocument();
     // histórico
     expect(screen.getByText('Registro criado')).toBeInTheDocument();
     expect(screen.getByText(/Aguardando o aceite de Carla Locataria/)).toBeInTheDocument();
   });
 
-  it('avisa que o termo é modelo pendente de revisão jurídica — e deixa de avisar depois de aprovado', async () => {
+  it('avisa que o termo é modelo pendente de revisão jurídica, e deixa de avisar depois de aprovado', async () => {
     vi.spyOn(api, 'buscarMovimentacao').mockResolvedValue(buildDetalhe());
     const { unmount } = renderPage();
     expect(
@@ -147,7 +147,7 @@ describe('MovimentacaoPage — o documento', () => {
   });
 });
 
-describe('MovimentacaoPage — aceite obrigatório', () => {
+describe('MovimentacaoPage: aceite obrigatório', () => {
   async function abrirAceite() {
     vi.spyOn(api, 'buscarMovimentacao').mockResolvedValue(buildDetalhe());
     renderPage();
@@ -230,7 +230,7 @@ describe('MovimentacaoPage — aceite obrigatório', () => {
   });
 });
 
-describe('MovimentacaoPage — cancelar e retificar', () => {
+describe('MovimentacaoPage: cancelar e retificar', () => {
   it('cancelar pede confirmação e depois atualiza o documento', async () => {
     const cancelar = vi.spyOn(api, 'cancelarMovimentacao').mockResolvedValue(
       buildDetalhe({

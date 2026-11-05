@@ -116,7 +116,7 @@ describe('detalheMovimento', () => {
     expect(detalheMovimento({ ...base, status: 'APROVADO', pagoEm: null }).recibo).toBe(false);
     expect(
       valoresPor(detalheMovimento({ ...base, status: 'APROVADO', pagoEm: null }))['Situação'],
-    ).toBe('Aprovado — aguardando o PIX');
+    ).toBe('Aprovado, aguardando o PIX');
   });
 });
 
@@ -149,7 +149,7 @@ describe('detalhePagamento', () => {
   });
 });
 
-describe('detalheMovimento — comissão do condomínio', () => {
+describe('detalheMovimento: comissão do condomínio', () => {
   const comissao: MovimentoExtratoDTO = {
     id: 'l-1',
     tipo: 'COMISSAO',
@@ -195,7 +195,7 @@ describe('detalheMovimento — comissão do condomínio', () => {
   });
 });
 
-describe('detalhePagamento — quebra do que foi pago', () => {
+describe('detalhePagamento: quebra do que foi pago', () => {
   it('mostra quanto foi pro dono e quanto foi taxa do condomínio', () => {
     const detalhe = detalhePagamento({
       id: 'p-1',

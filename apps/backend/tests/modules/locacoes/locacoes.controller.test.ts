@@ -62,7 +62,7 @@ const locacaoBase = {
 };
 
 /**
- * O schema recusa início no passado, então as datas do pedido precisam ser sempre futuras —
+ * O schema recusa início no passado, então as datas do pedido precisam ser sempre futuras,
  * datas fixas no código (ex.: '2026-10-01') passam a falhar no dia em que o calendário as alcança.
  */
 function periodoFuturo() {

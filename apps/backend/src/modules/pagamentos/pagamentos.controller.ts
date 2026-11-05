@@ -14,7 +14,7 @@ const pagamentosService = new PagamentosService(
   assinaturasService,
 );
 
-/** Eventos do Asaas que valem como "PIX confirmado" — os demais são reconhecidos e ignorados. */
+/** Eventos do Asaas que valem como "PIX confirmado", os demais são reconhecidos e ignorados. */
 const EVENTOS_PAGAMENTO_CONFIRMADO = ['PAYMENT_CONFIRMED', 'PAYMENT_RECEIVED'];
 
 /** O dinheiro caiu na conta (no PIX é este o evento). Mensalidade de condomínio só ativa com ele. */
@@ -28,10 +28,10 @@ export const pagamentosController = {
 };
 
 /**
- * Webhook do Asaas — NÃO fica atrás de `authGuard` (quem chama é o Asaas, não um usuário logado) e
+ * Webhook do Asaas, NÃO fica atrás de `authGuard` (quem chama é o Asaas, não um usuário logado) e
  * de propósito nunca responde diferente de 200 depois de validar o token, mesmo se
  * `confirmarPagamento` falhar internamente: um 4xx/5xx faria o Asaas reentregar o mesmo evento
- * repetidas vezes, e um bug na nossa aplicação não se corrige com retry — só vira barulho
+ * repetidas vezes, e um bug na nossa aplicação não se corrige com retry, só vira barulho
  * duplicado (cancelamentos repetidos, etc.). Por isso este handler não usa `asyncHandler`.
  */
 export const asaasWebhookController = {

@@ -1,14 +1,20 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { FiltroChips } from '@/components/ui/FiltroChips';
 import { Spinner } from '@/components/ui/Spinner';
 import { formatRelativeTime } from '@/lib/format';
 import { NotificacaoDTO } from '@/features/notificacoes/notificacoes.types';
 import { useNotificacoesContext } from '@/features/notificacoes/useNotificacoes';
+import { escalonar } from '@/lib/animacao';
 
 export function NotificacoesPage() {
   const navigate = useNavigate();
   const { notificacoes, naoLidas, marcarComoLida, marcarTodasComoLidas } = useNotificacoesContext();
+  const [filtro, setFiltro] = useState<'TODAS' | 'NAO_LIDAS'>('TODAS');
+  const visiveis =
+    filtro === 'NAO_LIDAS' ? (notificacoes ?? []).filter((n) => !n.lida) : (notificacoes ?? []);
 
   function abrir(notificacao: NotificacaoDTO) {
     marcarComoLida(notificacao.id);
@@ -46,9 +52,28 @@ export function NotificacoesPage() {
       )}
 
       {notificacoes && notificacoes.length > 0 && (
+        <FiltroChips
+          rotulo="Filtrar notificações"
+          valor={filtro}
+          onChange={setFiltro}
+          opcoes={[
+            { valor: 'TODAS', rotulo: 'Todas', total: notificacoes.length },
+            { valor: 'NAO_LIDAS', rotulo: 'Não lidas', total: naoLidas },
+          ]}
+        />
+      )}
+
+      {notificacoes && notificacoes.length > 0 && visiveis.length === 0 && (
+        <EmptyState
+          title="Tudo lido por aqui"
+          description="Não há notificações novas. Escolha Todas para rever as anteriores."
+        />
+      )}
+
+      {visiveis.length > 0 && (
         <ul className="flex max-h-[70vh] flex-col gap-3 overflow-y-auto pr-1">
-          {notificacoes.map((notificacao) => (
-            <li key={notificacao.id}>
+          {visiveis.map((notificacao, indice) => (
+            <li key={notificacao.id} className="entra" style={escalonar(indice, 50)}>
               <button
                 type="button"
                 onClick={() => abrir(notificacao)}

@@ -11,7 +11,7 @@ export async function listarMeusSaques(): Promise<SaqueDTO[]> {
   return data;
 }
 
-/** Saldo líquido disponível pra saque — soma de locações pagas menos o que já foi sacado/está pendente. */
+/** Saldo líquido disponível pra saque, soma de locações pagas menos o que já foi sacado/está pendente. */
 export async function buscarSaldo(): Promise<number> {
   const { data } = await apiClient.get<{ saldo: number }>('/saques/saldo');
   return data.saldo;

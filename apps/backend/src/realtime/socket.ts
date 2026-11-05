@@ -28,7 +28,7 @@ export function nomeSalaUsuario(userId: string): string {
 
 /**
  * Chat em tempo real (histórico via REST, só o envio/recebimento ao vivo passa por aqui). Um único
- * tipo de sala — `conversa:*` — serve tanto às conversas abertas no Mural (efêmeras) quanto ao chat
+ * tipo de sala, `conversa:*`, serve tanto às conversas abertas no Mural (efêmeras) quanto ao chat
  * de cada locação (ver `modules/conversas`). A sala pessoal `usuario:*` recebe os avisos de mensagem
  * nova e as notificações.
  */

@@ -4,7 +4,7 @@ export interface ItemDTO {
   descricao: string;
   categoria: string;
   valorDiaria: number;
-  /** Identificação do bem (opcionais — o que o dono souber informar). */
+  /** Identificação do bem (opcionais, o que o dono souber informar). */
   fabricante?: string | null;
   modelo?: string | null;
   numeroSerie?: string | null;

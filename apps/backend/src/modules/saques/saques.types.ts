@@ -16,9 +16,9 @@ export interface ListarSaquesFiltro {
 export interface SaqueDTO {
   id: string;
   userId: string;
-  /** Nome de quem solicitou — só vem preenchido na listagem do Admin USAI (`listarTodas`). */
+  /** Nome de quem solicitou, só vem preenchido na listagem do Admin USAI (`listarTodas`). */
   solicitanteNome?: string;
-  /** Condomínio de quem solicitou — idem, só na visão do Admin USAI. */
+  /** Condomínio de quem solicitou, idem, só na visão do Admin USAI. */
   solicitanteCondominio?: string | null;
   valor: number;
   chavePixUsada: string;
@@ -67,13 +67,13 @@ export interface MovimentoExtratoDTO {
   /** APROVADO = Admin aprovou, o PIX ainda não foi transferido. */
   status: 'CONFIRMADO' | 'EM_ANALISE' | 'APROVADO' | 'PAGO' | 'REJEITADO';
   motivo?: string | null;
-  /** Chave PIX mascarada — só os 4 últimos caracteres. */
+  /** Chave PIX mascarada, só os 4 últimos caracteres. */
   chavePix?: string;
   processadoEm?: Date | null;
   pagoEm?: Date | null;
 }
 
-/** Um aluguel que o usuário PAGOU como locatário — não mexe no saldo, é o que saiu do bolso dele. */
+/** Um aluguel que o usuário PAGOU como locatário, não mexe no saldo, é o que saiu do bolso dele. */
 export interface PagamentoExtratoDTO {
   id: string;
   /** Locação paga (rastreio da origem). */

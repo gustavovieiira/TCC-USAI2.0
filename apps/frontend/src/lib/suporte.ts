@@ -1,4 +1,4 @@
-/** Canais de suporte da USAI — um só lugar, usado na landing, nas telas de acesso e dentro da plataforma. */
+/** Canais de suporte da USAI, um só lugar, usado na landing, nas telas de acesso e dentro da plataforma. */
 export const SUPORTE_EMAIL = 'usaisuporte@gmail.com';
 
 /** WhatsApp só com dígitos, com o código do país (55) na frente. */

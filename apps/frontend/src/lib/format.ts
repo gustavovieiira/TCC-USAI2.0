@@ -5,7 +5,7 @@ const currencyFormatter = new Intl.NumberFormat('pt-BR', {
 
 /**
  * dataInicio/dataFim representam dias de calendário (não instantes) e chegam do backend como
- * meia-noite UTC — por isso o timeZone fixo em 'UTC', senão o fuso do navegador desloca a data
+ * meia-noite UTC, por isso o timeZone fixo em 'UTC', senão o fuso do navegador desloca a data
  * exibida um dia pra trás em qualquer timezone a oeste de UTC (ex.: America/Sao_Paulo).
  */
 const dateFormatter = new Intl.DateTimeFormat('pt-BR', {
@@ -23,21 +23,21 @@ export function formatDate(iso: string): string {
   return dateFormatter.format(new Date(iso));
 }
 
-/** createdAt de mensagem é um instante de verdade (não um dia de calendário) — exibe no fuso local. */
+/** createdAt de mensagem é um instante de verdade (não um dia de calendário), exibe no fuso local. */
 const timeFormatter = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
 export function formatTime(iso: string): string {
   return timeFormatter.format(new Date(iso));
 }
 
-/** Para instantes reais exibidos como data (ex.: createdAt de saque) — fuso local, sem o fix de UTC. */
+/** Para instantes reais exibidos como data (ex.: createdAt de saque), fuso local, sem o fix de UTC. */
 const dateTimeFormatter = new Intl.DateTimeFormat('pt-BR', {
   day: '2-digit',
   month: '2-digit',
   year: 'numeric',
 });
 
-/** Data e hora (instante real, fuso local) — usado nos recibos. */
+/** Data e hora (instante real, fuso local), usado nos recibos. */
 const dataHoraFormatter = new Intl.DateTimeFormat('pt-BR', {
   day: '2-digit',
   month: '2-digit',
@@ -74,7 +74,7 @@ export function formatRelativeTime(iso: string): string {
 
 const MS_POR_DIA = 1000 * 60 * 60 * 24;
 
-/** Conversas privadas do Mural expiram em 7 dias — usado pra mostrar "expira em Xd" na UI. */
+/** Conversas privadas do Mural expiram em 7 dias, usado pra mostrar "expira em Xd" na UI. */
 export function formatDiasRestantes(expiraEmIso: string): string {
   const restanteMs = new Date(expiraEmIso).getTime() - Date.now();
   const dias = Math.ceil(restanteMs / MS_POR_DIA);

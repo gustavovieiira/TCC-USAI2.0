@@ -10,7 +10,7 @@ interface ConversarButtonProps {
   variant?: 'icon' | 'text';
 }
 
-/** Abre (ou continua) um chat privado 1:1 com a pessoa — usado a partir do Mural (post/comentário). */
+/** Abre (ou continua) um chat privado 1:1 com a pessoa, usado a partir do Mural (post/comentário). */
 export function ConversarButton({
   usuarioId,
   nomeDoOutro,

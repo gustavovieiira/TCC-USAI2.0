@@ -42,7 +42,7 @@ function token(userId: string): string {
   });
 }
 
-/** Admin não está vinculado a nenhum condomínio — token com `condominioId` nulo. */
+/** Admin não está vinculado a nenhum condomínio, token com `condominioId` nulo. */
 function tokenSemCondominio(userId: string): string {
   return jwt.sign({ userId, papel: 'ADMIN', condominioId: null }, ACCESS_SECRET, {
     expiresIn: '1h',

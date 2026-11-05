@@ -294,7 +294,7 @@ describe('AuthService.refresh', () => {
   });
 });
 
-describe('AuthService — assinatura do condomínio', () => {
+describe('AuthService: assinatura do condomínio', () => {
   const senhaHash = bcrypt.hashSync('senha-correta', 10);
   const moradorInput = {
     linkSlug: 'residencial-teste',

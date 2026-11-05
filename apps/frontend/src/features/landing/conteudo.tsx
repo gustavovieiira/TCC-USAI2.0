@@ -44,7 +44,7 @@ export const PASSOS = [
   {
     titulo: 'Anuncie ou procure',
     texto:
-      'Publique o que está parado em casa — com foto, fabricante, modelo e acessórios — ou encontre no catálogo o que seus vizinhos oferecem.',
+      'Publique o que está parado em casa, com foto, fabricante, modelo e acessórios, ou encontre no catálogo o que seus vizinhos oferecem.',
   },
   {
     titulo: 'Combine e aprove',

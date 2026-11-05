@@ -88,4 +88,28 @@ describe('NotificacoesPage', () => {
 
     expect(estado.marcarTodasComoLidas).toHaveBeenCalled();
   });
+
+  it('o filtro "Não lidas" esconde as já lidas e o "Todas" mostra tudo de novo', async () => {
+    renderPage({
+      notificacoes: [
+        buildNotificacao({ id: 'n-1', titulo: 'Saque aprovado' }),
+        buildNotificacao({ id: 'n-2', titulo: 'Pagamento recebido', lida: true }),
+      ],
+      naoLidas: 1,
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: /Não lidas/ }));
+    expect(screen.getByText('Saque aprovado')).toBeInTheDocument();
+    expect(screen.queryByText('Pagamento recebido')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /^Todas/ }));
+    expect(screen.getByText('Pagamento recebido')).toBeInTheDocument();
+  });
+
+  it('avisa que está tudo lido quando o filtro "Não lidas" não tem nada', async () => {
+    renderPage({ notificacoes: [buildNotificacao({ lida: true })], naoLidas: 0 });
+
+    await userEvent.click(screen.getByRole('button', { name: /Não lidas/ }));
+    expect(screen.getByText('Tudo lido por aqui')).toBeInTheDocument();
+  });
 });

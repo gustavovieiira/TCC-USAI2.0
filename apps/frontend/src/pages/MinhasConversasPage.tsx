@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { FiltroChips } from '@/components/ui/FiltroChips';
 import { ListaRolavel } from '@/components/ui/ListaRolavel';
 import { Spinner } from '@/components/ui/Spinner';
 import { PapelTag } from '@/components/ui/Badge';
@@ -12,6 +13,7 @@ import {
 } from '@/features/conversas/conversas.api';
 import { ConversaDTO, ParticipanteDTO } from '@/features/conversas/conversas.types';
 import { extractErrorMessage } from '@/lib/apiClient';
+import { escalonar } from '@/lib/animacao';
 import { formatDiasRestantes, formatRelativeTime } from '@/lib/format';
 
 export function MinhasConversasPage() {
@@ -22,6 +24,7 @@ export function MinhasConversasPage() {
 
   const [usuarios, setUsuarios] = useState<ParticipanteDTO[] | null>(null);
   const [busca, setBusca] = useState('');
+  const [soNaoLidas, setSoNaoLidas] = useState<'TODAS' | 'NAO_LIDAS'>('TODAS');
   const [abrindoId, setAbrindoId] = useState<string | null>(null);
   const [erroAbrir, setErroAbrir] = useState<string | null>(null);
 
@@ -52,6 +55,11 @@ export function MinhasConversasPage() {
   const resultados = termo
     ? (usuarios ?? []).filter((usuario) => usuario.nome.toLowerCase().includes(termo))
     : [];
+
+  const conversasVisiveis =
+    soNaoLidas === 'NAO_LIDAS'
+      ? (conversas ?? []).filter((c) => c.naoLidas > 0)
+      : (conversas ?? []);
 
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-6">
@@ -126,16 +134,40 @@ export function MinhasConversasPage() {
       )}
 
       {conversas && conversas.length > 0 && (
+        <FiltroChips
+          rotulo="Filtrar conversas"
+          valor={soNaoLidas}
+          onChange={setSoNaoLidas}
+          opcoes={[
+            { valor: 'TODAS', rotulo: 'Todas', total: conversas.length },
+            {
+              valor: 'NAO_LIDAS',
+              rotulo: 'Não lidas',
+              total: conversas.filter((c) => c.naoLidas > 0).length,
+            },
+          ]}
+        />
+      )}
+
+      {conversas && conversas.length > 0 && conversasVisiveis.length === 0 && (
+        <EmptyState
+          title="Nenhuma conversa não lida"
+          description="Você está em dia com as mensagens. Escolha Todas para ver o histórico."
+        />
+      )}
+
+      {conversas && conversasVisiveis.length > 0 && (
         <ListaRolavel
           rotulo="Suas conversas"
           alturaMaxima="max-h-[calc(100vh-26rem)] min-h-[18rem]"
         >
           <div className="flex flex-col gap-3">
-            {conversas.map((conversa) => (
+            {conversasVisiveis.map((conversa, indice) => (
               <Link
                 key={conversa.id}
                 to={`/conversas/${conversa.id}`}
-                className="notch flex gap-3 border border-paper-line bg-paper-surface p-4
+                style={escalonar(indice, 60)}
+                className="notch entra flex gap-3 border border-paper-line bg-paper-surface p-4
                 shadow-paper transition hover:bg-paper"
               >
                 <Avatar nome={conversa.outroParticipante.nome} />
@@ -147,7 +179,7 @@ export function MinhasConversasPage() {
                     {conversa.naoLidas > 0 && (
                       <span
                         aria-label={`${conversa.naoLidas} ${conversa.naoLidas === 1 ? 'mensagem não lida' : 'mensagens não lidas'}`}
-                        className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-carmim-500 px-1.5 text-[11px] font-bold text-white"
+                        className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-carmim-500 px-1.5 text-xs font-bold text-white"
                       >
                         {conversa.naoLidas}
                       </span>

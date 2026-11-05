@@ -9,7 +9,7 @@ const CONTROLES_INTERATIVOS = 'button, a, input, textarea, select, label, form';
 
 /**
  * Card que abre os detalhes ao ser clicado. Pro teclado e leitores de tela existe também um botão
- * explícito "Ver detalhes" — o card em si não é `role="button"` porque pode conter outros botões
+ * explícito "Ver detalhes", o card em si não é `role="button"` porque pode conter outros botões
  * (ex.: Aprovar/Rejeitar), e botão dentro de botão não é válido. Cliques em qualquer controle
  * dentro do card (botão, link, campo, formulário) não abrem os detalhes: cada um faz o seu trabalho.
  */

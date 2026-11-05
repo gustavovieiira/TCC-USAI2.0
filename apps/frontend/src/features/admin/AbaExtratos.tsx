@@ -21,8 +21,8 @@ const ROTULO_PAPEL: Record<string, string> = {
 };
 
 /**
- * Extratos pro Admin (auditoria e suporte): o extrato completo de QUALQUER usuário — o mesmo que
- * ele vê no próprio app, mas com a chave PIX inteira — e a conta da USAI, com tudo que ficou com a
+ * Extratos pro Admin (auditoria e suporte): o extrato completo de QUALQUER usuário, o mesmo que
+ * ele vê no próprio app, mas com a chave PIX inteira, e a conta da USAI, com tudo que ficou com a
  * plataforma e de onde veio.
  */
 export function AbaExtratos() {

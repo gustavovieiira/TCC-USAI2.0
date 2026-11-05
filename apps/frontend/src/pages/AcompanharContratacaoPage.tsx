@@ -166,13 +166,13 @@ export function AcompanharContratacaoPage() {
           disabled={reenviando}
           className={`text-sm disabled:opacity-60 ${LINK}`}
         >
-          {reenviando ? 'Enviando…' : 'Não recebi o e-mail — reenviar'}
+          {reenviando ? 'Enviando…' : 'Não recebi o e-mail, reenviar'}
         </button>
         <Link
           to="/login"
           className="text-sm font-semibold text-fachada-tinta-suave hover:text-fachada-tinta"
         >
-          Já criei a minha senha — entrar
+          Já criei a minha senha, entrar
         </Link>
       </div>
     </AuthShell>

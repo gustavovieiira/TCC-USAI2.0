@@ -77,14 +77,14 @@ const PAPEL_CLASSES: Partial<Record<Papel, string>> = {
   ADMIN: 'bg-ink text-ink-inverse',
 };
 
-/** Selo pequeno ao lado do nome do autor no feed — só aparece pra papéis "oficiais". */
+/** Selo pequeno ao lado do nome do autor no feed, só aparece pra papéis "oficiais". */
 export function PapelTag({ papel }: { papel: Papel }) {
   const label = PAPEL_LABEL[papel];
   if (!label) return null;
 
   return (
     <span
-      className={`notch-sm inline-flex items-center px-1.5 py-0.5 text-[10px] font-bold
+      className={`notch-sm inline-flex items-center px-1.5 py-0.5 text-xs font-bold
         ${PAPEL_CLASSES[papel]}`}
     >
       {label}

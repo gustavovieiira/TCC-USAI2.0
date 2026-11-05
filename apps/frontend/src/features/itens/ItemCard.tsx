@@ -1,21 +1,25 @@
 import { Link } from 'react-router-dom';
+import { escalonar } from '@/lib/animacao';
 import { formatCurrency } from '@/lib/format';
 import { ItemDTO } from './itens.types';
 
 interface ItemCardProps {
   item: ItemDTO;
+  /** Posição na lista, para os cartões entrarem em sequência. */
+  indice?: number;
 }
 
-export function ItemCard({ item }: ItemCardProps) {
+export function ItemCard({ item, indice = 0 }: ItemCardProps) {
   const imagem = item.imagens[0];
 
   return (
     <Link
       to={`/itens/${item.id}`}
-      className="notch group flex flex-col overflow-hidden border border-paper-line
+      style={escalonar(indice)}
+      className="notch entra group flex flex-col overflow-hidden border border-paper-line
         bg-paper-surface shadow-paper transition hover:-translate-y-0.5 hover:shadow-paper-2"
     >
-      <div className="aspect-[4/3] w-full overflow-hidden bg-[repeating-linear-gradient(135deg,#E4D3BC_0_6px,#DAC6AB_6px_12px)]">
+      <div className="aspect-[4/3] w-full overflow-hidden bg-paper-line">
         {imagem ? (
           <img
             src={imagem}

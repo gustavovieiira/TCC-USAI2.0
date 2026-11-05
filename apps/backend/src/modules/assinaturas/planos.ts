@@ -36,7 +36,7 @@ export interface PrecoDoPeriodo {
 /**
  * Planos de assinatura, por quantidade de moradores. É a ÚNICA fonte de verdade: o backend cobra
  * e limita por esta lista, e o frontend (tela inicial e contratação) lê de `GET /api/assinaturas/planos`.
- * Para mudar faixa ou preço basta editar aqui — os valores abaixo são fictícios (projeto acadêmico).
+ * Para mudar faixa ou preço basta editar aqui, os valores abaixo são fictícios (projeto acadêmico).
  */
 export const PLANOS: Plano[] = [
   {
@@ -81,7 +81,7 @@ export const PLANOS: Plano[] = [
  * Plano de R$ 5,00 para validar a cobrança por PIX (ex.: a conta do Asaas em produção) sem gastar
  * com um plano de verdade. O valor é o mínimo que o Asaas aceita numa cobrança (abaixo de R$ 5,00 ele
  * recusa); por isso não é R$ 2,00. Fica fora da vitrine e da contratação, a menos que `PLANO_TESTE_ATIVO`
- * seja `true` no ambiente — ligue só durante o teste e desligue depois.
+ * seja `true` no ambiente, ligue só durante o teste e desligue depois.
  */
 export const PLANO_TESTE: Plano = {
   codigo: 'TESTE',

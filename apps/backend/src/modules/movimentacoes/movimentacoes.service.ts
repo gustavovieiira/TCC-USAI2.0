@@ -66,7 +66,7 @@ export function mascararCpf(cpf: string | null): string | null {
   return digitos.length === 11 ? `***.***.***-${digitos.slice(-2)}` : null;
 }
 
-/** USAI-2026-000123 — número sequencial do documento, com o ano em que foi emitido. */
+/** USAI-2026-000123, número sequencial do documento, com o ano em que foi emitido. */
 export function formatarNumeroDocumento(numero: number, emitidoEm: Date): string {
   return `USAI-${emitidoEm.getUTCFullYear()}-${String(numero).padStart(6, '0')}`;
 }
@@ -174,7 +174,7 @@ export class MovimentacoesService {
     private readonly notificacoes?: NotificacoesService,
   ) {}
 
-  /** Termo em vigor (a versão mais recente) de um tipo de operação — mostrado antes do aceite. */
+  /** Termo em vigor (a versão mais recente) de um tipo de operação, mostrado antes do aceite. */
   async termoVigente(tipo: TipoMovimentacao): Promise<TermoDTO> {
     const termo = await this.prisma.termoResponsabilidade.findFirst({
       where: { tipo },
@@ -355,7 +355,7 @@ export class MovimentacoesService {
 
   /**
    * Quem recebeu confere e aceita: marca TODAS as declarações, reconfirma a senha (assinatura
-   * eletrônica simples) e a movimentação conclui — na mesma transação em que a locação avança
+   * eletrônica simples) e a movimentação conclui, na mesma transação em que a locação avança
    * (RETIRADA → EM_ANDAMENTO, DEVOLUCAO → CONCLUIDA). Falhou qualquer passo, nada é gravado.
    */
   async aceitar(
@@ -511,7 +511,7 @@ export class MovimentacoesService {
   }
 
   /**
-   * Correção de um documento: não altera nada do que foi registrado/aceito — acrescenta um evento
+   * Correção de um documento: não altera nada do que foi registrado/aceito, acrescenta um evento
    * ao histórico, com autor e data, e avisa a outra parte.
    */
   async retificar(id: string, userId: string, texto: string): Promise<MovimentacaoDetalheDTO> {
@@ -612,7 +612,7 @@ export class MovimentacoesService {
     return mov;
   }
 
-  /** Só as duas partes — e o Admin, pra auditoria — enxergam o documento. */
+  /** Só as duas partes, e o Admin, pra auditoria, enxergam o documento. */
   private verificarAcesso(mov: Movimentacao, userId: string, papel: string): void {
     if (papel === 'ADMIN') return;
     if (userId !== mov.entreguePorId && userId !== mov.recebidoPorId) {

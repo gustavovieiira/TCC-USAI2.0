@@ -19,8 +19,8 @@ function Secao({ titulo, children }: { titulo: string; children: ReactNode }) {
 function Campo({ rotulo, valor }: { rotulo: string; valor: ReactNode }) {
   return (
     <div className="flex flex-col gap-0.5 text-sm">
-      <dt className="font-meta text-[11px] uppercase tracking-wide text-ink-faint">{rotulo}</dt>
-      <dd className="text-ink">{valor || '—'}</dd>
+      <dt className="font-meta text-xs uppercase tracking-wide text-ink-faint">{rotulo}</dt>
+      <dd className="text-ink">{valor || 'Não informado'}</dd>
     </div>
   );
 }
@@ -42,7 +42,7 @@ function Parte({ titulo, parte }: { titulo: string; parte: ParteDTO }) {
 /**
  * Documento de retirada/devolução, pronto pra ler na tela, imprimir ou salvar em PDF (a classe
  * `documento-print` ativa o CSS de impressão em index.css: só o documento sai, em A4, com a
- * paginação e o rodapé institucional). Mostra sempre o que foi registrado — nunca dados
+ * paginação e o rodapé institucional). Mostra sempre o que foi registrado, nunca dados
  * recalculados: o `snapshot` guarda o item e as partes como estavam no momento do registro.
  */
 export function DocumentoMovimentacao({ detalhe }: { detalhe: MovimentacaoDetalheDTO }) {
@@ -60,14 +60,12 @@ export function DocumentoMovimentacao({ detalhe }: { detalhe: MovimentacaoDetalh
       <header className="flex flex-wrap items-start justify-between gap-4 border-b-2 border-ink pb-4">
         <div className="flex flex-col gap-1">
           <Logo altura={46} className="text-ink" />
-          <p className="font-meta text-[11px] uppercase tracking-wide text-ink-faint">
+          <p className="font-meta text-xs uppercase tracking-wide text-ink-faint">
             {configuracao.nomeInstitucional}
           </p>
         </div>
         <div className="text-right">
-          <p className="font-meta text-[11px] uppercase tracking-wide text-ink-faint">
-            Documento nº
-          </p>
+          <p className="font-meta text-xs uppercase tracking-wide text-ink-faint">Documento nº</p>
           <p className="font-display text-xl font-bold text-ink">{detalhe.numeroDocumento}</p>
           <span
             className={`notch-sm mt-1 inline-block px-2.5 py-1 text-xs font-bold ${CLASSE_STATUS[detalhe.status]}`}
@@ -149,7 +147,7 @@ export function DocumentoMovimentacao({ detalhe }: { detalhe: MovimentacaoDetalh
               <li key={acessorio.nome} className="text-sm text-ink">
                 <span aria-hidden="true">{acessorio.conferido ? '☑' : '☐'}</span> {acessorio.nome}
                 <span className="text-ink-faint">
-                  {acessorio.conferido ? ' — acompanha' : ' — não entregue'}
+                  {acessorio.conferido ? ': acompanha' : ': não entregue'}
                 </span>
               </li>
             ))}
@@ -162,7 +160,7 @@ export function DocumentoMovimentacao({ detalhe }: { detalhe: MovimentacaoDetalh
         </p>
       </Secao>
 
-      <Secao titulo={`Termo de responsabilidade — versão ${termo.versao}`}>
+      <Secao titulo={`Termo de responsabilidade, versão ${termo.versao}`}>
         <p
           className={`mb-2 border px-3 py-2 text-xs ${
             termo.statusRevisao === 'APROVADO'
@@ -259,7 +257,7 @@ export function DocumentoMovimentacao({ detalhe }: { detalhe: MovimentacaoDetalh
                 </span>
               )}
             </p>
-            <p className="mt-1 break-all font-mono text-[11px] text-ink-faint">
+            <p className="mt-1 break-all font-mono text-xs text-ink-faint">
               SHA-256: {detalhe.integridade.hash}
             </p>
           </>
@@ -270,7 +268,7 @@ export function DocumentoMovimentacao({ detalhe }: { detalhe: MovimentacaoDetalh
         )}
       </Secao>
 
-      <footer className="doc-rodape border-t border-paper-line pt-3 text-center text-[11px] text-ink-faint">
+      <footer className="doc-rodape border-t border-paper-line pt-3 text-center text-xs text-ink-faint">
         {configuracao.rodapeInstitucional} · {detalhe.numeroDocumento}
       </footer>
     </article>

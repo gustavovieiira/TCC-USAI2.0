@@ -62,7 +62,7 @@ export function emailRedefinicaoSenha(input: DadosEmailRedefinicao): Email {
     '',
     `Precisa de ajuda? WhatsApp ${SUPORTE_WHATSAPP} ou e-mail ${SUPORTE_EMAIL}`,
     '',
-    'USAI — vizinhos que compartilham',
+    'USAI, vizinhos que compartilham',
     urlDoApp(),
   ].join('\n');
 

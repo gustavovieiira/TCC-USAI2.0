@@ -4,7 +4,7 @@ export const termoRetirada: TermoDTO = {
   id: 'termo-1',
   tipo: 'RETIRADA',
   versao: 2,
-  titulo: 'Termo de Responsabilidade — Retirada do Item',
+  titulo: 'Termo de Responsabilidade: Retirada do Item',
   clausulas: [
     'O locatário declara ter recebido o item e os acessórios relacionados.',
     'É vedado emprestar, ceder ou sublocar o item a terceiros sem autorização.',

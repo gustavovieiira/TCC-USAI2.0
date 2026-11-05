@@ -12,7 +12,7 @@ import { ConfiguracaoDTO } from './configuracao.types';
 /** Antes de carregar (ou se a API falhar), vale a identidade padrão: o app nunca fica sem marca. */
 export const CONFIGURACAO_PADRAO: ConfiguracaoDTO = {
   logoUrl: null,
-  nomeInstitucional: 'USAI — Compartilhamento entre vizinhos',
+  nomeInstitucional: 'USAI: compartilhamento entre vizinhos',
   rodapeInstitucional:
     'Documento gerado eletronicamente pela plataforma USAI. A autenticidade pode ser conferida pelo número do documento e pela impressão digital de integridade.',
 };

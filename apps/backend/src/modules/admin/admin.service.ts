@@ -196,8 +196,8 @@ export class AdminService {
   }
 
   /**
-   * Conta da plataforma (USAI): tudo que ficou com ela — taxa de condomínio sem síndico ativo e a
-   * taxa dos aluguéis anteriores à comissão do síndico — cada linha com a origem e a taxa aplicada.
+   * Conta da plataforma (USAI): tudo que ficou com ela, taxa de condomínio sem síndico ativo e a
+   * taxa dos aluguéis anteriores à comissão do síndico, cada linha com a origem e a taxa aplicada.
    */
   async extratoPlataforma(): Promise<ExtratoPlataformaDTO> {
     const lancamentos = await this.prisma.lancamento.findMany({

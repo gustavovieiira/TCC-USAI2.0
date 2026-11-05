@@ -6,6 +6,7 @@ import { FiltroChips } from '@/components/ui/FiltroChips';
 import { ListaRolavel } from '@/components/ui/ListaRolavel';
 import { Spinner } from '@/components/ui/Spinner';
 import { extractErrorMessage } from '@/lib/apiClient';
+import { escalonar } from '@/lib/animacao';
 import { getStoredUser } from '@/lib/authStorage';
 import { criarPost, excluirPost, listarPosts } from '@/features/mural/mural.api';
 import { PostDTO, TipoPost } from '@/features/mural/mural.types';
@@ -130,7 +131,7 @@ export function MuralPage() {
                 type="submit"
                 disabled={isLoading || conteudo.trim().length < 3}
                 className="notch min-h-[44px] bg-barro-500 px-5 py-2 text-sm font-bold
-                  text-paper-surface shadow-press transition hover:bg-barro-700
+                  text-ink shadow-press transition hover:bg-barro-700
                   disabled:cursor-not-allowed disabled:bg-paper-line disabled:text-ink-faint
                   disabled:shadow-none"
               >
@@ -178,13 +179,14 @@ export function MuralPage() {
                 alturaMaxima="max-h-[calc(100vh-28rem)] min-h-[22rem]"
               >
                 <div className="flex flex-col gap-3">
-                  {postsFiltrados.map((post) => (
-                    <PostCard
-                      key={post.id}
-                      post={post}
-                      canDelete={podeExcluir(post)}
-                      onDelete={() => handleDelete(post.id)}
-                    />
+                  {postsFiltrados.map((post, indice) => (
+                    <div key={post.id} className="entra" style={escalonar(indice, 60)}>
+                      <PostCard
+                        post={post}
+                        canDelete={podeExcluir(post)}
+                        onDelete={() => handleDelete(post.id)}
+                      />
+                    </div>
                   ))}
                 </div>
               </ListaRolavel>

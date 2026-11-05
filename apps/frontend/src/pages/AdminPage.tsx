@@ -96,7 +96,7 @@ export function AdminPage() {
               (atual) => atual?.map((s) => (s.id === atualizado.id ? atualizado : s)) ?? atual,
             );
             // Best-effort: a aprovação/rejeição já aconteceu: se o refresh dos cards falhar, os
-            // números só ficam desatualizados até a próxima visita — não é um erro pro usuário ver.
+            // números só ficam desatualizados até a próxima visita, não é um erro pro usuário ver.
             resumoFinanceiro()
               .then(setResumo)
               .catch(() => undefined);
@@ -303,7 +303,7 @@ function AbaFinanceiro({ resumo, saques, erro, onMudou, onErro }: AbaFinanceiroP
       </div>
 
       <div>
-        <h2 className="mb-1 font-display font-semibold text-ink">Aprovados — aguardando o PIX</h2>
+        <h2 className="mb-1 font-display font-semibold text-ink">Aprovados, aguardando o PIX</h2>
         <p className="mb-3 text-sm text-ink-soft">
           Transfira o valor para a chave PIX e depois confirme. O usuário recebe um aviso e passa a
           ver o saque como pago, com recibo.
@@ -390,7 +390,7 @@ function ResumoSaque({
   );
 }
 
-/** Valor, nome de quem pediu (sempre — também no histórico) e o selo de status. */
+/** Valor, nome de quem pediu (sempre, também no histórico) e o selo de status. */
 function CabecalhoSaque({ saque }: { saque: SaqueDTO }) {
   return (
     <div className="flex items-center justify-between gap-2">

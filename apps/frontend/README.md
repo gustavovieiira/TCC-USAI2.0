@@ -1,4 +1,4 @@
-# USAI — Frontend
+# USAI: Frontend
 
 SPA em React + Vite + TypeScript + Tailwind CSS. Consome a API em `apps/backend`.
 

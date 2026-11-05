@@ -405,7 +405,7 @@ describe('ConversasService.abrirPorLocacao (chat da locação)', () => {
   });
 });
 
-describe('ConversasService — mensagens não lidas (persistidas)', () => {
+describe('ConversasService: mensagens não lidas (persistidas)', () => {
   it('conta só as mensagens do outro depois do "lido em" de quem pergunta', async () => {
     const prisma = buildPrismaMock();
     const lidoEm = new Date('2026-09-17T10:00:00Z');

@@ -40,7 +40,7 @@ export function useConversaNotifications(ativo: boolean) {
         .catch(() => undefined);
 
     void conferir();
-    // A tela da conversa avisa quando acabou de gravar que leu — reconfere a contagem.
+    // A tela da conversa avisa quando acabou de gravar que leu, reconfere a contagem.
     window.addEventListener(EVENTO_CONVERSAS_LIDAS, conferir);
 
     return () => {

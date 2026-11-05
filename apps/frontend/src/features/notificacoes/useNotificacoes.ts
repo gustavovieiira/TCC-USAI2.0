@@ -12,7 +12,7 @@ export interface NotificacoesEstado {
   /** `null` até a primeira carga terminar. */
   notificacoes: NotificacaoDTO[] | null;
   naoLidas: number;
-  /** Última que chegou ao vivo — telas que mostram dados afetados (ex.: Locações) recarregam. */
+  /** Última que chegou ao vivo, telas que mostram dados afetados (ex.: Locações) recarregam. */
   ultimaRecebida: NotificacaoDTO | null;
   toast: NotificacaoDTO | null;
   marcarComoLida: (id: string) => void;

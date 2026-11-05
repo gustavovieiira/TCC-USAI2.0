@@ -303,7 +303,7 @@ describe('Extratos do Admin: GET /api/admin/usuarios, /usuarios/:id/extrato e /p
     '/api/admin/usuarios',
     '/api/admin/usuarios/u-9/extrato',
     '/api/admin/plataforma/extrato',
-  ])('morador e síndico não acessam %s (403) — extrato alheio é só do Admin', async (rota) => {
+  ])('morador e síndico não acessam %s (403), extrato alheio é só do Admin', async (rota) => {
     for (const papel of ['MORADOR', 'SINDICO'] as const) {
       const response = await request(createApp())
         .get(rota)

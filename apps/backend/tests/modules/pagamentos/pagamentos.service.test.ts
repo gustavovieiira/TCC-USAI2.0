@@ -371,7 +371,7 @@ describe('PagamentosService.conferirPendentes', () => {
   });
 });
 
-describe('PagamentosService.confirmarPagamento — notificações', () => {
+describe('PagamentosService.confirmarPagamento: notificações', () => {
   function comNotificacoes() {
     const notificacoes = {
       notificar: jest.fn().mockResolvedValue(undefined),
@@ -473,7 +473,7 @@ describe('PagamentosService.confirmarPagamento — notificações', () => {
   });
 });
 
-describe('PagamentosService.confirmarPagamento — livro-razão e comissão do síndico', () => {
+describe('PagamentosService.confirmarPagamento: livro-razão e comissão do síndico', () => {
   function prepararConfirmacao(prisma: ReturnType<typeof buildPrismaMock>) {
     prisma.pagamento.updateMany.mockResolvedValue({ count: 1 });
     prisma.pagamento.findUnique.mockResolvedValue({
@@ -494,7 +494,7 @@ describe('PagamentosService.confirmarPagamento — livro-razão e comissão do s
     });
   }
 
-  it('grava no livro-razão: líquido pro dono, 10% pro síndico e o registro do que o locatário pagou — tudo na mesma transação', async () => {
+  it('grava no livro-razão: líquido pro dono, 10% pro síndico e o registro do que o locatário pagou, tudo na mesma transação', async () => {
     const prisma = buildPrismaMock();
     prepararConfirmacao(prisma);
     prisma.user.findMany.mockResolvedValue([{ id: 'sindico-1' }]);

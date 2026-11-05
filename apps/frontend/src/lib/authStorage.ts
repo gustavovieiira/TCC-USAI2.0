@@ -41,7 +41,7 @@ export function updateStoredUser(user: StoredUser) {
 }
 
 /**
- * Página inicial de cada papel — pra onde vai o login/cadastro, o clique no logo "USAI" e o
+ * Página inicial de cada papel, pra onde vai o login/cadastro, o clique no logo "USAI" e o
  * fallback do `RoleRoute` quando o papel não bate com a rota. Admin ainda não tem acesso ao Mural
  * (não pertence a um condomínio), por isso cai no próprio painel em vez de entrar num loop de
  * redirecionamento.

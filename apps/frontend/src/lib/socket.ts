@@ -10,9 +10,9 @@ export interface LocacaoAtualizadaEvento {
 
 interface ConversaServerToClientEvents {
   'conversa:mensagem:nova': (mensagem: MensagemPrivadaDTO) => void;
-  /** M3 — pagamento confirmado (ou perdeu a corrida pra outra locação concorrente do mesmo item). */
+  /** M3, pagamento confirmado (ou perdeu a corrida pra outra locação concorrente do mesmo item). */
   'locacao:atualizada': (evento: LocacaoAtualizadaEvento) => void;
-  /** Aviso persistido novo (pedido de locação, pagamento, saque...) — ver módulo notificacoes. */
+  /** Aviso persistido novo (pedido de locação, pagamento, saque...), ver módulo notificacoes. */
   'notificacao:nova': (notificacao: NotificacaoDTO) => void;
 }
 
@@ -30,7 +30,7 @@ export type ConversaSocket = Socket<ConversaServerToClientEvents, ConversaClient
 
 /**
  * O Socket.IO roda no mesmo processo/porta do Express (ver apps/backend/src/realtime/socket.ts),
- * na raiz — não sob /api. VITE_API_URL aponta pra .../api, então derivamos a origem removendo o
+ * na raiz, não sob /api. VITE_API_URL aponta pra .../api, então derivamos a origem removendo o
  * sufixo em vez de exigir uma env var separada só pro socket.
  */
 const SOCKET_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api').replace(

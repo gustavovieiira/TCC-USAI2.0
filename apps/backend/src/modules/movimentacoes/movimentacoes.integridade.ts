@@ -27,7 +27,7 @@ export function sha256(texto: string): string {
   return createHash('sha256').update(texto).digest('hex');
 }
 
-/** Tudo que compõe o documento concluído — qualquer alteração silenciosa muda a impressão digital. */
+/** Tudo que compõe o documento concluído, qualquer alteração silenciosa muda a impressão digital. */
 export interface BaseDoHash {
   numero: number;
   tipo: string;

@@ -150,7 +150,7 @@ describe('LocacoesService.solicitar', () => {
     ).rejects.toBeInstanceOf(AppError);
   });
 
-  it('só considera PAGA/EM_ANDAMENTO como sobreposição — pendente/aprovada sem pagar não bloqueia (RN de disponibilidade do M3)', async () => {
+  it('só considera PAGA/EM_ANDAMENTO como sobreposição, pendente/aprovada sem pagar não bloqueia (RN de disponibilidade do M3)', async () => {
     const prisma = buildPrismaMock();
     prisma.item.findFirst.mockResolvedValue(itemDisponivel);
     prisma.locacao.findFirst.mockResolvedValue(null);
@@ -309,7 +309,7 @@ describe('calcularRepasse', () => {
   });
 });
 
-describe('LocacoesService — notificações', () => {
+describe('LocacoesService: notificações', () => {
   function comNotificacoes() {
     const notificacoes = { notificar: jest.fn().mockResolvedValue(undefined) };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

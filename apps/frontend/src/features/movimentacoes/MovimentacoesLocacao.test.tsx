@@ -36,7 +36,7 @@ function renderSecao(locacao: LocacaoDTO, userId: string) {
   );
 }
 
-describe('MovimentacoesLocacao — quem faz o quê', () => {
+describe('MovimentacoesLocacao: quem faz o quê', () => {
   it('locação PAGA sem retirada: o DONO vê "Registrar entrega"', async () => {
     vi.spyOn(api, 'listarMovimentacoesDaLocacao').mockResolvedValue([]);
 

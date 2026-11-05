@@ -8,6 +8,7 @@ import { ListaRolavel } from '@/components/ui/ListaRolavel';
 import { StatusBadge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { extractErrorMessage } from '@/lib/apiClient';
+import { escalonar } from '@/lib/animacao';
 import { formatCurrency, formatDate } from '@/lib/format';
 import {
   aprovarLocacao,
@@ -117,7 +118,7 @@ export function MinhasLocacoesPage() {
     }
   }
 
-  /** M3 — abre o link de pagamento PIX do Asaas numa aba nova; a volta pra PAGA chega sozinha via socket. */
+  /** M3: abre o link de pagamento PIX do Asaas numa aba nova; a volta pra PAGA chega sozinha via socket. */
   async function handlePagar(locacao: LocacaoDTO) {
     setProcessandoId(locacao.id);
     try {
@@ -219,8 +220,12 @@ export function MinhasLocacoesPage() {
           ) : (
             <ListaRolavel rotulo="Locações" alturaMaxima="max-h-[calc(100vh-28rem)] min-h-[22rem]">
               <div className="flex flex-col gap-3">
-                {listaFiltrada.map((locacao) => (
-                  <Card key={locacao.id} className="flex flex-col">
+                {listaFiltrada.map((locacao, indice) => (
+                  <Card
+                    key={locacao.id}
+                    className="entra flex flex-col"
+                    style={escalonar(indice, 60)}
+                  >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                       <div className="flex-1">
                         <div className="flex items-center gap-2">

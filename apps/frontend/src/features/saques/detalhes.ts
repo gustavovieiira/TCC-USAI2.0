@@ -5,7 +5,7 @@ import { MovimentoExtratoDTO, PagamentoExtratoDTO, SaqueDTO, StatusSaque } from 
 
 const ROTULO_STATUS_SAQUE: Record<StatusSaque, string> = {
   PENDENTE: 'Em análise',
-  APROVADO: 'Aprovado — aguardando o PIX',
+  APROVADO: 'Aprovado, aguardando o PIX',
   PAGO: 'Pago',
   REJEITADO: 'Rejeitado',
 };
@@ -25,7 +25,7 @@ function periodo(inicio: string, fim: string): string {
 /** Visão do Admin USAI: chave PIX completa (é o que ele precisa pra transferir). */
 export function detalheSaqueAdmin(saque: SaqueDTO): Detalhe {
   const linhas = [
-    { rotulo: 'Solicitante', valor: saque.solicitanteNome ?? '—' },
+    { rotulo: 'Solicitante', valor: saque.solicitanteNome ?? 'Não informado' },
     ...(saque.solicitanteCondominio
       ? [{ rotulo: 'Condomínio', valor: saque.solicitanteCondominio }]
       : []),
@@ -62,7 +62,7 @@ export function detalheMovimento(movimento: MovimentoExtratoDTO): Detalhe {
       titulo: 'Recibo de aluguel recebido',
       subtitulo: movimento.descricao,
       linhas: [
-        { rotulo: 'Pago por', valor: movimento.contraparte?.nome ?? '—' },
+        { rotulo: 'Pago por', valor: movimento.contraparte?.nome ?? 'Não informado' },
         ...(movimento.periodo
           ? [
               {
@@ -132,7 +132,7 @@ export function detalheMovimento(movimento: MovimentoExtratoDTO): Detalhe {
     subtitulo: movimento.descricao,
     linhas: [
       { rotulo: 'Valor', valor: formatCurrency(Math.abs(movimento.valor)) },
-      { rotulo: 'Chave PIX', valor: movimento.chavePix ?? '—' },
+      { rotulo: 'Chave PIX', valor: movimento.chavePix ?? 'Não informado' },
       { rotulo: 'Situação', valor: ROTULO_STATUS_MOVIMENTO[movimento.status] },
       { rotulo: 'Pedido em', valor: formatDateHora(movimento.data) },
       ...(movimento.processadoEm
@@ -156,7 +156,7 @@ export function detalhePagamento(pagamento: PagamentoExtratoDTO): Detalhe {
     titulo: confirmado ? 'Recibo de aluguel pago' : 'Detalhes do pagamento',
     subtitulo: pagamento.descricao,
     linhas: [
-      { rotulo: 'Pago a', valor: pagamento.contraparte?.nome ?? '—' },
+      { rotulo: 'Pago a', valor: pagamento.contraparte?.nome ?? 'Não informado' },
       {
         rotulo: 'Período do aluguel',
         valor: periodo(pagamento.periodo.inicio, pagamento.periodo.fim),

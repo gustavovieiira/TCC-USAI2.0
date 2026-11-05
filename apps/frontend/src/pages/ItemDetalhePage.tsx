@@ -120,7 +120,7 @@ export function ItemDetalhePage() {
               .filter(([, valor]) => valor)
               .map(([rotulo, valor]) => (
                 <div key={rotulo}>
-                  <dt className="font-meta text-[11px] uppercase tracking-wide text-ink-faint">
+                  <dt className="font-meta text-xs uppercase tracking-wide text-ink-faint">
                     {rotulo}
                   </dt>
                   <dd className="text-ink">{valor}</dd>
@@ -142,7 +142,7 @@ export function ItemDetalhePage() {
 
       {ehDono ? (
         <Card className="bg-paper text-sm text-ink-soft">
-          Este item é seu — acompanhe as solicitações em{' '}
+          Este item é seu. Acompanhe as solicitações em{' '}
           <Link to="/locacoes" className="font-semibold text-barro-700 hover:underline">
             Minhas locações
           </Link>
@@ -156,7 +156,7 @@ export function ItemDetalhePage() {
           </p>
           <Link
             to="/locacoes"
-            className="notch bg-barro-500 px-4 py-2 text-sm font-bold text-paper-surface
+            className="notch bg-barro-500 px-4 py-2 text-sm font-bold text-ink
               shadow-press hover:bg-barro-700"
           >
             Ver minhas locações

@@ -28,7 +28,7 @@ export function SaquesPage() {
       <div>
         <h1 className="font-display text-2xl font-bold text-ink">Saques e extrato</h1>
         <p className="text-sm text-ink-soft">
-          Veja o que entrou, de onde veio, que taxa foi aplicada, o que saiu — e peça o saque do que
+          Veja o que entrou, de onde veio, que taxa foi aplicada, o que saiu, e peça o saque do que
           você já recebeu.
         </p>
       </div>

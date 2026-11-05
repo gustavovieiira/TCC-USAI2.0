@@ -14,7 +14,7 @@ function tokenPara(papel: 'MORADOR' | 'SINDICO' | 'ADMIN'): string {
   });
 }
 
-describe('RBAC de /api/admin — rotas exclusivas do papel ADMIN', () => {
+describe('RBAC de /api/admin: rotas exclusivas do papel ADMIN', () => {
   const app = createApp();
 
   it('bloqueia morador tentando criar condomínio', async () => {

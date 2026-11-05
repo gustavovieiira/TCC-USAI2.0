@@ -62,7 +62,7 @@ export function AbaDocumentos() {
               </span>
             </div>
             <p className="text-sm text-ink-soft">
-              {doc.itemTitulo} — entregue por {doc.entreguePor.nome}, recebido por{' '}
+              {doc.itemTitulo}: entregue por {doc.entreguePor.nome}, recebido por{' '}
               {doc.recebidoPor.nome}
             </p>
             <span className="text-xs text-ink-faint">{formatDateHora(doc.ocorridoEm)}</span>

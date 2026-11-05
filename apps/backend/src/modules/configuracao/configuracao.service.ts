@@ -7,14 +7,14 @@ const CHAVE_LOGO = 'logo_url';
 const CHAVE_NOME = 'nome_institucional';
 const CHAVE_RODAPE = 'rodape_institucional';
 
-export const NOME_INSTITUCIONAL_PADRAO = 'USAI — Compartilhamento entre vizinhos';
+export const NOME_INSTITUCIONAL_PADRAO = 'USAI: compartilhamento entre vizinhos';
 export const RODAPE_INSTITUCIONAL_PADRAO =
   'Documento gerado eletronicamente pela plataforma USAI. A autenticidade pode ser conferida pelo número do documento e pela impressão digital de integridade.';
 
 /**
  * Identidade da plataforma (logo oficial, nome e rodapé institucionais) editável pelo Admin e
  * usada no cabeçalho, na tela inicial e nos documentos gerados. Sem nada configurado, valem os
- * padrões acima e a marca embutida da USAI — o sistema nunca fica sem identidade.
+ * padrões acima e a marca embutida da USAI, o sistema nunca fica sem identidade.
  */
 export class ConfiguracaoService {
   /** `pastaDaLogo`: onde os arquivos de logo moram, pra poder apagar o antigo ao trocar. */

@@ -743,11 +743,9 @@ describe('CartaoAssinatura', () => {
     render(<CartaoAssinatura painel={painel({ diasRestantes: 3 })} />);
 
     const select = screen.getByLabelText('Renovar por');
+    expect(within(select).getByRole('option', { name: /Mensal: R\$\s149,00/ })).toBeInTheDocument();
     expect(
-      within(select).getByRole('option', { name: /Mensal — R\$\s149,00/ }),
-    ).toBeInTheDocument();
-    expect(
-      within(select).getByRole('option', { name: /Anual — R\$\s1.430,00 \(−20%\)/ }),
+      within(select).getByRole('option', { name: /Anual: R\$\s1.430,00 \(−20%\)/ }),
     ).toBeInTheDocument();
 
     await userEvent.selectOptions(select, 'ANUAL');

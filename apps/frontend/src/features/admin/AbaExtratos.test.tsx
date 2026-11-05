@@ -40,7 +40,7 @@ function extratoVazio(overrides: Partial<ExtratoDTO> = {}): ExtratoDTO {
   };
 }
 
-describe('AbaExtratos — extrato de qualquer usuário', () => {
+describe('AbaExtratos: extrato de qualquer usuário', () => {
   it('lista os usuários e abre o extrato de quem o Admin escolher', async () => {
     vi.spyOn(adminApi, 'listarUsuarios').mockResolvedValue([ana, carla]);
     const extrato: ExtratoDeUsuarioDTO = {
@@ -145,7 +145,7 @@ describe('AbaExtratos — extrato de qualquer usuário', () => {
   });
 });
 
-describe('AbaExtratos — conta da USAI', () => {
+describe('AbaExtratos: conta da USAI', () => {
   async function abrirContaDaUsai() {
     render(<AbaExtratos />);
     await userEvent.click(screen.getByRole('button', { name: 'Conta da USAI' }));

@@ -19,7 +19,7 @@ export interface RegistrarMovimentacaoInput {
 }
 
 export interface AceitarMovimentacaoInput {
-  /** Ids das declarações marcadas — têm que ser TODAS as do termo. */
+  /** Ids das declarações marcadas, têm que ser TODAS as do termo. */
   declaracoes: string[];
   /** Reconfirmação de identidade: a senha do usuário que está aceitando. */
   senha: string;

@@ -84,7 +84,7 @@ export function ConviteMoradores({ nomeCondominio, linkSlug, pin }: ConviteMorad
         type="button"
         onClick={() => copiar('convite', textoDoConvite(nomeCondominio, linkSlug, pin))}
         className="notch min-h-[44px] self-start bg-barro-500 px-5 py-2 text-sm font-bold
-          text-paper-surface shadow-press transition hover:bg-barro-700"
+          text-ink shadow-press transition hover:bg-barro-700"
       >
         {copiado === 'convite' ? 'Convite copiado!' : 'Copiar mensagem de convite'}
       </button>

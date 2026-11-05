@@ -6,7 +6,7 @@ interface RoleRouteProps {
 }
 
 /**
- * Guarda de UX, não de segurança — o backend já aplica requireRole em cada rota. Isso só evita o
+ * Guarda de UX, não de segurança, o backend já aplica requireRole em cada rota. Isso só evita o
  * morador comum cair numa tela de admin/síndico e levar um 403 confuso.
  */
 export function RoleRoute({ allow }: RoleRouteProps) {

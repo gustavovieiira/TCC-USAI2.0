@@ -52,7 +52,7 @@ export class SindicoService {
 
   /**
    * Remoção lógica (ativo=false): o morador deixa de conseguir logar e some da lista de moradores,
-   * mas o histórico (itens, locações, posts, mensagens) permanece intacto para auditoria — mesmo
+   * mas o histórico (itens, locações, posts, mensagens) permanece intacto para auditoria, mesmo
    * padrão de soft delete já usado em Item/Condominio.
    */
   async removerMorador(condominioId: string, moradorId: string): Promise<void> {

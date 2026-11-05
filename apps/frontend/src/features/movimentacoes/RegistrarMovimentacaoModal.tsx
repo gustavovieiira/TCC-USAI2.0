@@ -18,7 +18,7 @@ interface RegistrarMovimentacaoModalProps {
   locacaoId: string;
   itemTitulo: string;
   tipo: TipoMovimentacao;
-  /** Acessórios cadastrados no item — viram a lista de conferência. */
+  /** Acessórios cadastrados no item, viram a lista de conferência. */
   acessoriosDoItem: string[];
   onFechar: () => void;
   onRegistrado: (movimentacao: MovimentacaoResumoDTO) => void;
@@ -46,7 +46,7 @@ const TEXTOS: Record<
 
 /**
  * Quem ENTREGA registra a operação: estado de conservação, conferência dos acessórios e
- * observações. Nada vem marcado de antemão — cada acessório é conferido de propósito. Quem recebe
+ * observações. Nada vem marcado de antemão, cada acessório é conferido de propósito. Quem recebe
  * confere e aceita o termo na tela do documento.
  */
 export function RegistrarMovimentacaoModal({

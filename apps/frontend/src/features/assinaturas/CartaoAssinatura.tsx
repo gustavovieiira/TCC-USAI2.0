@@ -154,7 +154,7 @@ export function CartaoAssinatura({ painel }: CartaoAssinaturaProps) {
             >
               {painel.opcoesRenovacao.map((opcao) => (
                 <option key={opcao.periodoCodigo} value={opcao.periodoCodigo}>
-                  {opcao.nome} — {formatCurrency(opcao.valorTotal)}
+                  {opcao.nome}: {formatCurrency(opcao.valorTotal)}
                   {opcao.desconto > 0 ? ` (−${opcao.desconto}%)` : ''}
                 </option>
               ))}

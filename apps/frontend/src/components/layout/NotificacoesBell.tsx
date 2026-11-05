@@ -28,7 +28,7 @@ export function NotificacoesBell() {
       {naoLidas > 0 && (
         <span
           className="absolute right-1 top-1 flex h-4 min-w-[16px] items-center justify-center
-            rounded-full bg-carmim-500 px-1 text-[10px] font-bold leading-none text-white"
+            rounded-full bg-carmim-500 px-1 text-xs font-bold leading-none text-white"
           data-testid="notificacoes-contagem"
         >
           {naoLidas > 99 ? '99+' : naoLidas}

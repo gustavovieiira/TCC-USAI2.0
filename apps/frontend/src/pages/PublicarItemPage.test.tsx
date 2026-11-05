@@ -21,7 +21,7 @@ function renderPage() {
   );
 }
 
-describe('PublicarItemPage — valor mínimo da diária (R$ 5,00)', () => {
+describe('PublicarItemPage: valor mínimo da diária (R$ 5,00)', () => {
   async function preencher(valor: string) {
     await userEvent.type(screen.getByLabelText('Título'), 'Furadeira Bosch');
     await userEvent.type(screen.getByLabelText('Categoria'), 'Ferramentas');
@@ -168,7 +168,7 @@ describe('PublicarItemPage', () => {
     renderPage();
 
     // userEvent.upload respeita o atributo `accept` do input (como o seletor de arquivo do SO) e
-    // não dispara o evento pra um tipo incompatível — por isso o change é forçado via fireEvent
+    // não dispara o evento pra um tipo incompatível, por isso o change é forçado via fireEvent
     // aqui, exercitando a validação defensiva do componente (relevante pra drag-and-drop, por
     // exemplo, que não respeita `accept`).
     const arquivo = new File(['conteudo'], 'documento.pdf', { type: 'application/pdf' });
@@ -224,7 +224,7 @@ describe('PublicarItemPage', () => {
   });
 });
 
-describe('PublicarItemPage — identificação do bem', () => {
+describe('PublicarItemPage: identificação do bem', () => {
   const itemCriado = {
     id: 'item-novo',
     titulo: 'Furadeira Bosch',
@@ -248,7 +248,7 @@ describe('PublicarItemPage — identificação do bem', () => {
     await userEvent.type(screen.getByLabelText('Valor por diária (R$)'), '20');
   }
 
-  it('fabricante, modelo, nº de série e acessórios são opcionais — sem eles o item publica como sempre', async () => {
+  it('fabricante, modelo, nº de série e acessórios são opcionais, sem eles o item publica como sempre', async () => {
     const criar = vi.spyOn(itensApi, 'criarItem').mockResolvedValue(itemCriado);
     renderPage();
 

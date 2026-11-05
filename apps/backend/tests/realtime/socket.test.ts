@@ -167,7 +167,7 @@ describe('WebSocket do chat em tempo real (conversas do Mural e das locações)'
     conversasService.enviarMensagem.mockResolvedValue(mensagemPersistida);
     conversasService.buscarOutroParticipanteId.mockResolvedValue('user-bruno');
 
-    // Só o remetente entra na sala da conversa — o destinatário nunca chamou 'conversa:entrar'.
+    // Só o remetente entra na sala da conversa, o destinatário nunca chamou 'conversa:entrar'.
     await new Promise((resolve) => remetente.emit('conversa:entrar', 'conversa-nova', resolve));
 
     const recebida = new Promise((resolve) => {

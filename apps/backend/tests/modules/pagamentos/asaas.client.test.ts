@@ -140,7 +140,7 @@ describe('AsaasClient.cancelarCobranca', () => {
   });
 });
 
-describe('AsaasClient — falhas de conexão', () => {
+describe('AsaasClient: falhas de conexão', () => {
   const erroDeRede = (codigo: string) =>
     Object.assign(new TypeError('fetch failed'), { cause: { code: codigo } });
 

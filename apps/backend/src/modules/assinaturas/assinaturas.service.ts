@@ -416,7 +416,7 @@ export class AssinaturasService {
   }
 
   /**
-   * Síndico gera o PIX da renovação. Pode trocar de período (ex.: de mensal pra anual) — a cobrança
+   * Síndico gera o PIX da renovação. Pode trocar de período (ex.: de mensal pra anual), a cobrança
    * em aberto de outro período é cancelada. Pedir o mesmo período de novo devolve a que já existe.
    */
   async gerarCobrancaRenovacao(
@@ -644,7 +644,7 @@ export class AssinaturasService {
       valor: valorTotal,
       vencimento,
       externalReference: `assinatura:${assinatura.id}`,
-      descricao: `USAI — plano ${plano?.nome ?? assinatura.planoCodigo}, ${periodo.nome.toLowerCase()} (${referencia})`,
+      descricao: `Plano ${plano?.nome ?? assinatura.planoCodigo} da USAI, ${periodo.nome.toLowerCase()} (${referencia})`,
     });
 
     return this.prisma.cobrancaAssinatura.create({
@@ -661,7 +661,7 @@ export class AssinaturasService {
     });
   }
 
-  /** Cancela uma cobrança em aberto (aqui e, se der, no Asaas — o cancelamento lá é best-effort). */
+  /** Cancela uma cobrança em aberto (aqui e, se der, no Asaas, o cancelamento lá é best-effort). */
   private async cancelarCobranca(cobranca: CobrancaAssinatura): Promise<void> {
     await this.prisma.cobrancaAssinatura.updateMany({
       where: { id: cobranca.id, status: 'PENDENTE' },
