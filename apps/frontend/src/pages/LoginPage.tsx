@@ -18,13 +18,19 @@ export function LoginPage() {
         }}
       />
       <p className="mt-4 text-center text-sm">
-        <Link to="/esqueci-senha" className="font-semibold text-barro-700 hover:underline">
+        <Link
+          to="/esqueci-senha"
+          className="font-semibold text-fachada-coral-texto underline underline-offset-2 hover:no-underline"
+        >
           Esqueci minha senha
         </Link>
       </p>
-      <p className="mt-4 text-center text-sm text-ink-soft">
+      <p className="mt-4 text-center text-sm text-fachada-tinta-suave">
         Recebeu um link de convite do seu condomínio?{' '}
-        <Link to="/cadastro" className="font-semibold text-barro-700 hover:underline">
+        <Link
+          to="/cadastro"
+          className="font-semibold text-fachada-coral-texto underline underline-offset-2 hover:no-underline"
+        >
           Cadastre-se por aqui
         </Link>
       </p>

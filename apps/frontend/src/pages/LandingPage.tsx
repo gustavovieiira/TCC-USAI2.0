@@ -1,5 +1,6 @@
 import { CSSProperties, ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { JanelasAcendendo } from '@/components/fachada/JanelasAcendendo';
 import { ContatoSuporte } from '@/components/ui/ContatoSuporte';
 import { Logo } from '@/components/ui/Logo';
 import { PlanosPrecos } from '@/features/assinaturas/PlanosPrecos';
@@ -85,29 +86,6 @@ function Pictograma({ children }: { children: ReactNode }) {
         {children}
       </svg>
     </span>
-  );
-}
-
-/** Linha de janelas que acendem em cascata quando entra na tela (enfeite do fim da página). */
-function JanelasAcendendo() {
-  const [ref, naTela] = useNaTela<HTMLDivElement>();
-  return (
-    <div
-      ref={ref}
-      className="flex max-w-xs flex-wrap justify-center gap-2 sm:max-w-none sm:gap-2.5"
-      aria-hidden="true"
-    >
-      {Array.from({ length: 12 }, (_, i) => (
-        <span
-          key={i}
-          data-acesa={naTela && i % 4 !== 2}
-          style={{ '--atraso': `${i * 110}ms` } as CSSProperties}
-          className="relative block h-9 w-6 overflow-hidden rounded-[5px] bg-fachada-tinta sm:h-11 sm:w-7"
-        >
-          <span className="janela-luz absolute inset-[3px] rounded-[3px] bg-fachada-luz" />
-        </span>
-      ))}
-    </div>
   );
 }
 

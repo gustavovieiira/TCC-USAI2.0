@@ -238,6 +238,24 @@ body:has(.mundo-fachada) {
   animation: cordaEstica 11s var(--suave, ease-in-out) infinite;
 }
 
+/* Janelas de fundo das telas de acesso: cada uma acende e apaga no seu ritmo. */
+@keyframes luzVizinho {
+  0%,
+  100% {
+    opacity: var(--base, 0.2);
+  }
+
+  50% {
+    opacity: var(--alto, 0.85);
+  }
+}
+
+.luz-vizinho {
+  opacity: var(--base, 0.2);
+  animation: luzVizinho var(--duracao, 9s) ease-in-out infinite;
+  animation-delay: var(--atraso, 0ms);
+}
+
 /* Janelas ilustradas da seção de benefícios. */
 @keyframes pisca {
   0%,

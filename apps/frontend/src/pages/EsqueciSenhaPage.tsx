@@ -33,18 +33,21 @@ export function EsqueciSenhaPage() {
         title="Confira o seu e-mail"
         subtitle="Se houver uma conta com esse endereço, o link já está a caminho."
       >
-        <div className="flex flex-col gap-3 text-center text-sm text-ink-soft">
+        <div className="flex flex-col gap-3 text-center text-sm text-fachada-tinta-suave">
           <p role="status">
-            Enviamos para <strong className="text-ink">{enviadoPara}</strong> um link para criar uma
-            nova senha. Ele vale por 1 hora e só pode ser usado uma vez.
+            Enviamos para <strong className="text-fachada-tinta">{enviadoPara}</strong> um link para
+            criar uma nova senha. Ele vale por 1 hora e só pode ser usado uma vez.
           </p>
-          <p className="text-xs text-ink-faint">
+          <p className="text-xs text-fachada-tinta-suave">
             Não chegou? Veja a caixa de spam (marque como &quot;não é spam&quot;) e confira se o
             e-mail está escrito certo.
           </p>
         </div>
         <p className="mt-6 text-center text-sm">
-          <Link to="/login" className="font-semibold text-barro-700 hover:underline">
+          <Link
+            to="/login"
+            className="font-semibold text-fachada-coral-texto underline underline-offset-2 hover:no-underline"
+          >
             Voltar para Entrar
           </Link>
         </p>
@@ -69,7 +72,7 @@ export function EsqueciSenhaPage() {
         />
 
         {erro && (
-          <p role="alert" className="text-sm text-carmim-700">
+          <p role="alert" className="text-sm font-medium text-fachada-coral-texto">
             {erro}
           </p>
         )}
@@ -79,9 +82,12 @@ export function EsqueciSenhaPage() {
         </Button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-ink-soft">
+      <p className="mt-6 text-center text-sm text-fachada-tinta-suave">
         Lembrou a senha?{' '}
-        <Link to="/login" className="font-semibold text-barro-700 hover:underline">
+        <Link
+          to="/login"
+          className="font-semibold text-fachada-coral-texto underline underline-offset-2 hover:no-underline"
+        >
           Entrar
         </Link>
       </p>

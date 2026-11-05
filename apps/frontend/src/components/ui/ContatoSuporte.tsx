@@ -13,7 +13,8 @@ interface ContatoSuporteProps {
   className?: string;
 }
 
-const LINK_CLARO = 'font-semibold text-barro-700 underline-offset-2 hover:underline';
+const LINK_CLARO =
+  'font-semibold text-fachada-coral-texto underline underline-offset-2 hover:no-underline';
 const LINK_ESCURO =
   'font-semibold text-fachada-luz underline underline-offset-2 hover:no-underline';
 

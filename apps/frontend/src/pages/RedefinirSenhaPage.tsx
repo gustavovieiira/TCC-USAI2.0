@@ -40,15 +40,11 @@ export function RedefinirSenhaPage() {
   if (concluido) {
     return (
       <AuthShell title="Senha alterada" subtitle="Pronto! Agora é só entrar com a senha nova.">
-        <p role="status" className="text-center text-sm text-ink-soft">
+        <p role="status" className="text-center text-sm text-fachada-tinta-suave">
           Use o seu e-mail e a senha que você acabou de criar na página <strong>Entrar</strong>.
         </p>
         <div className="mt-6 flex justify-center">
-          <Link
-            to="/login"
-            className="notch min-h-[44px] bg-barro-500 px-6 py-3 text-center font-bold text-paper-surface
-              shadow-press hover:bg-barro-400"
-          >
+          <Link to="/login" className="botao-coral">
             Ir para Entrar
           </Link>
         </div>
@@ -59,12 +55,15 @@ export function RedefinirSenhaPage() {
   if (!token) {
     return (
       <AuthShell title="Link inválido" subtitle="Use o link que enviamos para o seu e-mail.">
-        <p className="text-center text-sm text-ink-soft">
+        <p className="text-center text-sm text-fachada-tinta-suave">
           Esse endereço não tem o código para criar a nova senha. Abra o e-mail da USAI e clique no
           botão de lá, ou peça um novo link.
         </p>
         <p className="mt-6 text-center text-sm">
-          <Link to="/esqueci-senha" className="font-semibold text-barro-700 hover:underline">
+          <Link
+            to="/esqueci-senha"
+            className="font-semibold text-fachada-coral-texto underline underline-offset-2 hover:no-underline"
+          >
             Pedir um novo link
           </Link>
         </p>
@@ -98,10 +97,10 @@ export function RedefinirSenhaPage() {
           value={confirmacao}
           onChange={(e) => setConfirmacao(e.target.value)}
         />
-        <p className="text-xs text-ink-faint">Use pelo menos 8 caracteres.</p>
+        <p className="text-xs text-fachada-tinta-suave">Use pelo menos 8 caracteres.</p>
 
         {erro && (
-          <p role="alert" className="text-sm text-carmim-700">
+          <p role="alert" className="text-sm font-medium text-fachada-coral-texto">
             {erro}
           </p>
         )}
@@ -111,9 +110,12 @@ export function RedefinirSenhaPage() {
         </Button>
       </form>
 
-      <p className="mt-6 text-center text-xs text-ink-soft">
+      <p className="mt-6 text-center text-xs text-fachada-tinta-suave">
         O link expirou ou não funciona?{' '}
-        <Link to="/esqueci-senha" className="font-semibold text-barro-700 hover:underline">
+        <Link
+          to="/esqueci-senha"
+          className="font-semibold text-fachada-coral-texto underline underline-offset-2 hover:no-underline"
+        >
           Pedir um novo link
         </Link>
       </p>

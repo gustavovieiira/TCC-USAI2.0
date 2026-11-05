@@ -28,14 +28,9 @@ export function CadastroPage() {
             name="linkSlug"
             placeholder="ex.: residencial-jardim-europa"
             required
-            className="min-h-[44px] border border-ink/40 bg-paper-surface px-3 py-2 text-ink
-              outline-none focus:border-ink"
+            className="min-h-[48px] rounded-[12px] border-2 border-fachada-tinta/25 bg-white px-3.5 py-2 text-fachada-tinta outline-none focus:border-fachada-coral-texto"
           />
-          <button
-            type="submit"
-            className="notch min-h-[44px] bg-barro-500 px-4 py-2.5 font-bold text-paper-surface
-              shadow-press hover:bg-barro-700"
-          >
+          <button type="submit" className="botao-coral w-full">
             Continuar
           </button>
         </form>
@@ -52,9 +47,12 @@ export function CadastroPage() {
           navigate(homeRouteFor(result.user.papel));
         }}
       />
-      <p className="mt-6 text-center text-sm text-ink-soft">
+      <p className="mt-6 text-center text-sm text-fachada-tinta-suave">
         Já tem conta?{' '}
-        <Link to="/login" className="font-semibold text-barro-700 hover:underline">
+        <Link
+          to="/login"
+          className="font-semibold text-fachada-coral-texto underline underline-offset-2 hover:no-underline"
+        >
           Entrar
         </Link>
       </p>

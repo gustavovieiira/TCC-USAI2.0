@@ -6,6 +6,34 @@
 
 ---
 
+## 2026-11-05 — Redesenho, etapa 2: contratação, acesso e recuperação de senha
+
+**Escopo.** Contratar, acompanhar a contratação, criar senha (primeiro acesso), login, cadastro de morador,
+"esqueci minha senha" e redefinir senha, todas no sistema "A Fachada" (`DESIGN.md`). A etapa 1 (tela inicial)
+passou limpa no CI e no Sonar (gate OK, 90,8% de cobertura do código novo, zero issues).
+
+**O que mudou.**
+- Moldura `AuthShell`: cartão de papel sobre o céu da USAI, com prédios ao fundo cujas janelas acendem e
+  apagam, cada uma no seu ritmo (`components/fachada/CeuNoturno.tsx`, só CSS, escondido do leitor de tela).
+- Contratar (`ContratarPage.tsx`): cartão de papel com opções de plano e período em cartões de seleção (marcador
+  de check, anel de foco), resumo como bilhete em Caveat e o "Como funciona" num bloco petróleo.
+- Acompanhar a contratação: na espera, cinco janelinhas piscando em sequência no lugar do spinner; confirmado o
+  PIX, uma cascata de janelas acesas (`JanelasAcendendo.tsx`, também usado no fim da tela inicial).
+- `Button`, `TextField` e `Spinner` (compartilhados com o app inteiro) ganharam o visual novo: coral, cantos
+  arredondados, foco visível em açafrão e erro em `coral-texto`. As telas internas ainda estão no visual
+  antigo (fundo creme, cabeçalho escuro, serifa), o que deixa o app misturado até as etapas 3 a 5.
+- `DESIGN.md`: escala tipográfica completa (display, título, cartão, preço, corpo e corpo pequeno).
+
+**Verificação.** Conferido em 420, 360 e 320 px e em 1440 px (sem estouro de largura); fluxo real no sandbox
+(contratar, espera, PIX confirmado, tela de confirmação); detector da skill sem achados nas telas novas (restam
+11 avisos de fonte de 10 e 11 px, todos nas telas internas antigas); 344 testes do frontend, lint, tipos e
+build ok. Testes novos: `fachada.test.tsx`. O backend não foi alterado e segue com 627 testes passando.
+
+**Pendências.** Etapas 3 (app do morador), 4 (painel do síndico) e 5 (Admin); trocar de vez o fundo, o cabeçalho
+e a navegação do app; remover os tokens antigos (`paper`, `ink`, `barro`, `jade`) no fim.
+
+---
+
 ## 2026-11-05 — Redesenho, etapa 1: tela inicial ("A Fachada")
 
 **Pedido.** Redesenhar o visual inteiro da USAI com a skill Impeccable (instalada na mão em

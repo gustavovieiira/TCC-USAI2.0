@@ -42,11 +42,14 @@ export function DefinirSenhaPage() {
   if (!token) {
     return (
       <AuthShell title="Link inválido" subtitle="Use o link que enviamos para o seu e-mail.">
-        <p className="text-center text-sm text-ink-soft">
+        <p className="text-center text-sm text-fachada-tinta-suave">
           Esse endereço não tem o código de acesso. Abra o e-mail da USAI e clique no botão de lá.
         </p>
         <p className="mt-6 text-center text-sm">
-          <Link to="/login" className="font-semibold text-barro-700 hover:underline">
+          <Link
+            to="/login"
+            className="font-semibold text-fachada-coral-texto underline underline-offset-2 hover:no-underline"
+          >
             Ir para o login
           </Link>
         </p>
@@ -80,10 +83,10 @@ export function DefinirSenhaPage() {
           value={confirmacao}
           onChange={(e) => setConfirmacao(e.target.value)}
         />
-        <p className="text-xs text-ink-faint">Use pelo menos 8 caracteres.</p>
+        <p className="text-xs text-fachada-tinta-suave">Use pelo menos 8 caracteres.</p>
 
         {erro && (
-          <p role="alert" className="text-sm text-carmim-700">
+          <p role="alert" className="text-sm font-medium text-fachada-coral-texto">
             {erro}
           </p>
         )}
@@ -93,14 +96,17 @@ export function DefinirSenhaPage() {
         </Button>
       </form>
 
-      <div className="mt-6 flex flex-col gap-2 border-t border-dashed border-paper-line pt-4 text-center text-xs text-ink-soft">
+      <div className="mt-6 flex flex-col gap-2 border-t border-dashed border-fachada-tinta/20 pt-4 text-center text-xs text-fachada-tinta-suave">
         <p>
           Depois de criar a senha, você entra sempre pela página <strong>Entrar</strong>, com o seu
           e-mail e a senha que definiu.
         </p>
         <p>
           Já criou a sua senha?{' '}
-          <Link to="/login" className="font-semibold text-barro-700 hover:underline">
+          <Link
+            to="/login"
+            className="font-semibold text-fachada-coral-texto underline underline-offset-2 hover:no-underline"
+          >
             Entrar
           </Link>
         </p>

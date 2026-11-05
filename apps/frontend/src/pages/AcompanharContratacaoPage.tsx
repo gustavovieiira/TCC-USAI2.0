@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { JanelasAcendendo, JanelasEsperando } from '@/components/fachada/JanelasAcendendo';
 import { Spinner } from '@/components/ui/Spinner';
 import {
   consultarContratacao,
@@ -11,6 +12,9 @@ import { formatCurrency } from '@/lib/format';
 import { AuthShell } from './AuthShell';
 
 const INTERVALO_CONSULTA_MS = 5000;
+
+const LINK =
+  'font-semibold text-fachada-coral-texto underline underline-offset-2 hover:no-underline';
 
 /**
  * Passo seguinte à contratação: mostra o PIX e espera a confirmação do pagamento (consulta a cada
@@ -60,11 +64,11 @@ export function AcompanharContratacaoPage() {
   if (erro && !contratacao) {
     return (
       <AuthShell title="Contratação não encontrada" subtitle="Confira o endereço desta página.">
-        <p role="alert" className="text-center text-sm text-carmim-700">
+        <p role="alert" className="text-center text-sm font-medium text-fachada-coral-texto">
           {erro}
         </p>
         <p className="mt-6 text-center text-sm">
-          <Link to="/" className="font-semibold text-barro-700 hover:underline">
+          <Link to="/" className={LINK}>
             Voltar para a tela inicial
           </Link>
         </p>
@@ -90,15 +94,15 @@ export function AcompanharContratacaoPage() {
         title="Falta só o pagamento"
         subtitle={`${contratacao.nomeCondominio} · plano ${plano.nome}`}
       >
-        <div className="notch-sm border border-paper-line bg-paper p-4 text-center">
-          <p className="font-meta text-xs uppercase tracking-wide text-ink-faint">
+        <div className="rounded-[18px] bg-white p-5 text-center shadow-[0_14px_26px_-18px_rgb(11_42_48/0.5)]">
+          <p className="font-mao text-2xl font-bold leading-none text-fachada-coral-texto">
             Primeiro pagamento · {contratacao.periodo.nome}
           </p>
-          <p className="font-display text-3xl font-bold text-ink">
+          <p className="mt-2 font-marca text-4xl font-extrabold tracking-tight text-fachada-tinta">
             {formatCurrency(contratacao.valorCiclo)}
           </p>
           {contratacao.periodo.desconto > 0 && (
-            <p className="text-xs font-semibold text-jade-700">
+            <p className="mt-1 text-xs font-semibold text-fachada-folha-texto">
               Já com {contratacao.periodo.desconto}% de desconto
             </p>
           )}
@@ -109,21 +113,19 @@ export function AcompanharContratacaoPage() {
             href={contratacao.invoiceUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="notch mt-4 flex min-h-[44px] items-center justify-center bg-barro-500 px-5 py-3
-              font-bold text-paper-surface shadow-press hover:bg-barro-700"
+            className="botao-coral mt-4 w-full"
           >
             Pagar com PIX
           </a>
         )}
 
-        <div
-          role="status"
-          className="mt-5 flex items-center justify-center gap-2 text-center text-sm text-ink-soft"
-        >
-          <Spinner />
-          <p>Aguardando a confirmação do pagamento. Esta página atualiza sozinha.</p>
+        <div role="status" className="mt-6 flex flex-col items-center gap-3 text-center">
+          <JanelasEsperando />
+          <p className="text-sm text-fachada-tinta-suave">
+            Aguardando a confirmação do pagamento. Esta página atualiza sozinha.
+          </p>
         </div>
-        <p className="mt-3 text-center text-xs text-ink-faint">
+        <p className="mt-3 text-center text-xs text-fachada-tinta-suave">
           Pode fechar esta página: quando o PIX for confirmado, o acesso chega em{' '}
           {contratacao.emailMascarado}.
         </p>
@@ -136,22 +138,23 @@ export function AcompanharContratacaoPage() {
       title="Pagamento confirmado!"
       subtitle={`${contratacao.nomeCondominio} já está ativo na USAI.`}
     >
-      <p className="text-center text-sm text-ink">
+      <JanelasAcendendo quantidade={8} className="mb-6" />
+      <p className="text-center text-sm text-fachada-tinta">
         Enviamos para <strong>{contratacao.emailMascarado}</strong> o link para você criar a sua
         senha e entrar. Ele funciona até você criar a senha, sem prazo.
       </p>
-      <p className="mt-3 text-center text-sm text-ink-soft">
+      <p className="mt-3 text-center text-sm text-fachada-tinta-suave">
         Depois de criar a senha, você entra sempre pela página <strong>Entrar</strong>, com o seu
         e-mail e a senha que definiu. No painel do síndico estão o link e o PIN para compartilhar
         com os moradores.
       </p>
-      <p className="mt-4 bg-paper px-3 py-2 text-center text-xs text-ink-soft">
-        <strong className="text-ink">Não chegou?</strong> Veja a caixa de <strong>spam</strong> ou
-        de <strong>promoções</strong> e procure por “USAI”. Se estiver lá, marque como “não é spam”.
+      <p className="mt-4 rounded-[14px] bg-fachada-luz/25 px-4 py-3 text-center text-xs text-fachada-tinta">
+        <strong>Não chegou?</strong> Veja a caixa de <strong>spam</strong> ou de{' '}
+        <strong>promoções</strong> e procure por “USAI”. Se estiver lá, marque como “não é spam”.
       </p>
 
       {aviso && (
-        <p role="status" className="mt-4 text-center text-sm text-ink-soft">
+        <p role="status" className="mt-4 text-center text-sm text-fachada-tinta-suave">
           {aviso}
         </p>
       )}
@@ -161,11 +164,14 @@ export function AcompanharContratacaoPage() {
           type="button"
           onClick={handleReenviar}
           disabled={reenviando}
-          className="text-sm font-semibold text-barro-700 hover:underline disabled:opacity-60"
+          className={`text-sm disabled:opacity-60 ${LINK}`}
         >
           {reenviando ? 'Enviando…' : 'Não recebi o e-mail — reenviar'}
         </button>
-        <Link to="/login" className="text-sm font-semibold text-ink-soft hover:text-ink">
+        <Link
+          to="/login"
+          className="text-sm font-semibold text-fachada-tinta-suave hover:text-fachada-tinta"
+        >
           Já criei a minha senha — entrar
         </Link>
       </div>

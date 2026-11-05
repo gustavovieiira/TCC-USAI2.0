@@ -32,9 +32,44 @@ typography:
     fontWeight: 800
     lineHeight: 1.04
     letterSpacing: '-0.03em'
+  display-celular:
+    fontFamily: 'Bricolage Grotesque, system-ui, sans-serif'
+    fontSize: '2.55rem'
+    fontWeight: 800
+    lineHeight: 1.02
+    letterSpacing: '-0.035em'
+  titulo-celular:
+    fontFamily: 'Bricolage Grotesque, system-ui, sans-serif'
+    fontSize: '2rem'
+    fontWeight: 800
+    lineHeight: 1.04
+    letterSpacing: '-0.03em'
+  titulo-cartao:
+    fontFamily: 'Bricolage Grotesque, system-ui, sans-serif'
+    fontSize: '1.7rem'
+    fontWeight: 800
+    lineHeight: 1.1
+    letterSpacing: '-0.025em'
+  chamada-final:
+    fontFamily: 'Bricolage Grotesque, system-ui, sans-serif'
+    fontSize: '2.1rem'
+    fontWeight: 800
+    lineHeight: 1.03
+    letterSpacing: '-0.035em'
+  preco:
+    fontFamily: 'Bricolage Grotesque, system-ui, sans-serif'
+    fontSize: '2.7rem'
+    fontWeight: 800
+    lineHeight: 1
+    letterSpacing: '-0.02em'
   corpo:
     fontFamily: 'Public Sans, system-ui, sans-serif'
     fontSize: '1rem'
+    fontWeight: 400
+    lineHeight: 1.6
+  corpo-pequeno:
+    fontFamily: 'Public Sans, system-ui, sans-serif'
+    fontSize: '0.95rem'
     fontWeight: 400
     lineHeight: 1.6
   bilhete:
