@@ -369,50 +369,62 @@ export function CenaHero() {
                     transform={`translate(${x} ${y})`}
                     data-acesa={acesa}
                     style={{ '--atraso': `${i * 75}ms` } as CSSProperties}
-                    {...(interativa
-                      ? {
-                          role: 'button',
-                          tabIndex: 0,
-                          'aria-pressed': escolhida,
-                          'aria-label': rotulo,
-                          className: 'janela-toque',
-                          onClick: () => selecionar(apto.id),
-                          onKeyDown: (e: KeyboardEvent<SVGGElement>) => aoTeclar(e, apto.id),
-                        }
-                      : { 'aria-hidden': true })}
                   >
-                    {/* parapeito */}
-                    <rect x="-7" y={ALTURA} width={LARGURA + 14} height="9" rx="2" fill="#1B6672" />
-                    {/* vidro apagado */}
-                    <rect width={LARGURA} height={ALTURA} rx="7" fill="#082329" />
-                    {/* vidro aceso (opacidade animada) */}
-                    <g className="janela-luz">
+                    {/* Grupo de dentro: o efeito de hover (scale em CSS) não pode ficar no grupo que tem o
+                        translate, senão o CSS apaga a posição e a janela pula e treme sob o mouse. */}
+                    <g
+                      {...(interativa
+                        ? {
+                            role: 'button',
+                            tabIndex: 0,
+                            'aria-pressed': escolhida,
+                            'aria-label': rotulo,
+                            className: 'janela-toque',
+                            onClick: () => selecionar(apto.id),
+                            onKeyDown: (e: KeyboardEvent<SVGGElement>) => aoTeclar(e, apto.id),
+                          }
+                        : { 'aria-hidden': true })}
+                    >
+                      {/* parapeito */}
+                      <rect
+                        x="-7"
+                        y={ALTURA}
+                        width={LARGURA + 14}
+                        height="9"
+                        rx="2"
+                        fill="#1B6672"
+                      />
+                      {/* vidro apagado */}
+                      <rect width={LARGURA} height={ALTURA} rx="7" fill="#082329" />
+                      {/* vidro aceso (opacidade animada) */}
+                      <g className="janela-luz">
+                        <rect
+                          width={LARGURA}
+                          height={ALTURA}
+                          rx="7"
+                          fill={reservada ? '#FF6B4A' : '#FFC24B'}
+                        />
+                        {apto.item && <PictogramaItem chave={apto.item.icone} />}
+                        {apto.pessoa && !apto.item && (
+                          <Pessoa movendo={SILHUETAS_CASA.has(apto.id)} />
+                        )}
+                      </g>
+                      {/* caixilho */}
+                      <path
+                        d={`M${LARGURA / 2} 0V${ALTURA}M0 ${ALTURA * 0.62}H${LARGURA}`}
+                        stroke="#14505B"
+                        strokeWidth="3"
+                        opacity="0.9"
+                      />
                       <rect
                         width={LARGURA}
                         height={ALTURA}
                         rx="7"
-                        fill={reservada ? '#FF6B4A' : '#FFC24B'}
+                        fill="none"
+                        stroke={escolhida ? '#FFE19A' : '#1B6672'}
+                        strokeWidth={escolhida ? 5 : 4}
                       />
-                      {apto.item && <PictogramaItem chave={apto.item.icone} />}
-                      {apto.pessoa && !apto.item && (
-                        <Pessoa movendo={SILHUETAS_CASA.has(apto.id)} />
-                      )}
                     </g>
-                    {/* caixilho */}
-                    <path
-                      d={`M${LARGURA / 2} 0V${ALTURA}M0 ${ALTURA * 0.62}H${LARGURA}`}
-                      stroke="#14505B"
-                      strokeWidth="3"
-                      opacity="0.9"
-                    />
-                    <rect
-                      width={LARGURA}
-                      height={ALTURA}
-                      rx="7"
-                      fill="none"
-                      stroke={escolhida ? '#FFE19A' : '#1B6672'}
-                      strokeWidth={escolhida ? 5 : 4}
-                    />
                   </g>
                 );
               })}
