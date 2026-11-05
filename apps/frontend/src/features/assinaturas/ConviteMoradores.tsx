@@ -1,10 +1,13 @@
-import { useState } from 'react';
+import { ReactNode, useState } from 'react';
 import { Card } from '@/components/ui/Card';
+import { IconeWhatsApp } from '@/components/ui/IconesContato';
 
 interface ConviteMoradoresProps {
   nomeCondominio: string;
   linkSlug: string;
   pin: string;
+  /** Espaço sob os botões, usado pelo painel para trocar o PIN no mesmo cartão. */
+  children?: ReactNode;
 }
 
 type Copiado = 'link' | 'pin' | 'convite' | null;
@@ -25,7 +28,12 @@ export function textoDoConvite(nomeCondominio: string, linkSlug: string, pin: st
 }
 
 /** Cartão do painel do síndico com o link e o PIN para repassar aos moradores. */
-export function ConviteMoradores({ nomeCondominio, linkSlug, pin }: ConviteMoradoresProps) {
+export function ConviteMoradores({
+  nomeCondominio,
+  linkSlug,
+  pin,
+  children,
+}: ConviteMoradoresProps) {
   const [copiado, setCopiado] = useState<Copiado>(null);
   const [falhou, setFalhou] = useState(false);
 
@@ -62,7 +70,7 @@ export function ConviteMoradores({ nomeCondominio, linkSlug, pin }: ConviteMorad
         <button
           type="button"
           onClick={() => copiar('link', link)}
-          className="text-left text-sm font-semibold text-barro-700 hover:underline sm:text-right"
+          className="text-left text-sm font-semibold text-fachada-coral-texto hover:underline sm:text-right"
         >
           {copiado === 'link' ? 'Link copiado!' : 'Copiar link'}
         </button>
@@ -74,26 +82,38 @@ export function ConviteMoradores({ nomeCondominio, linkSlug, pin }: ConviteMorad
         <button
           type="button"
           onClick={() => copiar('pin', pin)}
-          className="text-left text-sm font-semibold text-barro-700 hover:underline sm:text-right"
+          className="text-left text-sm font-semibold text-fachada-coral-texto hover:underline sm:text-right"
         >
           {copiado === 'pin' ? 'PIN copiado!' : 'Copiar PIN'}
         </button>
       </div>
 
-      <button
-        type="button"
-        onClick={() => copiar('convite', textoDoConvite(nomeCondominio, linkSlug, pin))}
-        className="notch min-h-[44px] self-start bg-barro-500 px-5 py-2 text-sm font-bold
-          text-ink shadow-press transition hover:bg-barro-700"
-      >
-        {copiado === 'convite' ? 'Convite copiado!' : 'Copiar mensagem de convite'}
-      </button>
+      <div className="flex flex-wrap items-center gap-3">
+        <a
+          href={`https://wa.me/?text=${encodeURIComponent(textoDoConvite(nomeCondominio, linkSlug, pin))}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="botao-coral inline-flex items-center gap-2"
+        >
+          <IconeWhatsApp />
+          Enviar pelo WhatsApp
+        </a>
+        <button
+          type="button"
+          onClick={() => copiar('convite', textoDoConvite(nomeCondominio, linkSlug, pin))}
+          className="min-h-[44px] px-2 text-sm font-semibold text-fachada-coral-texto underline underline-offset-2 hover:no-underline"
+        >
+          {copiado === 'convite' ? 'Convite copiado!' : 'Copiar mensagem de convite'}
+        </button>
+      </div>
 
       {falhou && (
         <p role="alert" className="text-sm text-carmim-700">
           Não foi possível copiar automaticamente. Selecione o texto e copie manualmente.
         </p>
       )}
+
+      {children}
     </Card>
   );
 }

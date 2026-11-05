@@ -6,6 +6,34 @@
 
 ---
 
+## 2026-11-05: Redesenho, etapa 4: painel do síndico
+
+**Escopo.** `SindicoPage.tsx` e o cartão de convite (`ConviteMoradores.tsx`), no sistema "A Fachada".
+
+**O que mudou.**
+
+- **O prédio do condomínio** (`features/sindico/PredioMoradores.tsx`): no topo do painel, cada janela acesa é
+  um morador e as apagadas são as vagas que sobram no plano. As janelas acendem em cascata quando entram na
+  tela. Passando de 40 vagas, o desenho fica proporcional (`janelasDoPredio`); o texto de acessibilidade
+  sempre traz os números reais.
+- **Convite mais direto.** O PIN deixou de aparecer em dois cartões: o "Alterar PIN" foi para dentro do
+  cartão de convite. Novo botão "Enviar pelo WhatsApp" abre a conversa com a mensagem de convite pronta
+  (link e PIN), sem escolher contato antes.
+- **Filtros** (`features/sindico/sindico.filtros.ts`): moradores com busca (nome, e-mail, apto) e "Em
+  locação agora" (dono ou locatário de uma locação ativa); locações com busca por item ou locatário e
+  situação (aguardando pagamento, pagas a retirar, em andamento), todos com contagem.
+- **Mais informação nas listas.** Avatar e data de cadastro de cada morador; nas locações aparece também o
+  dono do item (cruzando com a lista de moradores). As abas mostram a contagem.
+- **Remover morador** deixou de usar `window.confirm` e ganhou uma janela própria (`Modal`), com o nome da
+  pessoa e o que acontece depois.
+
+**Testes.** Frontend 368 (novos: filtros do síndico, modal de remoção, filtros de locação, prédio), `tsc`,
+`eslint` e detector do Impeccable sem achados. Conferido no navegador em 420 e 1280 px com dados simulados.
+
+**Onde mexer a seguir.** Etapa 5 (Admin), depois remover os tokens antigos.
+
+---
+
 ## 2026-11-05: Redesenho, etapa 3: app do morador, filtros, rodapé e texto sem travessão
 
 **Escopo.** Interior do app do morador (catálogo, item, publicar, locações, conversas, notificações,

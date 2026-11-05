@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { SindicoPage } from './SindicoPage';
@@ -86,7 +86,7 @@ describe('SindicoPage', () => {
     render(<SindicoPage />);
     await screen.findByText('Ana Proprietária');
 
-    await userEvent.click(screen.getByRole('button', { name: 'Locações ativas' }));
+    await userEvent.click(screen.getByRole('button', { name: /Locações ativas/ }));
 
     expect(await screen.findByText('Furadeira Bosch')).toBeInTheDocument();
   });
@@ -114,31 +114,90 @@ describe('SindicoPage', () => {
     expect(await screen.findByText('Nenhum morador cadastrado ainda')).toBeInTheDocument();
   });
 
-  it('remove um morador após confirmação', async () => {
+  it('remove um morador só depois de confirmar na janela', async () => {
     mockApis();
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     vi.spyOn(sindicoApi, 'removerMorador').mockResolvedValue(undefined);
 
     render(<SindicoPage />);
     await screen.findByText('Ana Proprietária');
 
     await userEvent.click(screen.getByRole('button', { name: 'Remover' }));
+    expect(sindicoApi.removerMorador).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog', { name: 'Remover morador' })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Sim, remover' }));
 
     expect(sindicoApi.removerMorador).toHaveBeenCalledWith('user-1');
-    expect(screen.queryByText('Ana Proprietária')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText('Ana Proprietária')).not.toBeInTheDocument());
   });
 
-  it('não remove o morador se a confirmação for cancelada', async () => {
+  it('não remove o morador se a pessoa cancelar na janela', async () => {
     mockApis();
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
     vi.spyOn(sindicoApi, 'removerMorador').mockResolvedValue(undefined);
 
     render(<SindicoPage />);
     await screen.findByText('Ana Proprietária');
 
     await userEvent.click(screen.getByRole('button', { name: 'Remover' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
 
     expect(sindicoApi.removerMorador).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.getByText('Ana Proprietária')).toBeInTheDocument();
+  });
+
+  it('filtra os moradores que estão em locação agora (como dono ou como locatário)', async () => {
+    mockApis({
+      moradores: [
+        morador,
+        { ...morador, id: 'user-3', nome: 'Carla Souza', email: 'carla@example.com' },
+      ],
+    });
+
+    render(<SindicoPage />);
+    await screen.findByText('Carla Souza');
+
+    await userEvent.click(screen.getByRole('button', { name: /Em locação agora/ }));
+
+    expect(screen.getByText('Ana Proprietária')).toBeInTheDocument();
+    expect(screen.queryByText('Carla Souza')).not.toBeInTheDocument();
+  });
+
+  it('nas locações, filtra por situação, busca por item e mostra o dono', async () => {
+    mockApis({
+      moradores: [morador],
+      locacoes: [
+        locacaoAtiva,
+        {
+          ...locacaoAtiva,
+          id: 'locacao-2',
+          status: 'EM_ANDAMENTO',
+          item: { id: 'item-2', titulo: 'Escada de alumínio', ownerId: 'user-1' },
+        },
+      ],
+    });
+
+    render(<SindicoPage />);
+    await screen.findByText('Ana Proprietária');
+    await userEvent.click(screen.getByRole('button', { name: /Locações ativas/ }));
+
+    expect(await screen.findByText('Furadeira Bosch')).toBeInTheDocument();
+    expect(screen.getAllByText(/Dono Ana Proprietária, locatário Bruno Locatário/)).toHaveLength(2);
+
+    await userEvent.click(screen.getByRole('button', { name: /Em andamento/ }));
+    expect(screen.queryByText('Furadeira Bosch')).not.toBeInTheDocument();
+    expect(screen.getByText('Escada de alumínio')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /^Todas/ }));
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Buscar locação' }), 'zzz');
+    expect(screen.getByText('Nenhuma locação encontrada')).toBeInTheDocument();
+  });
+
+  it('desenha o prédio com uma janela acesa por morador', async () => {
+    mockApis();
+
+    render(<SindicoPage />);
+
+    expect(await screen.findByRole('img', { name: '1 morador cadastrado' })).toBeInTheDocument();
   });
 });
