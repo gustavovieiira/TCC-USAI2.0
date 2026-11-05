@@ -110,4 +110,16 @@ describe('CenaHero', () => {
     const predio = screen.getByRole('group', { name: /Prédio de apartamentos à noite/ });
     expect(within(predio).getAllByRole('button')).toHaveLength(6);
   });
+
+  it('a janela clicável não tem o translate de posição: o efeito de hover (scale em CSS) não pode apagá-lo', () => {
+    renderCena();
+
+    const janela = janelaDo('401');
+    // o grupo clicável recebe o scale do hover; quem tem o translate é o grupo de fora
+    expect(janela).not.toHaveAttribute('transform');
+    expect(janela.parentElement).toHaveAttribute(
+      'transform',
+      expect.stringMatching(/^translate\(/),
+    );
+  });
 });

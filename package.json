@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "description": "USAI - Plataforma de Locação de Objetos Ociosos para Condomínios",
+  "engines": {
+    "node": ">=24"
+  },
   "workspaces": [
     "apps/backend",
     "apps/frontend"

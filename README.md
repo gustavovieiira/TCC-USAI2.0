@@ -44,7 +44,7 @@ docs/
 
 ## Rodando localmente
 
-Pré-requisitos: Node.js 20+, Docker e Docker Compose.
+Pré-requisitos: Node.js 24+, Docker e Docker Compose.
 
 ```bash
 cp .env.example .env

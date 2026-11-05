@@ -14,57 +14,82 @@ import {
 import { extractErrorMessage } from '@/lib/apiClient';
 import { formatCurrency } from '@/lib/format';
 
-/** Opção de escolha (plano ou período): cartão com marcador de seleção, acessível como radio. */
-function Opcao({
-  nome,
-  valor,
-  marcado,
-  aoEscolher,
-  children,
-}: {
+const FOCO = 'focus-within:ring-4 focus-within:ring-fachada-tinta/30';
+
+function Marcador({ marcado }: { marcado: boolean }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition ${
+        marcado ? 'scale-100 bg-fachada-coral-texto' : 'scale-90 bg-fachada-tinta/10'
+      }`}
+    >
+      {marcado && (
+        <svg
+          viewBox="0 0 24 24"
+          className="h-3 w-3"
+          fill="none"
+          stroke="#FFF8EC"
+          strokeWidth="4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M5 12l4.5 4.5L19 7" />
+        </svg>
+      )}
+    </span>
+  );
+}
+
+interface OpcaoProps {
   nome: string;
   valor: string;
   marcado: boolean;
   aoEscolher: () => void;
   children: ReactNode;
-}) {
+}
+
+function RadioOculto({ nome, valor, marcado, aoEscolher }: Omit<OpcaoProps, 'children'>) {
+  return (
+    <input
+      type="radio"
+      name={nome}
+      value={valor}
+      checked={marcado}
+      onChange={aoEscolher}
+      className="sr-only"
+    />
+  );
+}
+
+/** Plano: uma linha só, com o nome e o limite à esquerda e o preço mensal à direita. */
+function OpcaoPlano({ children, ...radio }: OpcaoProps) {
   return (
     <label
-      className={`relative flex cursor-pointer flex-col gap-0.5 rounded-[16px] border-2 bg-white p-4 transition duration-200
-        focus-within:ring-4 focus-within:ring-fachada-tinta/30 ${
-          marcado
-            ? 'border-fachada-coral-texto shadow-[0_0_0_4px_rgb(255_107_74/0.22)]'
-            : 'border-fachada-tinta/15 hover:-translate-y-0.5 hover:border-fachada-tinta/40'
-        }`}
+      className={`flex cursor-pointer items-center gap-3 rounded-[14px] border-2 bg-white px-3.5 py-2.5 transition duration-200 ${FOCO} ${
+        radio.marcado
+          ? 'border-fachada-coral-texto shadow-[0_0_0_3px_rgb(255_107_74/0.22)]'
+          : 'border-fachada-tinta/15 hover:border-fachada-tinta/40'
+      }`}
     >
-      <input
-        type="radio"
-        name={nome}
-        value={valor}
-        checked={marcado}
-        onChange={aoEscolher}
-        className="sr-only"
-      />
-      <span
-        aria-hidden="true"
-        className={`absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full transition ${
-          marcado ? 'scale-100 bg-fachada-coral-texto' : 'scale-75 bg-fachada-tinta/10'
-        }`}
-      >
-        {marcado && (
-          <svg
-            viewBox="0 0 24 24"
-            className="h-3 w-3"
-            fill="none"
-            stroke="#FFF8EC"
-            strokeWidth="4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M5 12l4.5 4.5L19 7" />
-          </svg>
-        )}
-      </span>
+      <RadioOculto {...radio} />
+      <Marcador marcado={radio.marcado} />
+      {children}
+    </label>
+  );
+}
+
+/** Período: botão pequeno de um seletor em linha (nome, desconto e valor por mês). */
+function OpcaoPeriodo({ children, ...radio }: OpcaoProps) {
+  return (
+    <label
+      className={`flex cursor-pointer flex-col items-center gap-0.5 rounded-[14px] border-2 bg-white px-2 py-2.5 text-center transition duration-200 ${FOCO} ${
+        radio.marcado
+          ? 'border-fachada-coral-texto shadow-[0_0_0_3px_rgb(255_107_74/0.22)]'
+          : 'border-fachada-tinta/15 hover:border-fachada-tinta/40'
+      }`}
+    >
+      <RadioOculto {...radio} />
       {children}
     </label>
   );
@@ -148,12 +173,12 @@ export function ContratarPage() {
           </Link>
         </header>
 
-        <main className="mx-auto grid max-w-6xl gap-8 px-5 pb-20 pt-2 sm:px-8 lg:grid-cols-[1.45fr_1fr]">
+        <main className="mx-auto grid max-w-6xl gap-8 px-5 pb-20 pt-2 sm:px-8 lg:grid-cols-[1.6fr_1fr]">
           <div
             className="sobre-claro entra rounded-[28px] bg-fachada-papel p-6 text-fachada-tinta
-              shadow-[0_34px_60px_-28px_rgb(0_0_0/0.85)] sm:p-9"
+              shadow-[0_34px_60px_-28px_rgb(0_0_0/0.85)] sm:p-8"
           >
-            <h1 className="font-marca text-[2rem] font-extrabold leading-[1.04] tracking-[-0.03em] sm:text-4xl">
+            <h1 className="font-marca text-[1.75rem] font-extrabold leading-[1.04] tracking-[-0.03em] sm:text-[2.1rem]">
               Contratar para o meu condomínio
             </h1>
             <p className="mt-2 text-fachada-tinta-suave">
@@ -167,119 +192,129 @@ export function ContratarPage() {
             )}
 
             {dados && (
-              <form onSubmit={handleSubmit} className="mt-7 flex flex-col gap-8">
-                <fieldset className="flex flex-col gap-3">
-                  <legend className="mb-1 font-marca text-lg font-bold">
+              <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-6">
+                <fieldset className="flex flex-col gap-2.5">
+                  <legend className="mb-2 font-marca text-base font-bold">
                     1. Plano (pela quantidade de moradores)
                   </legend>
-                  <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="grid gap-2.5 sm:grid-cols-2">
                     {dados.planos.map((p) => (
-                      <Opcao
+                      <OpcaoPlano
                         key={p.codigo}
                         nome="plano"
                         valor={p.codigo}
                         marcado={p.codigo === planoCodigo}
                         aoEscolher={() => setPlanoCodigo(p.codigo)}
                       >
-                        <span className="flex items-center gap-2 pr-6 font-marca text-lg font-extrabold">
-                          {p.nome}
-                          {p.teste && (
-                            <span className="rounded-full bg-fachada-luz px-2 py-0.5 font-sans text-xs font-bold uppercase text-fachada-tinta">
-                              teste
-                            </span>
-                          )}
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-center gap-2 font-marca text-base font-extrabold leading-tight">
+                            {p.nome}
+                            {p.teste && (
+                              <span className="rounded-full bg-fachada-luz px-2 py-0.5 font-sans text-xs font-bold uppercase text-fachada-tinta">
+                                teste
+                              </span>
+                            )}
+                          </span>
+                          <span className="block whitespace-nowrap text-sm text-fachada-tinta-suave">
+                            até {p.limiteMoradores} moradores
+                          </span>
                         </span>
-                        <span className="text-sm text-fachada-tinta-suave">
-                          até {p.limiteMoradores} moradores
+                        <span className="shrink-0 text-right font-marca text-sm font-bold leading-tight text-fachada-coral-texto">
+                          <span className="block text-xs font-normal text-fachada-tinta-suave">
+                            a partir de
+                          </span>
+                          {formatCurrency(p.valorMensal)}/mês
                         </span>
-                        <span className="font-marca font-bold text-fachada-coral-texto">
-                          a partir de {formatCurrency(p.valorMensal)}/mês
-                        </span>
-                      </Opcao>
+                      </OpcaoPlano>
                     ))}
                   </div>
                 </fieldset>
 
-                <fieldset className="flex flex-col gap-3">
-                  <legend className="mb-1 font-marca text-lg font-bold">
+                <fieldset className="flex flex-col gap-2.5">
+                  <legend className="mb-2 font-marca text-base font-bold">
                     2. Período de cobrança (quanto mais longo, maior o desconto)
                   </legend>
-                  <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
                     {dados.periodos.map((p) => {
                       const valor = plano ? precoDe(plano, p.codigo) : undefined;
                       return (
-                        <Opcao
+                        <OpcaoPeriodo
                           key={p.codigo}
                           nome="periodo"
                           valor={p.codigo}
                           marcado={p.codigo === periodoCodigo}
                           aoEscolher={() => setPeriodoCodigo(p.codigo)}
                         >
-                          <span className="flex items-center gap-2 pr-6 font-marca text-lg font-extrabold">
+                          <span className="font-marca text-base font-extrabold leading-tight">
                             {p.nome}
-                            {p.desconto > 0 && (
-                              <span className="rounded-full bg-fachada-folha/30 px-2 py-0.5 font-sans text-xs font-bold text-fachada-folha-texto">
-                                −{p.desconto}%
-                              </span>
-                            )}
                           </span>
-                          {valor && (
-                            <>
-                              <span className="font-marca font-bold text-fachada-coral-texto">
-                                {formatCurrency(valor.valorTotal)}
-                              </span>
-                              <span className="text-xs text-fachada-tinta-suave">
-                                {p.meses === 1
-                                  ? 'cobrado todo mês'
-                                  : `${formatCurrency(valor.valorMensalEquivalente)}/mês`}
-                              </span>
-                            </>
+                          {p.desconto > 0 && (
+                            <span className="rounded-full bg-fachada-folha/30 px-2 py-0.5 font-sans text-xs font-bold text-fachada-folha-texto">
+                              −{p.desconto}%
+                            </span>
                           )}
-                        </Opcao>
+                          {valor && (
+                            <span className="text-xs text-fachada-tinta-suave">
+                              {formatCurrency(valor.valorMensalEquivalente)}/mês
+                            </span>
+                          )}
+                        </OpcaoPeriodo>
                       );
                     })}
                   </div>
                 </fieldset>
 
-                <fieldset className="flex flex-col gap-4">
-                  <legend className="mb-1 font-marca text-lg font-bold">
+                <fieldset className="flex flex-col gap-3">
+                  <legend className="mb-2 font-marca text-base font-bold">
                     3. Condomínio e síndico
                   </legend>
-                  <TextField
-                    label="Nome do condomínio"
-                    name="nomeCondominio"
-                    required
-                    minLength={3}
-                    maxLength={80}
-                    value={nomeCondominio}
-                    onChange={(e) => setNomeCondominio(e.target.value)}
-                  />
-                  <TextField
-                    label="Seu nome (síndico)"
-                    name="nomeSindico"
-                    required
-                    minLength={2}
-                    maxLength={80}
-                    value={nomeSindico}
-                    onChange={(e) => setNomeSindico(e.target.value)}
-                  />
-                  <TextField
-                    label="E-mail (o acesso chega aqui)"
-                    name="email"
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                  <TextField
-                    label="CPF do síndico ou CNPJ do condomínio"
-                    name="cpfCnpj"
-                    inputMode="numeric"
-                    required
-                    value={cpfCnpj}
-                    onChange={(e) => setCpfCnpj(e.target.value)}
-                  />
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <TextField
+                      label="Nome do condomínio"
+                      name="nomeCondominio"
+                      required
+                      minLength={3}
+                      maxLength={80}
+                      value={nomeCondominio}
+                      onChange={(e) => setNomeCondominio(e.target.value)}
+                    />
+                    <TextField
+                      label="CPF do síndico ou CNPJ do condomínio"
+                      name="cpfCnpj"
+                      inputMode="numeric"
+                      required
+                      value={cpfCnpj}
+                      onChange={(e) => setCpfCnpj(e.target.value)}
+                    />
+                    <TextField
+                      label="Seu nome (síndico)"
+                      name="nomeSindico"
+                      required
+                      minLength={2}
+                      maxLength={80}
+                      value={nomeSindico}
+                      onChange={(e) => setNomeSindico(e.target.value)}
+                    />
+                    <TextField
+                      label="E-mail (o acesso chega aqui)"
+                      name="email"
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </div>
                 </fieldset>
+
+                {preco && periodo && (
+                  <p className="rounded-[14px] bg-fachada-tinta/5 px-4 py-3 text-sm lg:hidden">
+                    Total a pagar por PIX:{' '}
+                    <strong className="font-marca text-lg">
+                      {formatCurrency(preco.valorTotal)}
+                    </strong>{' '}
+                    <span className="text-fachada-tinta-suave">({periodo.nome.toLowerCase()})</span>
+                  </p>
+                )}
 
                 <label className="flex items-start gap-3 text-sm">
                   <input

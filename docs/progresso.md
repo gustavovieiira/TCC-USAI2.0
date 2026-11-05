@@ -6,6 +6,33 @@
 
 ---
 
+## 2026-11-05: Node 24, Docker corrigido, janela da landing e tela de compra mais curta
+
+**Node 24.** A aplicação saiu do Node 20 (fora de suporte desde abril de 2026): CI, Dockerfiles, `.nvmrc`,
+`engines` do `package.json` e `@types/node` 24 nos dois apps. O `@types/node` 24 deixou de trazer a biblioteca
+ES2022 para o TypeScript, então o frontend passou a declarar `ES2022` no `tsconfig.app.json` (o teste usa
+`Array.at`). Verificado: `tsc -b`, `eslint`, os dois builds, 627 testes do backend e 378 do frontend, e as duas
+imagens Docker rodando.
+
+**Docker (defeitos que já existiam).** A imagem de produção do backend copiava o `node_modules` do estágio
+errado, o que não tem o cliente do Prisma gerado, então o contêiner nunca subia ("@prisma/client did not
+initialize"). Agora copia do estágio de build e instala o `openssl`, que o Prisma precisa no Alpine para
+escolher o motor certo. Testado contra o banco de desenvolvimento: `/health` e a leitura da configuração
+funcionam. O `docker compose` também acusou que a `ASAAS_API_KEY` (começa com `$`) chegava vazia, porque o
+compose lê `$` como variável: o valor passou a ficar entre aspas simples, e o `.env.example` avisa disso.
+
+**Janela da landing tremia sob o mouse.** O grupo SVG da janela tinha um `transform="translate(...)"` de
+posição e o hover aplicava `transform: scale(...)` por CSS no mesmo elemento. O CSS sobrescreve o atributo, a
+janela pulava para a origem, o mouse saía de cima dela e ela voltava, em loop. Agora o translate fica no grupo
+de fora e o hover no de dentro (`CenaHero.tsx`), com teste que protege essa estrutura.
+
+**Tela de compra mais curta** (`ContratarPage.tsx`). Planos viraram linhas compactas (nome, limite e preço), o
+período virou um seletor de uma linha com o valor por mês, e os dados do síndico ficam em duas colunas. No
+desktop o card passou de cerca de 1.100 px para 955 px, com o formulário inteiro numa tela; no celular, o total a
+pagar aparece logo antes da declaração. Mesmos campos e rótulos, e os 39 testes da contratação seguem verdes.
+
+---
+
 ## 2026-11-05: Redesenho, etapa 5: painel do Admin
 
 **Escopo.** `AdminPage.tsx` (financeiro, condomínios, síndicos) e a aba de extratos, no sistema "A Fachada". As
