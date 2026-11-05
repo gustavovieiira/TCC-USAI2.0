@@ -40,7 +40,7 @@ export function PostCard({ post, canDelete, onDelete }: PostCardProps) {
 
           <Link
             to={`/mural/${post.id}`}
-            className="flex items-center gap-1 text-xs font-semibold text-ink-soft hover:text-barro-700"
+            className="-m-2.5 flex items-center gap-1 p-2.5 text-xs font-semibold text-ink-soft hover:text-barro-700"
           >
             <IconComentario className="h-4 w-4" />
             {post.comentariosCount > 0 && post.comentariosCount}
@@ -59,7 +59,7 @@ export function PostCard({ post, canDelete, onDelete }: PostCardProps) {
               type="button"
               onClick={onDelete}
               aria-label="Excluir post"
-              className="ml-auto text-ink-faint hover:text-carmim-500"
+              className="-m-2.5 ml-auto p-2.5 text-ink-faint hover:text-carmim-500"
             >
               <IconExcluir className="h-4 w-4" />
             </button>

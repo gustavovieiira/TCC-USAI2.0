@@ -1,4 +1,4 @@
-import { CSSProperties, KeyboardEvent, useEffect, useMemo, useState } from 'react';
+import { CSSProperties, KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 /* ------------------------------------------------------------------------------------------------
@@ -171,6 +171,7 @@ export function CenaHero() {
     () => new Set(APTOS.filter((a) => a.reserva).map((a) => a.id)),
   );
   const [selecionada, setSelecionada] = useState<string | null>(null);
+  const bilheteRef = useRef<HTMLDivElement>(null);
   const [aviso, setAviso] = useState('');
 
   const porId = useMemo(() => new Map(APTOS.map((a) => [a.id, a])), []);
@@ -198,6 +199,17 @@ export function CenaHero() {
     }, 2600);
     return () => clearInterval(intervalo);
   }, []);
+
+  // O bilhete fica embaixo do prédio; em telas baixas ele está fora da vista, e quem clicou na
+  // janela veria só um contorno. Traz o bilhete para a tela (só o necessário) ao escolher uma janela.
+  useEffect(() => {
+    if (!selecionada) return;
+    const reduzido = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    bilheteRef.current?.scrollIntoView?.({
+      block: 'nearest',
+      behavior: reduzido ? 'auto' : 'smooth',
+    });
+  }, [selecionada]);
 
   function selecionar(id: string) {
     setSelecionada((atual) => (atual === id ? null : id));
@@ -490,6 +502,7 @@ export function CenaHero() {
           <div className="mx-auto w-full max-w-[520px] lg:mx-0 lg:max-w-none lg:pl-10">
             {/* O bilhete do vizinho: responde ao toque na janela. */}
             <div
+              ref={bilheteRef}
               className="sobre-claro relative z-10 mx-auto max-w-[520px] -rotate-1 rounded-[14px] bg-fachada-papel px-6 py-4 text-fachada-tinta
               shadow-[0_14px_26px_-14px_rgb(0_0_0/0.6)]"
             >

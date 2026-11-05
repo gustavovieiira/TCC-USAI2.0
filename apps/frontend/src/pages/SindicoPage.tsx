@@ -177,7 +177,7 @@ export function SindicoPage() {
         </dl>
       </section>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid items-start gap-4 lg:grid-cols-2">
         {assinatura && <CartaoAssinatura painel={assinatura} />}
         <ConviteMoradores
           nomeCondominio={condominio.nome}

@@ -28,7 +28,7 @@ export function CardClicavel({ onAbrir, className = '', children, ...props }: Ca
         <button
           type="button"
           onClick={onAbrir}
-          className="text-xs font-semibold text-barro-700 hover:underline"
+          className="-my-1 py-2.5 pl-3 text-xs font-semibold text-barro-700 hover:underline"
         >
           Ver detalhes e recibo ›
         </button>

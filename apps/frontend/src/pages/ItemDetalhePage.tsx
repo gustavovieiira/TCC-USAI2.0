@@ -7,6 +7,8 @@ import { Textarea } from '@/components/ui/Textarea';
 import { extractErrorMessage } from '@/lib/apiClient';
 import { getStoredUser } from '@/lib/authStorage';
 import { calcularDias, formatCurrency } from '@/lib/format';
+import { GerenciarAnuncio } from '@/features/itens/GerenciarAnuncio';
+import { IconFoto } from '@/features/itens/ItemCard';
 import { buscarItem } from '@/features/itens/itens.api';
 import { ItemDTO } from '@/features/itens/itens.types';
 import { solicitarLocacao } from '@/features/locacoes/locacoes.api';
@@ -76,15 +78,13 @@ export function ItemDetalhePage() {
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-5">
-      <div className="notch aspect-[16/9] w-full overflow-hidden bg-[repeating-linear-gradient(135deg,#E4D3BC_0_8px,#DAC6AB_8px_16px)]">
+      <div className="aspect-[16/9] w-full overflow-hidden rounded-[18px] bg-paper-line">
         {item.imagens[0] ? (
           <img src={item.imagens[0]} alt={item.titulo} className="h-full w-full object-cover" />
         ) : (
-          <div
-            className="flex h-full w-full items-center justify-center font-meta text-xs
-            tracking-wide text-ink/50"
-          >
-            SEM FOTO
+          <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-ink/40">
+            <IconFoto className="h-12 w-12" />
+            <span className="text-sm">Sem foto</span>
           </div>
         )}
       </div>
@@ -141,13 +141,11 @@ export function ItemDetalhePage() {
       )}
 
       {ehDono ? (
-        <Card className="bg-paper text-sm text-ink-soft">
-          Este item é seu. Acompanhe as solicitações em{' '}
-          <Link to="/locacoes" className="font-semibold text-barro-700 hover:underline">
-            Minhas locações
-          </Link>
-          .
-        </Card>
+        <GerenciarAnuncio
+          item={item}
+          aoAtualizar={setItem}
+          aoRemover={() => navigate('/catalogo', { replace: true })}
+        />
       ) : sucesso ? (
         <Card className="flex flex-col items-center gap-3 text-center">
           <p className="font-display font-semibold text-ink">Solicitação enviada!</p>

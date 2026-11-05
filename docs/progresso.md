@@ -6,6 +6,29 @@
 
 ---
 
+## 2026-11-05: Teste de usabilidade de todas as telas
+
+Percurso completo com contas de teste (visitante, morador, síndico e Admin) em tela de computador e de celular
+(390 px): cadastro pelo link e PIN, publicar item, pedir locação, aprovar, chat da locação, mural, extrato,
+perfil, painel do síndico e todas as abas do Admin. Sem erros no console, sem rolagem horizontal e sem
+requisição falhando além do esperado (contratação inexistente devolve 400).
+
+Corrigido a partir do que o teste mostrou:
+- **Dono não conseguia editar nem remover o próprio anúncio** (o backend já tinha `PATCH` e `DELETE`, RF07, mas
+  não havia tela). Agora a página do item, para o dono, tem **Editar anúncio** (título, categoria, descrição e
+  diária, com o mínimo de R$ 5,00) e **Remover do catálogo** com confirmação (`GerenciarAnuncio.tsx`).
+- **Clicar numa janela da tela inicial parecia não fazer nada** em telas baixas: o bilhete com o item fica
+  embaixo do prédio, fora da vista. Agora ele é trazido para a tela ao escolher a janela.
+- **Contratação:** limite de moradores colado no preço nos planos Grande e Premium.
+- **Alvos de toque no celular** abaixo do mínimo (links do rodapé, alternância Post/Preciso de ajuda, copiar
+  link e PIN, chips de filtro, "Ver detalhes e recibo", ícones do post, logo e links do login).
+- Foto ausente do item com o mesmo visual do catálogo, e cartão do plano do síndico sem espaço vazio.
+
+Para conferir antes da entrega: o plano de teste (R$ 5,00) aparece na contratação enquanto
+`PLANO_TESTE_ATIVO=true`; em produção deve estar desligado.
+
+---
+
 ## 2026-11-05: Node 24, Docker corrigido, janela da landing e tela de compra mais curta
 
 **Node 24.** A aplicação saiu do Node 20 (fora de suporte desde abril de 2026): CI, Dockerfiles, `.nvmrc`,

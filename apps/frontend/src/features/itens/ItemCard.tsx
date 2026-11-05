@@ -47,7 +47,7 @@ export function ItemCard({ item, indice = 0 }: ItemCardProps) {
   );
 }
 
-function IconFoto({ className }: { className?: string }) {
+export function IconFoto({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" className={className}>
       <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.5" />

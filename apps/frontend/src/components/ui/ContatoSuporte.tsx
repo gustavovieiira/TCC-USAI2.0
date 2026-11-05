@@ -31,12 +31,12 @@ export function ContatoSuporte({ mensagem, escuro = false, className = '' }: Con
           href={linkWhatsAppSuporte(mensagem)}
           target="_blank"
           rel="noopener noreferrer"
-          className={`inline-flex items-center gap-2 ${link}`}
+          className={`inline-flex items-center gap-2 py-1.5 ${link}`}
         >
           <IconeWhatsApp />
           WhatsApp {SUPORTE_WHATSAPP_EXIBICAO}
         </a>
-        <a href={linkEmailSuporte} className={`inline-flex items-center gap-2 ${link}`}>
+        <a href={linkEmailSuporte} className={`inline-flex items-center gap-2 py-1.5 ${link}`}>
           <IconeEmail />
           {SUPORTE_EMAIL}
         </a>
