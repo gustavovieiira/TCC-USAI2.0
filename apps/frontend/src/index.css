@@ -17,6 +17,381 @@ body {
   @apply outline outline-2 outline-offset-2 outline-ink;
 }
 
+/*
+ * MUNDO "A FACHADA" — a USAI é um prédio brasileiro visto à noite; cada janela é um vizinho. Cores chapadas,
+ * sem texturas de mentira. Use `.mundo-fachada` na raiz de uma tela. As animações respeitam
+ * `prefers-reduced-motion` (no fim deste bloco).
+ */
+.mundo-fachada {
+  --suave: cubic-bezier(0.16, 1, 0.3, 1);
+  background-color: #0d3b44;
+  color: #fff8ec;
+}
+
+body:has(.mundo-fachada) {
+  background-color: #092a31;
+}
+
+.mundo-fachada :focus-visible {
+  outline: 3px solid #ffc24b;
+  outline-offset: 3px;
+}
+
+.mundo-fachada .sobre-claro :focus-visible,
+.mundo-fachada .sobre-luz :focus-visible,
+.mundo-fachada .sobre-coral :focus-visible {
+  outline-color: #0b2a30;
+}
+
+/* Botões do mundo da fachada. Sombra suave (nada de bloco duro) e resposta ao toque. */
+.botao-escuro,
+.botao-coral,
+.botao-luz,
+.botao-contorno {
+  display: inline-flex;
+  min-height: 52px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 26px;
+  border-radius: 14px;
+  font-family: 'Bricolage Grotesque', system-ui, sans-serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  text-align: center;
+  transition:
+    transform 0.25s var(--suave, ease),
+    box-shadow 0.25s var(--suave, ease),
+    background-color 0.2s;
+}
+
+.botao-escuro {
+  background-color: #0b2a30;
+  color: #fff8ec;
+  box-shadow: 0 12px 22px -10px rgb(5 20 24 / 0.7);
+}
+
+.botao-coral {
+  background-color: #ff6b4a;
+  color: #0b2a30;
+  box-shadow: 0 12px 22px -10px rgb(217 74 43 / 0.7);
+}
+
+.botao-luz {
+  background-color: #ffc24b;
+  color: #0b2a30;
+  box-shadow: 0 12px 22px -10px rgb(201 138 18 / 0.7);
+}
+
+.botao-contorno {
+  border: 2px solid currentColor;
+  background-color: transparent;
+}
+
+.botao-escuro:hover,
+.botao-coral:hover,
+.botao-luz:hover {
+  transform: translateY(-3px);
+}
+
+.botao-escuro:hover {
+  background-color: #123a42;
+}
+
+.botao-contorno:hover {
+  background-color: rgb(11 42 48 / 0.08);
+}
+
+.botao-escuro:active,
+.botao-coral:active,
+.botao-luz:active,
+.botao-contorno:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+/* Revelar ao rolar: o conteúdo é visível por padrão; o JS só marca "antes" o que está abaixo da dobra. */
+[data-revelar='antes'] {
+  opacity: 0;
+  transform: translateY(28px);
+}
+
+[data-revelar='depois'] {
+  transition:
+    opacity 0.8s var(--suave, ease) var(--atraso, 0ms),
+    transform 0.8s var(--suave, ease) var(--atraso, 0ms);
+}
+
+/* A cena do primeiro quadro. */
+.janela-luz {
+  opacity: 0;
+  transition: opacity 0.9s var(--suave, ease);
+  transition-delay: var(--atraso, 0ms);
+}
+
+[data-acesa='true'] .janela-luz {
+  opacity: 1;
+}
+
+[data-acesa='true'] {
+  filter: drop-shadow(0 0 9px rgb(255 194 75 / 0.55));
+}
+
+.janela-toque {
+  cursor: pointer;
+  transition: transform 0.25s var(--suave, ease);
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.janela-toque:hover,
+.janela-toque:focus-visible {
+  transform: scale(1.06);
+}
+
+@keyframes estrela {
+  0%,
+  100% {
+    opacity: 0.2;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+.estrela {
+  animation: estrela 3.4s ease-in-out infinite;
+  animation-delay: var(--atraso, 0ms);
+}
+
+@keyframes nuvemVai {
+  from {
+    transform: translateX(-46px);
+  }
+
+  to {
+    transform: translateX(46px);
+  }
+}
+
+.nuvem {
+  animation: nuvemVai 38s ease-in-out infinite alternate;
+}
+
+@keyframes silhuetaPassa {
+  0%,
+  100% {
+    transform: translateX(-12px);
+  }
+
+  50% {
+    transform: translateX(12px);
+  }
+}
+
+.silhueta {
+  animation: silhuetaPassa 7s ease-in-out infinite;
+}
+
+/* A cestinha de corda desce da janela com o item e sobe de volta. */
+@keyframes cestaDesce {
+  0%,
+  10% {
+    transform: translateY(0);
+  }
+
+  42%,
+  58% {
+    transform: translateY(var(--queda, 220px));
+  }
+
+  90%,
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes cordaEstica {
+  0%,
+  10% {
+    transform: scaleY(0.02);
+  }
+
+  42%,
+  58% {
+    transform: scaleY(1);
+  }
+
+  90%,
+  100% {
+    transform: scaleY(0.02);
+  }
+}
+
+.cesta {
+  animation: cestaDesce 11s var(--suave, ease-in-out) infinite;
+}
+
+.corda {
+  transform-box: fill-box;
+  transform-origin: top;
+  animation: cordaEstica 11s var(--suave, ease-in-out) infinite;
+}
+
+/* Janelas ilustradas da seção de benefícios. */
+@keyframes pisca {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  45% {
+    opacity: 0.55;
+  }
+
+  52% {
+    opacity: 1;
+  }
+
+  60% {
+    opacity: 0.7;
+  }
+}
+
+.pisca {
+  animation: pisca 4.2s ease-in-out infinite;
+}
+
+@keyframes fagulha {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+
+  30%,
+  60% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.fagulha {
+  transform-box: fill-box;
+  transform-origin: bottom center;
+  animation: fagulha 2.2s ease-in-out infinite;
+}
+
+@keyframes balaoA {
+  0%,
+  8% {
+    transform: scale(0);
+  }
+
+  16%,
+  46% {
+    transform: scale(1);
+  }
+
+  54%,
+  100% {
+    transform: scale(0);
+  }
+}
+
+@keyframes balaoB {
+  0%,
+  50% {
+    transform: scale(0);
+  }
+
+  58%,
+  90% {
+    transform: scale(1);
+  }
+
+  98%,
+  100% {
+    transform: scale(0);
+  }
+}
+
+.balao-a {
+  animation: balaoA 6s var(--suave, ease) infinite;
+}
+
+.balao-b {
+  animation: balaoB 6s var(--suave, ease) infinite;
+}
+
+/* Entrada do título e das ações: só movimento, o texto já está visível. */
+@keyframes subir {
+  from {
+    transform: translateY(22px);
+  }
+
+  to {
+    transform: none;
+  }
+}
+
+.entra {
+  animation: subir 0.9s var(--suave, ease) both;
+  animation-delay: var(--atraso, 0ms);
+}
+
+/* Linha do tempo que se desenha ao entrar na tela. */
+.traco {
+  stroke-dasharray: var(--comprimento, 1000);
+  stroke-dashoffset: var(--comprimento, 1000);
+  transition: stroke-dashoffset 1.6s var(--suave, ease);
+}
+
+[data-vivo='true'] .traco {
+  stroke-dashoffset: 0;
+}
+
+/* A barra 90/10 cresce quando aparece. */
+.barra-cresce {
+  width: 0;
+  transition: width 1.4s var(--suave, ease) 0.2s;
+}
+
+[data-vivo='true'] .barra-cresce {
+  width: var(--alvo);
+}
+
+/* Perguntas: o conteúdo desliza ao abrir. */
+details[open] > .resposta {
+  animation: subir 0.4s var(--suave, ease) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mundo-fachada *,
+  .mundo-fachada *::before,
+  .mundo-fachada *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  [data-revelar='antes'] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .janela-luz {
+    opacity: 1 !important;
+  }
+
+  .traco {
+    stroke-dashoffset: 0 !important;
+  }
+
+  .barra-cresce {
+    width: var(--alvo) !important;
+  }
+}
+
 /* Recibo: ao imprimir (ou salvar em PDF), só o bloco `.recibo-print` do modal aparece. */
 @media print {
   body * {

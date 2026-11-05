@@ -29,10 +29,10 @@ export function Logo({ altura = 32, comNome = true, className = '' }: LogoProps)
   }
 
   return (
-    <span className={`inline-flex items-center gap-2.5 font-display font-bold ${className}`}>
+    <span className={`inline-flex items-center gap-2.5 font-marca font-extrabold ${className}`}>
       <MarcaUsai tamanho={altura} />
       {comNome ? (
-        <span style={{ fontSize: altura * 0.78, lineHeight: 1 }} className="tracking-tight">
+        <span style={{ fontSize: altura * 0.82, lineHeight: 1 }} className="tracking-[-0.02em]">
           USAI
         </span>
       ) : (

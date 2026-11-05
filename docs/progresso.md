@@ -6,6 +6,50 @@
 
 ---
 
+## 2026-11-05 — Redesenho, etapa 1: tela inicial ("A Fachada")
+
+**Pedido.** Redesenhar o visual inteiro da USAI com a skill Impeccable (instalada na mão em
+`.claude/skills/impeccable`, sem hooks nem subagentes), em cinco etapas com um commit aprovado por etapa: tela
+inicial, contratação e acesso, app do morador, painel do síndico e Admin. Esta é a etapa 1.
+
+**Ferramenta usada.** A skill é um conjunto de instruções mais um motor de verificação, não um gerador de
+telas. Foram usados o `context`, o `concept-seed` (sorteio de direção), o `surface-brief` (contrato da
+direção), o `detect` (detector mecânico de design) e as regras de `new-work`, `mode-persuade` e `craft-floor`.
+Todo o desenho e o código do visual são do autor do projeto; a telemetria da skill foi desligada
+(`DO_NOT_TRACK=1`).
+
+**Duas tentativas, uma rejeitada.** A direção sorteada ("Placa do Hall": metal e granito) foi construída e
+rejeitada pelo autor: parecia visual de IA, fria e sem relação com a marca. A segunda, escolhida pelo autor,
+é **A Fachada**, com paleta nova e animações (ver `apps/frontend/DESIGN.md`).
+
+**O que mudou.**
+- Cena da primeira dobra (`features/landing/CenaHero.tsx`): a empena coral com o título pintado e um prédio em
+  SVG com 16 janelas. As janelas acendem em cascata ao carregar; as 6 com item são botões (mouse e teclado) e o
+  "bilhete" mostra o item, o preço e o estado; "Pedir emprestado" vira a janela coral. Estrelas piscam, uma
+  cestinha de corda desce da janela do 304 com a furadeira, uma silhueta passa numa janela e, de vez em quando,
+  um vizinho acende ou apaga a luz. Tudo é de demonstração e a tela avisa.
+- Janelas ilustradas (`JanelasIlustradas.tsx`): abajur que pisca, eletricista com faíscas e dois vizinhos com
+  balões de conversa.
+- Revelar ao rolar (`revelar.tsx`): o conteúdo é visível por padrão e só o que está abaixo da dobra é marcado
+  antes de aparecer; sem `IntersectionObserver` ou com "reduzir movimento" tudo já aparece. A linha do tempo se
+  desenha, a barra 90/10 cresce e as janelas do fim acendem em cascata.
+- Seções com campos de cor alternados (noite, prédio, papel, açafrão, coral); planos refeitos no mesmo
+  sistema (`PlanosPrecos.tsx`, mesma lógica e textos).
+- Marca nova (`MarcaUsai.tsx`, `Logo.tsx`): casinha e U num quadrado arredondado coral com a janela acesa.
+  Aparece também nas telas que ainda estão no visual antigo.
+- Tokens `fachada-*` e fontes (Bricolage Grotesque, Caveat) em `tailwind.config.ts`, `index.html` e
+  `index.css`. Os tokens antigos continuam, porque o app ainda os usa até as etapas 2 a 5.
+
+**Verificação.** Contraste calculado para as combinações de cor (todas ≥ 4,5:1 nos usos de texto; dois casos
+corrigidos: texto claro sobre `predio-claro` e coral em texto pequeno); detector da skill sem achados; 337
+testes do frontend, lint, tipos e build ok; conferido em 1440, 768, 360 e 320 px (um estouro de largura nas
+janelinhas do final foi corrigido). Testes novos: `CenaHero.test.tsx` e `revelar.test.tsx`.
+
+**Pendências.** Etapas 2 a 5; telas internas ainda no visual antigo (inconsistência temporária); fotos reais,
+se o autor as fornecer; revisão final do contrato com o autor.
+
+---
+
 ## 2026-11-04 — Rodada de testes de usabilidade antes do deploy
 
 **O que foi testado.** Todos os fluxos, pela API e pela tela (navegador), com o Asaas no **sandbox** e um

@@ -5,10 +5,9 @@ interface MarcaUsaiProps {
 }
 
 /**
- * Símbolo da USAI: uma casa (o condomínio) com um "U" por baixo (USAI) que acolhe um item (o ponto
- * verde) — vizinhos compartilhando. O quadrado com o canto recortado é a assinatura visual do
- * sistema. As cores são fixas (terracota, papel e verde-jade) pra funcionar igual no cabeçalho
- * escuro, na tela clara e na impressão.
+ * Símbolo da USAI: uma casa (o condomínio) com um "U" por baixo (USAI) que acolhe uma janela acesa (o item):
+ * vizinhos compartilhando. O quadrado arredondado coral é a marca; as cores são fixas (coral, tinta e açafrão)
+ * para funcionar igual no cabeçalho escuro, na tela clara e na impressão.
  */
 export function MarcaUsai({ tamanho = 32, className = '' }: MarcaUsaiProps) {
   return (
@@ -20,24 +19,24 @@ export function MarcaUsai({ tamanho = 32, className = '' }: MarcaUsaiProps) {
       aria-hidden="true"
       focusable="false"
     >
-      <path d="M0 0H64V46L46 64H0Z" fill="#B4502F" />
+      <rect width="64" height="64" rx="17" fill="#FF6B4A" />
       <path
-        d="M12 31 32 13 52 31"
+        d="M13 31 32 14 51 31"
         fill="none"
-        stroke="#FFFCF7"
-        strokeWidth="5"
+        stroke="#0B2A30"
+        strokeWidth="5.4"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       <path
         d="M21 33V42A11 11 0 0 0 43 42V33"
         fill="none"
-        stroke="#FFFCF7"
-        strokeWidth="5"
+        stroke="#0B2A30"
+        strokeWidth="5.4"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <circle cx="32" cy="40" r="4.2" fill="#5FBFA2" />
+      <circle cx="32" cy="40" r="4.6" fill="#FFC24B" />
     </svg>
   );
 }
