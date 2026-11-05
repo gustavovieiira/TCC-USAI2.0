@@ -123,7 +123,7 @@ export function ResumoExtrato({
         </Card>
         <Card>
           <p className="font-meta text-xs text-ink-faint">Em análise</p>
-          <p className="mt-1 font-display text-lg font-bold text-mostarda-500">
+          <p className="mt-1 font-display text-lg font-bold text-mostarda-700">
             {mostrar(resumo?.emAnalise)}
           </p>
         </Card>

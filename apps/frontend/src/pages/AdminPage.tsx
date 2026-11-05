@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { CardClicavel } from '@/components/ui/CardClicavel';
@@ -6,14 +6,23 @@ import { AbaDocumentos } from '@/features/admin/AbaDocumentos';
 import { AbaExtratos } from '@/features/admin/AbaExtratos';
 import { AbaIdentidade } from '@/features/admin/AbaIdentidade';
 import { AbaTermos } from '@/features/admin/AbaTermos';
+import {
+  buscarSaques,
+  filtrarCondominios,
+  filtrarHistorico,
+  FiltroCondominios,
+  FiltroHistorico,
+} from '@/features/admin/admin.filtros';
 import { Detalhe, DetalheModal } from '@/components/ui/DetalheModal';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { FiltroChips } from '@/components/ui/FiltroChips';
+import { Modal } from '@/components/ui/Modal';
 import { SaqueStatusBadge } from '@/components/ui/Badge';
 import { Select } from '@/components/ui/Select';
 import { Spinner } from '@/components/ui/Spinner';
 import { TextField } from '@/components/ui/TextField';
 import { extractErrorMessage } from '@/lib/apiClient';
-import { formatCurrency, formatDateTime } from '@/lib/format';
+import { formatCurrency, formatDate, formatDateTime } from '@/lib/format';
 import {
   atualizarCondominio,
   criarCondominio,
@@ -53,14 +62,36 @@ export function AdminPage() {
 
   useEffect(carregar, []);
 
+  const aguardandoDecisao = saques?.filter((s) => s.status === 'PENDENTE').length ?? 0;
+  const aTransferir = saques?.filter((s) => s.status === 'APROVADO').length ?? 0;
+  const precisaDeVoce = aguardandoDecisao + aTransferir;
+
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="font-display text-2xl font-bold text-ink">Painel do Admin USAI</h1>
-        <p className="text-sm text-ink-soft">Condomínios, síndicos e financeiro da plataforma.</p>
-      </div>
+      <section className="rounded-[24px] bg-fachada-noite p-6 text-fachada-papel sm:p-8">
+        <h1 className="font-marca text-3xl font-extrabold leading-tight tracking-[-0.02em] sm:text-4xl">
+          Painel do Admin USAI
+        </h1>
+        <p className="mt-1 text-sm text-fachada-papel-suave">
+          Condomínios, síndicos e financeiro da plataforma.
+        </p>
+        {saques && (
+          <dl className="mt-5 flex flex-wrap gap-x-8 gap-y-3">
+            <div>
+              <dt className="text-sm text-fachada-papel-suave">Aguardando decisão</dt>
+              <dd className="font-marca text-2xl font-extrabold text-fachada-luz">
+                {aguardandoDecisao}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-sm text-fachada-papel-suave">PIX a transferir</dt>
+              <dd className="font-marca text-2xl font-extrabold text-fachada-luz">{aTransferir}</dd>
+            </div>
+          </dl>
+        )}
+      </section>
 
-      <div className="flex gap-1 overflow-x-auto border border-paper-line bg-paper-surface p-1">
+      <div className="flex gap-1 overflow-x-auto rounded-[16px] border border-paper-line bg-paper-surface p-1">
         {(
           [
             ['financeiro', 'Financeiro'],
@@ -74,12 +105,22 @@ export function AdminPage() {
         ).map(([valor, rotulo]) => (
           <button
             key={valor}
+            type="button"
+            aria-pressed={aba === valor}
             onClick={() => setAba(valor)}
-            className={`flex-1 whitespace-nowrap px-3 py-2 text-sm font-semibold transition ${
-              aba === valor ? 'notch-sm bg-ink text-ink-inverse' : 'text-ink-soft'
+            className={`flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-[12px] px-3 py-2 text-sm font-semibold transition ${
+              aba === valor ? 'bg-ink text-ink-inverse' : 'text-ink-soft hover:bg-paper'
             }`}
           >
             {rotulo}
+            {valor === 'financeiro' && precisaDeVoce > 0 && (
+              <span
+                aria-label={`${precisaDeVoce} para resolver`}
+                className="rounded-full bg-fachada-coral px-1.5 text-xs font-bold text-fachada-tinta"
+              >
+                {precisaDeVoce}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -143,6 +184,8 @@ function AbaFinanceiro({ resumo, saques, erro, onMudou, onErro }: AbaFinanceiroP
   const [rejeitandoId, setRejeitandoId] = useState<string | null>(null);
   const [motivo, setMotivo] = useState('');
   const [detalhe, setDetalhe] = useState<Detalhe | null>(null);
+  const [busca, setBusca] = useState('');
+  const [filtroHistorico, setFiltroHistorico] = useState<FiltroHistorico>('TODOS');
 
   async function executar(id: string, acao: () => Promise<SaqueDTO>) {
     setProcessandoId(id);
@@ -185,9 +228,13 @@ function AbaFinanceiro({ resumo, saques, erro, onMudou, onErro }: AbaFinanceiroP
 
   if (!resumo) return null;
 
-  const pendentes = saques?.filter((s) => s.status === 'PENDENTE') ?? null;
-  const aPagar = saques?.filter((s) => s.status === 'APROVADO') ?? [];
-  const historico = saques?.filter((s) => s.status === 'PAGO' || s.status === 'REJEITADO') ?? [];
+  const todosPendentes = saques?.filter((s) => s.status === 'PENDENTE') ?? null;
+  const todosAPagar = saques?.filter((s) => s.status === 'APROVADO') ?? [];
+  const todoHistorico =
+    saques?.filter((s) => s.status === 'PAGO' || s.status === 'REJEITADO') ?? [];
+  const pendentes = todosPendentes && buscarSaques(todosPendentes, busca);
+  const aPagar = buscarSaques(todosAPagar, busca);
+  const historico = filtrarHistorico(todoHistorico, filtroHistorico, busca);
 
   return (
     <div className="flex flex-col gap-5">
@@ -200,7 +247,7 @@ function AbaFinanceiro({ resumo, saques, erro, onMudou, onErro }: AbaFinanceiroP
         </Card>
         <ResumoSaque
           rotulo="Saques pendentes"
-          cor="text-mostarda-500"
+          cor="text-mostarda-700"
           resumo={resumo.saques.pendente}
         />
         <ResumoSaque rotulo="A pagar (PIX)" cor="text-barro-700" resumo={resumo.saques.aprovado} />
@@ -208,6 +255,7 @@ function AbaFinanceiro({ resumo, saques, erro, onMudou, onErro }: AbaFinanceiroP
         <ResumoSaque
           rotulo="Saques rejeitados"
           cor="text-carmim-500"
+          className="col-span-2 sm:col-span-1"
           resumo={resumo.saques.rejeitado}
         />
       </div>
@@ -227,10 +275,25 @@ function AbaFinanceiro({ resumo, saques, erro, onMudou, onErro }: AbaFinanceiroP
         </Card>
       </div>
 
+      {saques && saques.length > 0 && (
+        <input
+          type="search"
+          aria-label="Buscar saque"
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          placeholder="Buscar saque por nome, condomínio ou chave PIX…"
+          className="min-h-[44px] w-full rounded-[12px] border border-ink/40 bg-paper-surface px-4 py-2.5 text-sm text-ink outline-none transition focus:border-ink"
+        />
+      )}
+
       <div>
         <h2 className="mb-3 font-display font-semibold text-ink">Saques pendentes de avaliação</h2>
 
-        {pendentes && pendentes.length === 0 && <EmptyState title="Nenhum saque pendente" />}
+        {pendentes && pendentes.length === 0 && (
+          <EmptyState
+            title={todosPendentes?.length ? 'Nenhum pendente nessa busca' : 'Nenhum saque pendente'}
+          />
+        )}
 
         {pendentes && pendentes.length > 0 && (
           <div className="flex max-h-[28rem] flex-col gap-3 overflow-y-auto pr-1">
@@ -309,7 +372,13 @@ function AbaFinanceiro({ resumo, saques, erro, onMudou, onErro }: AbaFinanceiroP
           ver o saque como pago, com recibo.
         </p>
 
-        {aPagar.length === 0 && <EmptyState title="Nenhum PIX a transferir" />}
+        {aPagar.length === 0 && (
+          <EmptyState
+            title={
+              todosAPagar.length ? 'Nenhum PIX a transferir nessa busca' : 'Nenhum PIX a transferir'
+            }
+          />
+        )}
 
         {aPagar.length > 0 && (
           <div className="flex max-h-[28rem] flex-col gap-3 overflow-y-auto pr-1">
@@ -342,7 +411,42 @@ function AbaFinanceiro({ resumo, saques, erro, onMudou, onErro }: AbaFinanceiroP
       <div>
         <h2 className="mb-3 font-display font-semibold text-ink">Histórico de saques</h2>
 
-        {historico.length === 0 && <EmptyState title="Nenhum saque concluído ainda" />}
+        {todoHistorico.length > 0 && (
+          <div className="mb-3">
+            <FiltroChips
+              rotulo="Filtrar histórico por situação"
+              valor={filtroHistorico}
+              onChange={setFiltroHistorico}
+              opcoes={[
+                {
+                  valor: 'TODOS',
+                  rotulo: 'Todos',
+                  total: filtrarHistorico(todoHistorico, 'TODOS', busca).length,
+                },
+                {
+                  valor: 'PAGO',
+                  rotulo: 'Pagos',
+                  total: filtrarHistorico(todoHistorico, 'PAGO', busca).length,
+                },
+                {
+                  valor: 'REJEITADO',
+                  rotulo: 'Rejeitados',
+                  total: filtrarHistorico(todoHistorico, 'REJEITADO', busca).length,
+                },
+              ]}
+            />
+          </div>
+        )}
+
+        {historico.length === 0 && (
+          <EmptyState
+            title={
+              todoHistorico.length
+                ? 'Nada no histórico com esse filtro'
+                : 'Nenhum saque concluído ainda'
+            }
+          />
+        )}
 
         {historico.length > 0 && (
           <div className="flex max-h-[28rem] flex-col gap-3 overflow-y-auto pr-1">
@@ -374,13 +478,15 @@ function ResumoSaque({
   rotulo,
   cor,
   resumo,
+  className = '',
 }: {
   rotulo: string;
   cor: string;
   resumo: { quantidade: number; valorTotal: number };
+  className?: string;
 }) {
   return (
-    <Card>
+    <Card className={className}>
       <p className="font-meta text-xs text-ink-faint">{rotulo}</p>
       <p className={`mt-1 font-display text-xl font-bold ${cor}`}>{resumo.quantidade}</p>
       <p className="font-mono font-meta text-xs text-ink-faint">
@@ -418,6 +524,14 @@ function AbaCondominios({ condominios, onCriado, onAtualizado, onErro }: AbaCond
   const [isLoading, setIsLoading] = useState(false);
   const [erroForm, setErroForm] = useState<string | null>(null);
   const [alternandoId, setAlternandoId] = useState<string | null>(null);
+  const [aDesativar, setADesativar] = useState<CondominioAdminDTO | null>(null);
+  const [busca, setBusca] = useState('');
+  const [filtro, setFiltro] = useState<FiltroCondominios>('TODOS');
+
+  const visiveis = useMemo(
+    () => filtrarCondominios(condominios ?? [], busca, filtro),
+    [condominios, busca, filtro],
+  );
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -504,18 +618,62 @@ function AbaCondominios({ condominios, onCriado, onAtualizado, onErro }: AbaCond
         )}
 
         {condominios && condominios.length > 0 && (
+          <div className="mb-3 flex flex-col gap-3">
+            <input
+              type="search"
+              aria-label="Buscar condomínio"
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Buscar condomínio por nome ou link…"
+              className="min-h-[44px] w-full rounded-[12px] border border-ink/40 bg-paper-surface px-4 py-2.5 text-sm text-ink outline-none transition focus:border-ink"
+            />
+            <FiltroChips
+              rotulo="Filtrar condomínios"
+              valor={filtro}
+              onChange={setFiltro}
+              opcoes={[
+                { valor: 'TODOS', rotulo: 'Todos', total: condominios.length },
+                {
+                  valor: 'ATIVOS',
+                  rotulo: 'Ativos',
+                  total: condominios.filter((c) => c.ativo).length,
+                },
+                {
+                  valor: 'INATIVOS',
+                  rotulo: 'Inativos',
+                  total: condominios.filter((c) => !c.ativo).length,
+                },
+              ]}
+            />
+          </div>
+        )}
+
+        {condominios && condominios.length > 0 && visiveis.length === 0 && (
+          <EmptyState
+            title="Nenhum condomínio encontrado"
+            description="Mude a busca ou o filtro."
+          />
+        )}
+
+        {visiveis.length > 0 && (
           <div className="flex flex-col gap-2">
-            {condominios.map((condominio) => (
+            {visiveis.map((condominio) => (
               <Card key={condominio.id} className="flex items-center justify-between gap-2">
-                <div>
+                <div className="min-w-0">
                   <p className="font-display font-semibold text-ink">{condominio.nome}</p>
-                  <p className="text-sm text-ink-soft">/{condominio.linkSlug}</p>
+                  <p className="truncate text-sm text-ink-soft">/{condominio.linkSlug}</p>
+                  <p className="text-xs text-ink-faint">
+                    {condominio.ativo ? 'Ativo' : 'Inativo'} · cadastrado em{' '}
+                    {formatDate(condominio.createdAt)}
+                  </p>
                 </div>
                 <Button
                   variant={condominio.ativo ? 'danger' : 'secondary'}
                   fullWidth={false}
                   isLoading={alternandoId === condominio.id}
-                  onClick={() => handleAlternarAtivo(condominio)}
+                  onClick={() =>
+                    condominio.ativo ? setADesativar(condominio) : handleAlternarAtivo(condominio)
+                  }
                 >
                   {condominio.ativo ? 'Desativar' : 'Ativar'}
                 </Button>
@@ -524,6 +682,32 @@ function AbaCondominios({ condominios, onCriado, onAtualizado, onErro }: AbaCond
           </div>
         )}
       </div>
+
+      {aDesativar && (
+        <Modal titulo="Desativar condomínio" onFechar={() => setADesativar(null)}>
+          <h2 className="font-display text-lg font-bold text-ink">Desativar {aDesativar.nome}?</h2>
+          <p className="mt-2 text-sm text-ink-soft">
+            Novos moradores deixam de conseguir se cadastrar pelo link do condomínio. Quem já tem
+            conta continua entrando. Você pode ativar de novo a qualquer momento.
+          </p>
+          <div className="mt-5 flex flex-wrap gap-2">
+            <Button
+              variant="danger"
+              fullWidth={false}
+              onClick={() => {
+                const alvo = aDesativar;
+                setADesativar(null);
+                void handleAlternarAtivo(alvo);
+              }}
+            >
+              Sim, desativar
+            </Button>
+            <Button variant="ghost" fullWidth={false} onClick={() => setADesativar(null)}>
+              Cancelar
+            </Button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

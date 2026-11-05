@@ -285,7 +285,7 @@ describe('AdminPage: aba Condomínios', () => {
     expect(await screen.findByText('Residencial Monte Verde')).toBeInTheDocument();
   });
 
-  it('desativa um condomínio ativo', async () => {
+  it('desativa um condomínio ativo só depois de confirmar na janela', async () => {
     mockApis();
     vi.spyOn(adminApi, 'atualizarCondominio').mockResolvedValue({
       ...condominioBase,
@@ -297,9 +297,118 @@ describe('AdminPage: aba Condomínios', () => {
     await screen.findByText('Residencial Jardim Europa');
 
     await userEvent.click(screen.getByRole('button', { name: 'Desativar' }));
+    expect(adminApi.atualizarCondominio).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog', { name: 'Desativar condomínio' })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Sim, desativar' }));
 
     expect(adminApi.atualizarCondominio).toHaveBeenCalledWith('cond-1', { ativo: false });
     expect(await screen.findByRole('button', { name: 'Ativar' })).toBeInTheDocument();
+  });
+
+  it('cancelar a janela mantém o condomínio ativo', async () => {
+    mockApis();
+    vi.spyOn(adminApi, 'atualizarCondominio').mockResolvedValue(condominioBase);
+
+    render(<AdminPage />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Condomínios' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Desativar' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+
+    expect(adminApi.atualizarCondominio).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('busca e filtra os condomínios por situação', async () => {
+    mockApis({
+      condominios: [
+        condominioBase,
+        {
+          ...condominioBase,
+          id: 'cond-2',
+          nome: 'Edifício Aurora',
+          linkSlug: 'aurora',
+          ativo: false,
+        },
+      ],
+    });
+
+    render(<AdminPage />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Condomínios' }));
+    await screen.findByText('Edifício Aurora');
+
+    await userEvent.click(screen.getByRole('button', { name: /Inativos/ }));
+    expect(screen.getByText('Edifício Aurora')).toBeInTheDocument();
+    expect(screen.queryByText('Residencial Jardim Europa')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /^Todos/ }));
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Buscar condomínio' }), 'jardim');
+    expect(screen.queryByText('Edifício Aurora')).not.toBeInTheDocument();
+    expect(screen.getByText('Residencial Jardim Europa')).toBeInTheDocument();
+  });
+});
+
+describe('AdminPage: busca e filtros dos saques', () => {
+  const saqueAna: SaqueDTO = {
+    ...saquePendente,
+    id: 'saque-ana',
+    solicitanteNome: 'Ana Proprietaria',
+    chavePixUsada: 'ana@pix.com',
+  };
+  const pagoCarla: SaqueDTO = {
+    ...saquePendente,
+    id: 'saque-carla',
+    solicitanteNome: 'Carla Souza',
+    status: 'PAGO',
+    processadoEm: '2026-09-16T12:00:00.000Z',
+    pagoEm: '2026-09-17T12:00:00.000Z',
+  };
+  const rejeitadoDiego: SaqueDTO = {
+    ...saquePendente,
+    id: 'saque-diego',
+    solicitanteNome: 'Diego Martins',
+    status: 'REJEITADO',
+    motivoRejeicao: 'Chave inválida',
+    processadoEm: '2026-09-16T12:00:00.000Z',
+  };
+
+  it('o cabeçalho e a aba avisam quantos saques esperam uma ação', async () => {
+    mockApis({ saques: [saquePendente, { ...saqueAna, status: 'APROVADO' }] });
+
+    render(<AdminPage />);
+
+    expect(await screen.findByText('Aguardando decisão')).toBeInTheDocument();
+    expect(screen.getByText('Aguardando decisão').nextSibling).toHaveTextContent('1');
+    expect(screen.getByText('PIX a transferir').nextSibling).toHaveTextContent('1');
+    expect(screen.getByLabelText('2 para resolver')).toBeInTheDocument();
+  });
+
+  it('busca o saque pelo nome de quem pediu', async () => {
+    mockApis({ saques: [saquePendente, saqueAna] });
+
+    render(<AdminPage />);
+    await screen.findByText('Ana Proprietaria');
+
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Buscar saque' }), 'ana');
+
+    expect(screen.getByText('Ana Proprietaria')).toBeInTheDocument();
+    expect(screen.queryByText('Bruno Locatario')).not.toBeInTheDocument();
+  });
+
+  it('filtra o histórico entre pagos e rejeitados', async () => {
+    mockApis({ saques: [pagoCarla, rejeitadoDiego] });
+
+    render(<AdminPage />);
+    await screen.findByText('Carla Souza');
+    expect(screen.getByText('Diego Martins')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /Rejeitados/ }));
+    expect(screen.queryByText('Carla Souza')).not.toBeInTheDocument();
+    expect(screen.getByText('Diego Martins')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /Pagos/ }));
+    expect(screen.getByText('Carla Souza')).toBeInTheDocument();
+    expect(screen.queryByText('Diego Martins')).not.toBeInTheDocument();
   });
 });
 

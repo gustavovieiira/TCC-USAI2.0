@@ -1,14 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Card } from '@/components/ui/Card';
 import { CardClicavel } from '@/components/ui/CardClicavel';
 import { Detalhe, DetalheModal } from '@/components/ui/DetalheModal';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { FiltroChips } from '@/components/ui/FiltroChips';
 import { Spinner } from '@/components/ui/Spinner';
 import { Avatar } from '@/components/ui/Avatar';
 import { extractErrorMessage } from '@/lib/apiClient';
 import { formatCurrency, formatDateTime } from '@/lib/format';
 import { ExtratoView } from '@/features/saques/ExtratoView';
 import { detalheMovimentoPlataforma } from '@/features/saques/detalhes';
+import {
+  dentroDoPeriodo,
+  FILTROS_PERIODO,
+  FiltroPeriodoExtrato,
+} from '@/features/saques/extrato.filtros';
 import { extratoDoUsuario, extratoPlataforma, listarUsuarios } from './admin.api';
 import { ExtratoDeUsuarioDTO, ExtratoPlataformaDTO, UsuarioAdminDTO } from './admin.types';
 
@@ -30,7 +36,7 @@ export function AbaExtratos() {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex gap-1 self-start border border-paper-line bg-paper-surface p-1">
+      <div className="flex gap-1 self-start rounded-[16px] border border-paper-line bg-paper-surface p-1">
         {(
           [
             ['usuarios', 'Extrato de um usuário'],
@@ -39,9 +45,11 @@ export function AbaExtratos() {
         ).map(([valor, rotulo]) => (
           <button
             key={valor}
+            type="button"
+            aria-pressed={visao === valor}
             onClick={() => setVisao(valor)}
-            className={`whitespace-nowrap px-3 py-2 text-sm font-semibold transition ${
-              visao === valor ? 'notch-sm bg-ink text-ink-inverse' : 'text-ink-soft'
+            className={`whitespace-nowrap rounded-[12px] px-3 py-2 text-sm font-semibold transition ${
+              visao === valor ? 'bg-ink text-ink-inverse' : 'text-ink-soft hover:bg-paper'
             }`}
           >
             {rotulo}
@@ -60,6 +68,12 @@ function ExtratoDeUsuario() {
   const [erro, setErro] = useState<string | null>(null);
   const [aberto, setAberto] = useState<ExtratoDeUsuarioDTO | null>(null);
   const [abrindoId, setAbrindoId] = useState<string | null>(null);
+  const [papel, setPapel] = useState<'TODOS' | 'MORADOR' | 'SINDICO' | 'ADMIN'>('TODOS');
+
+  const visiveis = useMemo(
+    () => (usuarios ?? []).filter((u) => papel === 'TODOS' || u.papel === papel),
+    [usuarios, papel],
+  );
 
   useEffect(() => {
     const termo = busca.trim();
@@ -145,10 +159,35 @@ function ExtratoDeUsuario() {
           <Spinner />
         </div>
       )}
-      {usuarios && usuarios.length === 0 && <EmptyState title="Nenhum usuário encontrado" />}
       {usuarios && usuarios.length > 0 && (
+        <FiltroChips
+          rotulo="Filtrar usuários por papel"
+          valor={papel}
+          onChange={setPapel}
+          opcoes={[
+            { valor: 'TODOS', rotulo: 'Todos', total: usuarios.length },
+            {
+              valor: 'MORADOR',
+              rotulo: 'Moradores',
+              total: usuarios.filter((u) => u.papel === 'MORADOR').length,
+            },
+            {
+              valor: 'SINDICO',
+              rotulo: 'Síndicos',
+              total: usuarios.filter((u) => u.papel === 'SINDICO').length,
+            },
+            {
+              valor: 'ADMIN',
+              rotulo: 'Admins',
+              total: usuarios.filter((u) => u.papel === 'ADMIN').length,
+            },
+          ]}
+        />
+      )}
+      {usuarios && visiveis.length === 0 && <EmptyState title="Nenhum usuário encontrado" />}
+      {visiveis.length > 0 && (
         <div className="flex max-h-[32rem] flex-col gap-2 overflow-y-auto pr-1">
-          {usuarios.map((usuario) => (
+          {visiveis.map((usuario) => (
             <button
               key={usuario.id}
               type="button"
@@ -183,6 +222,7 @@ function ExtratoDaPlataforma() {
   const [extrato, setExtrato] = useState<ExtratoPlataformaDTO | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [detalhe, setDetalhe] = useState<Detalhe | null>(null);
+  const [periodo, setPeriodo] = useState<FiltroPeriodoExtrato>('TUDO');
 
   useEffect(() => {
     extratoPlataforma()
@@ -200,6 +240,8 @@ function ExtratoDaPlataforma() {
     );
   }
 
+  const movimentosDoPeriodo = extrato.movimentos.filter((m) => dentroDoPeriodo(m.data, periodo));
+
   return (
     <div className="flex flex-col gap-4">
       {detalhe && <DetalheModal detalhe={detalhe} onFechar={() => setDetalhe(null)} />}
@@ -215,14 +257,33 @@ function ExtratoDaPlataforma() {
         </p>
       </Card>
 
+      {extrato.movimentos.length > 0 && (
+        <label className="flex items-center gap-2 text-sm text-ink-soft">
+          Período
+          <select
+            value={periodo}
+            onChange={(e) => setPeriodo(e.target.value as FiltroPeriodoExtrato)}
+            className="rounded-[12px] border border-paper-line bg-paper-surface px-3 py-1.5 text-sm font-semibold text-ink"
+          >
+            {FILTROS_PERIODO.map((f) => (
+              <option key={f.valor} value={f.valor}>
+                {f.rotulo}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+
       {extrato.movimentos.length === 0 ? (
         <EmptyState
           title="Nada retido pela plataforma"
           description="Quando um aluguel for pago num condomínio sem síndico ativo, a taxa aparece aqui."
         />
+      ) : movimentosDoPeriodo.length === 0 ? (
+        <EmptyState title="Nada nesse período" description="Escolha outro período acima." />
       ) : (
         <div className="flex max-h-[32rem] flex-col gap-3 overflow-y-auto pr-1">
-          {extrato.movimentos.map((movimento) => (
+          {movimentosDoPeriodo.map((movimento) => (
             <CardClicavel
               key={movimento.id}
               onAbrir={() => setDetalhe(detalheMovimentoPlataforma(movimento))}

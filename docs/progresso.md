@@ -6,6 +6,35 @@
 
 ---
 
+## 2026-11-05: Redesenho, etapa 5: painel do Admin
+
+**Escopo.** `AdminPage.tsx` (financeiro, condomínios, síndicos) e a aba de extratos, no sistema "A Fachada". As
+abas Documentos, Termos e Identidade já saíram coerentes com a paleta nova pelo remapeamento de tokens.
+
+**O que mudou.**
+
+- **Cabeçalho que mostra o que precisa de ação:** "Aguardando decisão" e "PIX a transferir", e a aba
+  Financeiro ganha um contador coral com a soma dos dois. O Admin vê de relance se tem trabalho pendente.
+- **Financeiro:** busca na fila por nome, condomínio ou chave PIX (`features/admin/admin.filtros.ts`) e filtro
+  do histórico entre pagos e rejeitados, com contagem. Os cartões de resumo ficaram mais compactos no celular.
+- **Condomínios:** busca por nome ou link, filtro ativos e inativos, data de cadastro e situação em cada
+  linha. Desativar passou a pedir confirmação numa janela que explica o efeito real: o condomínio inativo
+  só impede novos cadastros pelo link, quem já tem conta continua entrando (conferido no `auth.service.ts`).
+- **Extratos:** a busca de usuários ganhou filtro por papel (moradores, síndicos, admins) e a conta da USAI
+  ganhou filtro por período, reaproveitando as funções do extrato do morador.
+- **Contraste:** números em amarelo claro sobre fundo branco (resumo de saques, extrato, perfil) passaram para
+  o tom escuro do mesmo amarelo, que atinge o contraste mínimo.
+
+**Testes.** Frontend 378 (novos: filtros do Admin, modal de desativação, busca e histórico de saques, filtros
+de extrato), `tsc` e `eslint` limpos; o detector do Impeccable só mantém avisos antigos de tamanho e cor em
+`index.css` e `ItemCard`. Conferido no navegador em 420 px com dados simulados.
+
+**Onde mexer a seguir.** Remover os nomes antigos de tokens (`paper`, `ink`, `barro`, `jade`...) trocando por
+`fachada-*` e rodar `/impeccable document` para fechar o `DESIGN.md`. É um refactor só de nomes, sem mudança
+visual, por isso fica por último.
+
+---
+
 ## 2026-11-05: Redesenho, etapa 4: painel do síndico
 
 **Escopo.** `SindicoPage.tsx` e o cartão de convite (`ConviteMoradores.tsx`), no sistema "A Fachada".

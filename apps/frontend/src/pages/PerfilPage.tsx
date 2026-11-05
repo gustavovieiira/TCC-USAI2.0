@@ -257,7 +257,7 @@ export function PerfilPage() {
           <StatCard
             label="Pedidos p/ aprovar"
             value={String(dados.pedidosParaAprovar)}
-            accent={dados.pedidosParaAprovar > 0 ? 'text-mostarda-500' : 'text-ink'}
+            accent={dados.pedidosParaAprovar > 0 ? 'text-mostarda-700' : 'text-ink'}
           />
         </div>
       )}
@@ -276,7 +276,7 @@ export function PerfilPage() {
           <StatCard
             label="Saques pendentes"
             value={String(dados.saquesPendentes)}
-            accent={dados.saquesPendentes > 0 ? 'text-mostarda-500' : 'text-ink'}
+            accent={dados.saquesPendentes > 0 ? 'text-mostarda-700' : 'text-ink'}
           />
           <StatCard
             label="Valor em saques pendentes"
