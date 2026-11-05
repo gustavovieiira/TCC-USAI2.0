@@ -70,7 +70,7 @@ export function ConviteMoradores({
         <button
           type="button"
           onClick={() => copiar('link', link)}
-          className="text-left text-sm font-semibold text-fachada-coral-texto hover:underline sm:text-right"
+          className="min-h-[44px] text-left text-sm font-semibold text-fachada-coral-texto hover:underline sm:text-right"
         >
           {copiado === 'link' ? 'Link copiado!' : 'Copiar link'}
         </button>
@@ -82,7 +82,7 @@ export function ConviteMoradores({
         <button
           type="button"
           onClick={() => copiar('pin', pin)}
-          className="text-left text-sm font-semibold text-fachada-coral-texto hover:underline sm:text-right"
+          className="min-h-[44px] text-left text-sm font-semibold text-fachada-coral-texto hover:underline sm:text-right"
         >
           {copiado === 'pin' ? 'PIN copiado!' : 'Copiar PIN'}
         </button>

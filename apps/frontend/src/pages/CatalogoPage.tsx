@@ -68,7 +68,7 @@ export function CatalogoPage() {
         <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:px-0">
           <button
             onClick={() => setCategoriaAtiva(null)}
-            className={`notch-sm shrink-0 px-3.5 py-1.5 text-sm font-semibold transition ${
+            className={`notch-sm shrink-0 px-3.5 py-2 text-sm font-semibold transition ${
               categoriaAtiva === null
                 ? 'bg-ink text-ink-inverse'
                 : 'border border-paper-line bg-paper-surface text-ink-soft'
@@ -80,7 +80,7 @@ export function CatalogoPage() {
             <button
               key={categoria}
               onClick={() => setCategoriaAtiva(categoria)}
-              className={`notch-sm shrink-0 px-3.5 py-1.5 text-sm font-semibold transition ${
+              className={`notch-sm shrink-0 px-3.5 py-2 text-sm font-semibold transition ${
                 categoriaAtiva === categoria
                   ? 'bg-jade-500 text-jade-100'
                   : 'border border-paper-line bg-paper-surface text-ink-soft'

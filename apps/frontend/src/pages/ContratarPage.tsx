@@ -215,7 +215,7 @@ export function ContratarPage() {
                               </span>
                             )}
                           </span>
-                          <span className="block whitespace-nowrap text-sm text-fachada-tinta-suave">
+                          <span className="block whitespace-nowrap text-xs text-fachada-tinta-suave">
                             até {p.limiteMoradores} moradores
                           </span>
                         </span>

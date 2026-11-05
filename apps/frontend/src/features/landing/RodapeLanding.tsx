@@ -29,7 +29,7 @@ const ASSUNTOS = [
 ] as const;
 
 const LINK_RODAPE =
-  'rounded-sm text-fachada-papel-suave transition-colors hover:text-fachada-papel hover:underline hover:underline-offset-4';
+  'inline-block rounded-sm py-1.5 text-fachada-papel-suave transition-colors hover:text-fachada-papel hover:underline hover:underline-offset-4';
 
 const TITULO_COLUNA = 'font-marca text-base font-bold text-fachada-papel';
 

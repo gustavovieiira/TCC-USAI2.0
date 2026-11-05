@@ -1,5 +1,5 @@
 import { apiClient } from '@/lib/apiClient';
-import { CriarItemInput, ItemDTO, ListarItensFiltro } from './itens.types';
+import { AtualizarItemInput, CriarItemInput, ItemDTO, ListarItensFiltro } from './itens.types';
 
 export async function listarItens(filtro: ListarItensFiltro = {}): Promise<ItemDTO[]> {
   const { data } = await apiClient.get<ItemDTO[]>('/itens', { params: filtro });
@@ -14,6 +14,16 @@ export async function buscarItem(id: string): Promise<ItemDTO> {
 export async function criarItem(input: CriarItemInput): Promise<ItemDTO> {
   const { data } = await apiClient.post<ItemDTO>('/itens', input);
   return data;
+}
+
+export async function atualizarItem(id: string, input: AtualizarItemInput): Promise<ItemDTO> {
+  const { data } = await apiClient.patch<ItemDTO>(`/itens/${id}`, input);
+  return data;
+}
+
+/** Remoção lógica: o item sai do catálogo, mas as locações já feitas continuam no histórico. */
+export async function removerItem(id: string): Promise<void> {
+  await apiClient.delete(`/itens/${id}`);
 }
 
 export async function uploadImagemItem(arquivo: File): Promise<{ url: string }> {

@@ -33,7 +33,7 @@ export function FiltroChips<T extends string>({
             type="button"
             aria-pressed={ativo}
             onClick={() => onChange(opcao.valor)}
-            className={`notch-sm shrink-0 px-3.5 py-1.5 text-sm font-semibold transition ${
+            className={`notch-sm shrink-0 px-3.5 py-2 text-sm font-semibold transition ${
               ativo
                 ? 'bg-ink text-ink-inverse'
                 : 'border border-paper-line bg-paper-surface text-ink-soft hover:bg-paper'

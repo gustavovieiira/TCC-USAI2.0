@@ -61,7 +61,7 @@ export function AppShell() {
           <div className="mx-auto flex max-w-screen-2xl items-center justify-between gap-4 px-4 py-3 md:px-6 lg:px-10">
             <NavLink
               to={homeRouteFor(user?.papel)}
-              className="flex items-center gap-2 font-display text-xl font-bold text-ink-inverse"
+              className="-my-2 flex items-center gap-2 py-2 font-display text-xl font-bold text-ink-inverse"
             >
               <Logo altura={30} className="text-ink-inverse" />
             </NavLink>

@@ -28,6 +28,13 @@ export interface CriarItemInput {
   imagens?: string[];
 }
 
+export interface AtualizarItemInput {
+  titulo?: string;
+  descricao?: string;
+  categoria?: string;
+  valorDiaria?: number;
+}
+
 export interface ListarItensFiltro {
   categoria?: string;
 }

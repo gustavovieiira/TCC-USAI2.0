@@ -20,7 +20,7 @@ export function LoginPage() {
       <p className="mt-4 text-center text-sm">
         <Link
           to="/esqueci-senha"
-          className="font-semibold text-fachada-coral-texto underline underline-offset-2 hover:no-underline"
+          className="inline-block py-2 font-semibold text-fachada-coral-texto underline underline-offset-2 hover:no-underline"
         >
           Esqueci minha senha
         </Link>
@@ -29,7 +29,7 @@ export function LoginPage() {
         Recebeu um link de convite do seu condomínio?{' '}
         <Link
           to="/cadastro"
-          className="font-semibold text-fachada-coral-texto underline underline-offset-2 hover:no-underline"
+          className="inline-block py-2 font-semibold text-fachada-coral-texto underline underline-offset-2 hover:no-underline"
         >
           Cadastre-se por aqui
         </Link>

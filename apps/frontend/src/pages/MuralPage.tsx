@@ -211,7 +211,7 @@ function SegmentButton({
     <button
       type="button"
       onClick={onClick}
-      className={`notch-sm px-3 py-1 text-xs font-semibold transition ${
+      className={`notch-sm px-3.5 py-2 text-sm font-semibold transition ${
         active ? 'bg-ink text-ink-inverse' : 'bg-paper text-ink-soft hover:bg-paper-line'
       }`}
     >

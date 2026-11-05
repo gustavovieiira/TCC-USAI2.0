@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { CenaHero } from './CenaHero';
 
 function renderCena() {
@@ -121,5 +121,16 @@ describe('CenaHero', () => {
       'transform',
       expect.stringMatching(/^translate\(/),
     );
+  });
+
+  it('ao escolher uma janela, traz o bilhete com o item para a tela (ele fica abaixo do prédio)', async () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    renderCena();
+
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    await userEvent.click(janelaDo('401'));
+
+    expect(scrollIntoView).toHaveBeenCalledWith(expect.objectContaining({ block: 'nearest' }));
   });
 });
