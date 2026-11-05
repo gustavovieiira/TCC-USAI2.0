@@ -1,4 +1,6 @@
-FROM node:20-alpine AS base
+FROM node:24-alpine AS base
+# O Prisma precisa do OpenSSL para escolher o motor certo no Alpine.
+RUN apk add --no-cache openssl
 WORKDIR /app
 
 FROM base AS deps
@@ -17,7 +19,8 @@ RUN npm run build
 
 FROM base AS runtime
 ENV NODE_ENV=production
-COPY --from=deps /app/node_modules ./node_modules
+# node_modules do estágio de build: é nele que o `prisma generate` grava o cliente.
+COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/apps/backend/dist ./apps/backend/dist
 COPY --from=build /app/apps/backend/node_modules ./apps/backend/node_modules
 COPY --from=build /app/apps/backend/prisma ./apps/backend/prisma
