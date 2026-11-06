@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { VERSAO_TERMOS } from '@/common/termos';
 import bcrypt from 'bcryptjs';
 import { Assinatura, CobrancaAssinatura, Prisma, PrismaClient, User } from '@prisma/client';
 import { AppError, ConflictError, NotFoundError } from '@/common/errors';
@@ -243,6 +244,9 @@ export class AssinaturasService {
           papel: 'SINDICO',
           condominioId: condominio.id,
           ativo: false,
+          // LGPD: a declaração marcada na contratação inclui o aceite dos Termos e da Política de Privacidade.
+          aceitouTermosEm: new Date(),
+          versaoTermos: VERSAO_TERMOS,
         },
       });
       const assinatura = await tx.assinatura.create({

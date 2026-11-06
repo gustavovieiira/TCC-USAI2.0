@@ -14,6 +14,8 @@ export interface CadastroMoradorPayload {
   email: string;
   senha: string;
   apartamento?: string;
+  /** LGPD: aceite dos Termos de Uso e da Política de Privacidade. */
+  aceiteTermos: boolean;
 }
 
 export interface LoginPayload {
@@ -40,6 +42,11 @@ export async function login(payload: LoginPayload): Promise<AuthResponse> {
 export async function atualizarPerfil(payload: AtualizarPerfilPayload): Promise<StoredUser> {
   const { data } = await apiClient.patch<StoredUser>('/auth/perfil', payload);
   return data;
+}
+
+/** Sair da conta: o servidor derruba as sessões abertas (o token de renovação deixa de valer). */
+export async function encerrarSessao(): Promise<void> {
+  await apiClient.post('/auth/logout');
 }
 
 /** "Esqueci minha senha": pede o e-mail com o link (a resposta é a mesma exista a conta ou não). */

@@ -166,6 +166,14 @@ export function RodapeLanding({
             </p>
             <p className="text-xs text-fachada-papel-suave">{nomeInstitucional}</p>
           </div>
+          <nav aria-label="Documentos legais" className="flex flex-wrap gap-x-5 text-xs">
+            <Link to="/termos" className={LINK_RODAPE}>
+              Termos de Uso
+            </Link>
+            <Link to="/privacidade" className={LINK_RODAPE}>
+              Política de Privacidade
+            </Link>
+          </nav>
           <a href="#topo" className={`${LINK_RODAPE} inline-flex items-center gap-1.5 text-xs`}>
             Voltar ao topo
             <IconeSetaCima />

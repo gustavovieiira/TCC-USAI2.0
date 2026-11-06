@@ -42,6 +42,11 @@ jobs:
       - name: Instalar dependências
         run: npm ci
 
+      # Falha o CI se uma dependência que vai para produção tiver falha de segurança conhecida (nível alto ou pior).
+      # As ferramentas de teste e lint (devDependencies) ficam de fora: não vão para o servidor.
+      - name: Auditoria de segurança das dependências de produção
+        run: npm audit --omit=dev --audit-level=high
+
       - name: Gerar Prisma Client
         run: npm run prisma:generate --workspace=apps/backend
 

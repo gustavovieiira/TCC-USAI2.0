@@ -27,5 +27,9 @@ COPY --from=build /app/apps/backend/prisma ./apps/backend/prisma
 COPY apps/backend/package*.json ./apps/backend/
 
 WORKDIR /app/apps/backend
+# Não roda como root: se alguém explorar uma falha da aplicação, não tem poder sobre o contêiner.
+# A pasta de uploads precisa ser gravável por esse usuário (em produção, monte um volume nela).
+RUN mkdir -p uploads && chown -R node:node /app/apps/backend/uploads
+USER node
 EXPOSE 3000
 CMD ["node", "dist/server.js"]

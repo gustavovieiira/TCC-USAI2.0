@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { prisma } from '@/common/prisma';
 import { AppError, ForbiddenError } from '@/common/errors';
+import { garantirImagemReal } from '@/common/imagem';
 import { ItensService } from './itens.service';
 import { atualizarItemSchema, criarItemSchema, listarItensQuerySchema } from './itens.schemas';
 import { uploadImagemItem } from './upload.middleware';
@@ -66,6 +67,8 @@ export const itensController = {
     if (!req.file) {
       throw new AppError('Nenhuma imagem enviada', 400, 'UPLOAD_AUSENTE');
     }
+
+    await garantirImagemReal(req.file.path);
 
     const url = `${req.protocol}://${req.get('host')}/uploads/itens/${req.file.filename}`;
     res.status(201).json({ url });

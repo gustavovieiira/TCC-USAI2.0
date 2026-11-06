@@ -17,6 +17,8 @@ import {
   listarMoradores,
 } from '@/features/sindico/sindico.api';
 import { extractErrorMessage } from '@/lib/apiClient';
+import { encerrarSessao } from '@/features/auth/auth.api';
+import { SeusDados } from '@/features/privacidade/SeusDados';
 import { clearSession, getStoredUser, updateStoredUser } from '@/lib/authStorage';
 import { formatCurrency } from '@/lib/format';
 
@@ -143,9 +145,16 @@ export function PerfilPage() {
 
   if (!user) return null;
 
-  function handleLogout() {
+  async function handleLogout() {
+    // Derruba as sessões no servidor; se a rede falhar, sai neste aparelho do mesmo jeito.
+    await encerrarSessao().catch(() => undefined);
     clearSession();
     navigate('/login');
+  }
+
+  function handleContaExcluida() {
+    clearSession();
+    navigate('/', { replace: true });
   }
 
   function iniciarEdicao() {
@@ -305,6 +314,8 @@ export function PerfilPage() {
           {user.papel === 'ADMIN' && <QuickLink to="/admin" label="Painel Admin USAI" />}
         </div>
       </div>
+
+      <SeusDados aoExcluir={handleContaExcluida} />
 
       <Button variant="danger" onClick={handleLogout}>
         Sair

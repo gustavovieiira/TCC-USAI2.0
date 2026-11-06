@@ -83,7 +83,9 @@ export function DefinirSenhaPage() {
           value={confirmacao}
           onChange={(e) => setConfirmacao(e.target.value)}
         />
-        <p className="text-xs text-fachada-tinta-suave">Use pelo menos 8 caracteres.</p>
+        <p className="text-xs text-fachada-tinta-suave">
+          Use de 8 a 72 caracteres e evite senhas óbvias, como 12345678.
+        </p>
 
         {erro && (
           <p role="alert" className="text-sm font-medium text-fachada-coral-texto">

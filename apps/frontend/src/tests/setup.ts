@@ -1,4 +1,9 @@
-import '@testing-library/jest-dom/vitest';
+import * as matchers from '@testing-library/jest-dom/matchers';
+import { expect } from 'vitest';
+
+// Registra os matchers do jest-dom direto (o atalho '@testing-library/jest-dom/vitest' não acha o vitest
+// do workspace quando os dois ficam em pastas de node_modules diferentes).
+expect.extend(matchers);
 
 // jsdom não implementa scrollIntoView, usado pelo scroll automático do chat (ConversaPage).
 if (!Element.prototype.scrollIntoView) {

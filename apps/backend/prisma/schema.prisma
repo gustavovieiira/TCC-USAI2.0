@@ -70,6 +70,11 @@ model User {
   chavePix        String?
   condominioId    String?
   ativo           Boolean  @default(true)
+  /// Aumenta ao sair da conta e ao trocar a senha: derruba as sessões abertas (refresh tokens).
+  tokenVersion    Int       @default(0)
+  /// Aceite dos Termos de Uso e da Política de Privacidade (LGPD): quando e qual versão.
+  aceitouTermosEm DateTime?
+  versaoTermos    String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

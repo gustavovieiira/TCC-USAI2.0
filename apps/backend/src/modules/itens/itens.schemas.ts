@@ -22,7 +22,23 @@ export const criarItemSchema = z.object({
   modelo: textoOpcional,
   numeroSerie: textoOpcional,
   acessorios: acessoriosSchema.optional(),
-  imagens: z.array(z.string().url('URL de imagem inválida')).optional(),
+  // Só imagens enviadas pela própria API (/uploads/itens/...): um link de fora serviria para rastrear quem abre o anúncio.
+  imagens: z
+    .array(
+      z
+        .string()
+        .url('URL de imagem inválida')
+        .max(500)
+        .refine((url) => {
+          try {
+            return new URL(url).pathname.startsWith('/uploads/itens/');
+          } catch {
+            return false;
+          }
+        }, 'A imagem precisa ser enviada pela própria plataforma'),
+    )
+    .max(10)
+    .optional(),
 });
 
 export const atualizarItemSchema = z

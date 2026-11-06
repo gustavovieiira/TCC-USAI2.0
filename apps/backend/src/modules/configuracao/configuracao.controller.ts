@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { prisma } from '@/common/prisma';
 import { AppError } from '@/common/errors';
+import { garantirImagemReal } from '@/common/imagem';
 import { ConfiguracaoService } from './configuracao.service';
 import { atualizarTextosSchema } from './configuracao.schemas';
 import { MARCA_UPLOADS_DIR, uploadLogo } from './upload.middleware';
@@ -32,6 +33,8 @@ export const configuracaoController = {
     if (!req.file) {
       throw new AppError('Nenhuma imagem enviada', 400, 'UPLOAD_AUSENTE');
     }
+
+    await garantirImagemReal(req.file.path);
 
     const url = `${req.protocol}://${req.get('host')}/uploads/marca/${req.file.filename}`;
     res.status(200).json(await configuracaoService.definirLogo(url, req.auth!.userId));

@@ -6,6 +6,55 @@
 
 ---
 
+## 2026-11-06: Segurança da informação e LGPD
+
+Revisão de segurança do backend, do front e das imagens Docker, e entrada da LGPD no produto. Nenhum sistema é
+100% seguro: o que segue é o que foi fechado e o que continua dependendo do deploy e de pessoas.
+
+**Contra invasão e abuso**
+- **Segredos do JWT:** em produção o servidor não sobe sem `JWT_ACCESS_SECRET` e `JWT_REFRESH_SECRET` (diferentes,
+  32+ caracteres), sem `CORS_ORIGINS` e, com o Asaas ligado, sem `ASAAS_WEBHOOK_TOKEN` (`common/config.ts`). Antes,
+  a falta deles caía num segredo padrão e qualquer pessoa poderia forjar um login de Admin.
+- **Tentativas de login e de PIN:** limite só sobre as falhas, por endereço e por conta (8 por 15 min) e, no cadastro,
+  por endereço e por condomínio (o PIN tem 4 dígitos). Também limites no refresh e na troca de senha
+  (`common/rateLimit.ts#limitarFalhas`, `auth.limites.ts`). `TRUST_PROXY` informa quantos proxies existem para o IP
+  real aparecer.
+- **Sessões:** `tokenVersion` na conta. Sair da conta (`POST /api/auth/logout`) e trocar a senha derrubam todos os
+  refresh tokens. O algoritmo do JWT é fixado em HS256. Login com e-mail inexistente leva o mesmo tempo da senha errada.
+- **Senha:** de 8 a 72 caracteres (o bcrypt ignora o que passa de 72) e lista de senhas óbvias barradas. O front
+  mostra o motivo da recusa.
+- **Entradas:** tamanho máximo nos campos, corpo limitado a 100 kb e 413 ou 400 no lugar de 500 para corpo grande ou
+  JSON malformado.
+- **Uploads:** além do tipo declarado, o conteúdo do arquivo é conferido (JPEG, PNG ou WebP de verdade); o anúncio só
+  aceita imagens enviadas pela própria plataforma.
+- **Comparações em tempo constante** para o PIN e para o token do webhook do Asaas.
+- **Cabeçalhos:** a API envia CSP restritiva, Permissions-Policy, COOP e `no-store` nas respostas de `/api`; o nginx do
+  front envia CSP (script só do próprio site), `X-Frame-Options`, `nosniff`, Referrer-Policy e Permissions-Policy.
+  A CSP foi testada no navegador com o build de produção, sem nenhuma violação.
+- **`/metrics`** só responde para a rede interna (o Prometheus no Docker).
+- **Docker:** o backend roda como usuário sem privilégios (`node`) e o nginx do front lê a origem da API de variáveis
+  (`API_ORIGIN`, `API_WS_ORIGIN`).
+- **Dependências:** zero falhas conhecidas nas de produção (Zod 4, React Router 7, multer 2) e Vite 8, Vitest 5 e Jest 30
+  nas ferramentas. O CI passou a rodar `npm audit --omit=dev --audit-level=high` e o Dependabot abre PRs semanais.
+  Restam avisos só em ferramentas de desenvolvimento (minimatch e glob do ESLint e do Jest), que não vão para o servidor.
+
+**LGPD**
+- Páginas públicas **Termos de Uso** (`/termos`) e **Política de Privacidade** (`/privacidade`), com links nas telas
+  de acesso, no rodapé e no perfil.
+- **Aceite registrado:** o cadastro do morador exige marcar o aceite e a contratação do síndico inclui o aceite na
+  declaração; ficam gravados a data e a versão (`aceitouTermosEm`, `versaoTermos`).
+- **Direitos do titular** (Perfil, "Seus dados e privacidade"): *Baixar meus dados* (JSON com tudo o que existe sobre
+  a pessoa, sem a senha) e *Excluir minha conta*, que anonimiza (nome, e-mail, CPF, chave PIX e apartamento deixam de
+  existir, o Mural da pessoa é apagado) depois de conferir a senha. Os registros financeiros e os documentos de
+  retirada e devolução continuam, sem identificar ninguém (obrigação legal). A exclusão é barrada com locação em
+  andamento, saque em aberto, saldo a sacar ou assinatura de condomínio sob responsabilidade da pessoa.
+
+**O que continua fora do código:** teste de invasão de verdade, revisão jurídica dos textos, HTTPS e firewall no
+servidor, backups, rotação dos segredos que já apareceram (senha de app do Gmail e chave sandbox do Asaas) e um plano
+de resposta a incidentes.
+
+---
+
 ## 2026-11-05: Teste de usabilidade de todas as telas
 
 Percurso completo com contas de teste (visitante, morador, síndico e Admin) em tela de computador e de celular

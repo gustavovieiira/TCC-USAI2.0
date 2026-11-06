@@ -178,9 +178,12 @@ describe('PerfilPage', () => {
     vi.spyOn(locacoesApi, 'listarComoLocatario').mockResolvedValue([]);
     vi.spyOn(locacoesApi, 'listarComoProprietario').mockResolvedValue([]);
 
+    const encerrar = vi.spyOn(authApi, 'encerrarSessao').mockResolvedValue();
+
     renderPage();
     await userEvent.click(screen.getByRole('button', { name: 'Sair' }));
 
+    expect(encerrar).toHaveBeenCalled();
     expect(clearSession).toHaveBeenCalled();
     expect(await screen.findByText('Página de login')).toBeInTheDocument();
   });

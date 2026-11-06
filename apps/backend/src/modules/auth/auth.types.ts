@@ -7,6 +7,7 @@ export interface CadastroMoradorInput {
   email: string;
   senha: string;
   apartamento?: string;
+  aceiteTermos: true;
 }
 
 export interface LoginInput {
