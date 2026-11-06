@@ -6,6 +6,7 @@ import { PerfilPage } from './PerfilPage';
 import * as adminApi from '@/features/admin/admin.api';
 import * as authApi from '@/features/auth/auth.api';
 import * as itensApi from '@/features/itens/itens.api';
+import * as privacidadeApi from '@/features/privacidade/privacidade.api';
 import * as locacoesApi from '@/features/locacoes/locacoes.api';
 import * as saquesApi from '@/features/saques/saques.api';
 import * as sindicoApi from '@/features/sindico/sindico.api';
@@ -17,6 +18,7 @@ function renderPage() {
       <Routes>
         <Route path="/perfil" element={<PerfilPage />} />
         <Route path="/login" element={<p>Página de login</p>} />
+        <Route path="/" element={<p>Página inicial</p>} />
       </Routes>
     </MemoryRouter>,
   );
@@ -186,6 +188,33 @@ describe('PerfilPage', () => {
     expect(encerrar).toHaveBeenCalled();
     expect(clearSession).toHaveBeenCalled();
     expect(await screen.findByText('Página de login')).toBeInTheDocument();
+  });
+
+  it('excluir a conta pelo perfil encerra a sessão e volta para a página inicial', async () => {
+    vi.spyOn(authStorage, 'getStoredUser').mockReturnValue({
+      id: 'user-1',
+      nome: 'Ana Proprietaria',
+      email: 'ana@example.com',
+      papel: 'MORADOR',
+      condominioId: 'cond-1',
+      apartamento: null,
+    });
+    const clearSession = vi.spyOn(authStorage, 'clearSession');
+    vi.spyOn(saquesApi, 'buscarSaldo').mockResolvedValue(0);
+    vi.spyOn(itensApi, 'listarItens').mockResolvedValue([]);
+    vi.spyOn(locacoesApi, 'listarComoLocatario').mockResolvedValue([]);
+    vi.spyOn(locacoesApi, 'listarComoProprietario').mockResolvedValue([]);
+    const excluir = vi.spyOn(privacidadeApi, 'excluirMinhaConta').mockResolvedValue();
+
+    renderPage();
+    await userEvent.click(screen.getByRole('button', { name: 'Excluir minha conta' }));
+    await userEvent.type(screen.getByLabelText('Sua senha'), 'senha-forte-123');
+    await userEvent.type(screen.getByLabelText('Digite EXCLUIR para confirmar'), 'EXCLUIR');
+    await userEvent.click(screen.getByRole('button', { name: 'Excluir para sempre' }));
+
+    expect(excluir).toHaveBeenCalledWith('senha-forte-123');
+    expect(clearSession).toHaveBeenCalled();
+    expect(await screen.findByText('Página inicial')).toBeInTheDocument();
   });
 
   it('edita nome e apartamento do próprio perfil', async () => {

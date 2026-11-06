@@ -93,7 +93,7 @@ export function PublicarItemPage() {
         acessorios: acessorios.length > 0 ? acessorios : undefined,
         imagens,
       });
-      navigate(`/itens/${item.id}`);
+      void navigate(`/itens/${item.id}`);
     } catch (err) {
       setErro(extractErrorMessage(err));
     } finally {

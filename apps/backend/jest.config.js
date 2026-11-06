@@ -9,7 +9,8 @@ module.exports = {
   },
   collectCoverageFrom: [
     'src/modules/**/*.ts',
-    '!src/modules/**/*.routes.ts',
+    'src/common/**/*.ts',
+    'src/app.ts',
     '!src/**/*.d.ts',
   ],
   coverageDirectory: 'coverage',

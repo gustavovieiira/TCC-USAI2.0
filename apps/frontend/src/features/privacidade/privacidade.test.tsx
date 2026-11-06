@@ -132,4 +132,14 @@ describe('SeusDados (direitos do titular)', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(excluir).not.toHaveBeenCalled();
   });
+
+  it('a tecla Esc também fecha a janela de exclusão', async () => {
+    dentroDoRouter(<SeusDados aoExcluir={vi.fn()} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Excluir minha conta' }));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    await userEvent.keyboard('{Escape}');
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
 });

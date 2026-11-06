@@ -78,7 +78,7 @@ export function PostDetalhePage() {
     setErroExcluir(null);
     try {
       await excluirPost(id);
-      navigate('/mural');
+      void navigate('/mural');
     } catch (err) {
       setErroExcluir(extractErrorMessage(err));
     }

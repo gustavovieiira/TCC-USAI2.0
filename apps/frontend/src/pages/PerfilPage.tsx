@@ -149,12 +149,12 @@ export function PerfilPage() {
     // Derruba as sessões no servidor; se a rede falhar, sai neste aparelho do mesmo jeito.
     await encerrarSessao().catch(() => undefined);
     clearSession();
-    navigate('/login');
+    void navigate('/login');
   }
 
   function handleContaExcluida() {
     clearSession();
-    navigate('/', { replace: true });
+    void navigate('/', { replace: true });
   }
 
   function iniciarEdicao() {

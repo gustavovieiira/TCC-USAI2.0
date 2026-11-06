@@ -186,4 +186,35 @@ describe('PrivacidadeService.excluirConta', () => {
       statusCode: 404,
     });
   });
+
+  it('síndico sem assinatura de condomínio pode excluir a conta', async () => {
+    const { prisma, tx } = buildPrisma({
+      usuario: { id: 's2', papel: 'SINDICO', ativo: true, senhaHash },
+    });
+
+    await new PrivacidadeService(prisma).excluirConta('s2', SENHA);
+
+    expect(prisma.assinatura.findFirst).toHaveBeenCalled();
+    expect(tx.user.update).toHaveBeenCalled();
+  });
+});
+
+describe('PrivacidadeService.exportarDados sem condomínio', () => {
+  it('quem não tem condomínio (administrador) sai com condomínio nulo', async () => {
+    const { prisma } = buildPrisma({
+      usuario: {
+        id: 'a1',
+        nome: 'Admin',
+        email: 'admin@example.com',
+        papel: 'ADMIN',
+        ativo: true,
+        senhaHash,
+        condominio: null,
+      },
+    });
+
+    const dados = await new PrivacidadeService(prisma).exportarDados('a1');
+
+    expect(dados.titular.condominio).toBeNull();
+  });
 });

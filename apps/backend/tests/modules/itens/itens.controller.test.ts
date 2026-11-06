@@ -85,6 +85,39 @@ describe('POST /api/itens', () => {
   });
 });
 
+describe('imagens do anúncio: só as enviadas pela própria plataforma', () => {
+  const corpo = {
+    titulo: 'Furadeira Bosch',
+    descricao: 'Furadeira de impacto em ótimo estado',
+    categoria: 'Ferramentas',
+    valorDiaria: 20,
+  };
+  const criar = (imagens: string[]) =>
+    request(createApp())
+      .post('/api/itens')
+      .set('Authorization', `Bearer ${token()}`)
+      .send({ ...corpo, imagens });
+
+  it('recusa uma imagem hospedada em outro site (serviria para rastrear quem abre o anúncio)', async () => {
+    const response = await criar(['https://site-de-terceiros.example/rastreio.png']);
+
+    expect(response.status).toBe(400);
+    expect(prisma.item.create).not.toHaveBeenCalled();
+  });
+
+  it('recusa um endereço que nem é uma URL', async () => {
+    expect((await criar(['isto-nao-e-url'])).status).toBe(400);
+  });
+
+  it('aceita a imagem enviada pela própria plataforma', async () => {
+    (prisma.item.create as jest.Mock).mockResolvedValue(itemBase);
+
+    const response = await criar(['http://localhost:3000/uploads/itens/abc.jpg']);
+
+    expect(response.status).toBe(201);
+  });
+});
+
 describe('valor mínimo da diária (R$ 5,00, o menor que o PIX aceita)', () => {
   const corpo = {
     titulo: 'Furadeira Bosch',

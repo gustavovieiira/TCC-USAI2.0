@@ -31,7 +31,7 @@ export function DefinirSenhaPage() {
     try {
       const result = await definirSenha(token, senha);
       saveSession(result.accessToken, result.refreshToken, result.user);
-      navigate('/sindico', { replace: true });
+      void navigate('/sindico', { replace: true });
     } catch (err) {
       setErro(extractErrorMessage(err));
     } finally {

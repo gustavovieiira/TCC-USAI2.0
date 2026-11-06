@@ -148,7 +148,7 @@ export function ContratarPage() {
         cpfCnpj,
         aceiteTermos: declaro,
       });
-      navigate(`/contratacao/${contratacao.assinaturaId}`, { replace: true });
+      void navigate(`/contratacao/${contratacao.assinaturaId}`, { replace: true });
     } catch (err) {
       setErro(extractErrorMessage(err));
     } finally {
