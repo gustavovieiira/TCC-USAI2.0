@@ -23,8 +23,8 @@ import { prisma } from '@/common/prisma';
 
 const ACCESS_SECRET = 'test-access-secret';
 const CONDOMINIO_ID = 'cond-1';
-const ANA_ID = '22222222-2222-2222-2222-222222222222';
-const BRUNO_ID = '33333333-3333-3333-3333-333333333333';
+const ANA_ID = '22222222-2222-4222-8222-222222222222';
+const BRUNO_ID = '33333333-3333-4333-8333-333333333333';
 
 beforeAll(() => {
   process.env.JWT_ACCESS_SECRET = ACCESS_SECRET;
@@ -92,7 +92,7 @@ describe('POST /api/conversas', () => {
     const response = await request(app)
       .post('/api/conversas')
       .set('Authorization', `Bearer ${token(ANA_ID)}`)
-      .send({ usuarioId: '11111111-1111-1111-1111-111111111111' });
+      .send({ usuarioId: '11111111-1111-4111-8111-111111111111' });
 
     expect(response.status).toBe(404);
   });
@@ -393,7 +393,7 @@ describe('GET /api/conversas/nao-lidas e POST /api/conversas/:id/lida', () => {
 
     const response = await request(createApp())
       .post('/api/conversas/conversa-1/lida')
-      .set('Authorization', `Bearer ${token('99999999-9999-9999-9999-999999999999')}`);
+      .set('Authorization', `Bearer ${token('99999999-9999-4999-8999-999999999999')}`);
 
     expect(response.status).toBe(403);
   });

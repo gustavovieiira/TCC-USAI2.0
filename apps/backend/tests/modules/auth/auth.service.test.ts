@@ -49,6 +49,7 @@ const moradorInput = {
   email: 'carlos@example.com',
   senha: 'senha-forte-123',
   apartamento: '101',
+  aceiteTermos: true as const,
 };
 
 describe('AuthService.cadastrarMorador', () => {
@@ -302,6 +303,7 @@ describe('AuthService: assinatura do condomínio', () => {
     nome: 'Carlos Mendes',
     email: 'carlos@example.com',
     senha: 'senha-forte-123',
+    aceiteTermos: true as const,
   };
   const condominio = {
     id: 'cond-1',

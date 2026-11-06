@@ -3,8 +3,8 @@ import { z } from 'zod';
 export const criarLocacaoSchema = z
   .object({
     itemId: z.string().min(1, 'Item é obrigatório'),
-    dataInicio: z.coerce.date({ errorMap: () => ({ message: 'Data de início inválida' }) }),
-    dataFim: z.coerce.date({ errorMap: () => ({ message: 'Data de fim inválida' }) }),
+    dataInicio: z.coerce.date({ error: 'Data de início inválida' }),
+    dataFim: z.coerce.date({ error: 'Data de fim inválida' }),
     finalidade: z
       .string()
       .trim()

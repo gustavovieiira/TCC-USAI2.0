@@ -61,6 +61,11 @@ export const authController = {
     res.status(200).json(tokens);
   },
 
+  async logout(req: Request, res: Response) {
+    await authService.encerrarSessoes(req.auth!.userId);
+    res.status(204).end();
+  },
+
   async atualizarPerfil(req: Request, res: Response) {
     const input = atualizarPerfilSchema.parse(req.body);
     const user = await authService.atualizarPerfil(req.auth!.userId, input);

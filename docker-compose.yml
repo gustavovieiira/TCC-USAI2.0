@@ -40,6 +40,10 @@ services:
       args:
         VITE_API_URL: http://localhost:3000/api
     restart: unless-stopped
+    environment:
+      # Origem da API liberada na política de segurança de conteúdo (CSP) do nginx.
+      API_ORIGIN: http://localhost:3000
+      API_WS_ORIGIN: ws://localhost:3000
     ports:
       - '5173:80'
     depends_on:

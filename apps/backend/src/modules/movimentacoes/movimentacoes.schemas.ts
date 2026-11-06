@@ -8,7 +8,7 @@ const acessorioSchema = z.object({
 export const registrarMovimentacaoSchema = z.object({
   tipo: z.enum(['RETIRADA', 'DEVOLUCAO']),
   estadoConservacao: z.enum(['OTIMO', 'BOM', 'REGULAR', 'COM_AVARIAS'], {
-    errorMap: () => ({ message: 'Informe o estado de conservação' }),
+    error: 'Informe o estado de conservação',
   }),
   acessorios: z.array(acessorioSchema).max(50, 'No máximo 50 acessórios'),
   observacoes: z

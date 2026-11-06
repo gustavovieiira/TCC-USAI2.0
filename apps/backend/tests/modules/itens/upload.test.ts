@@ -34,10 +34,14 @@ describe('POST /api/itens/upload-imagem', () => {
     const response = await request(app)
       .post('/api/itens/upload-imagem')
       .set('Authorization', `Bearer ${tokenMorador()}`)
-      .attach('imagem', Buffer.from('conteudo-fake-de-imagem'), {
-        filename: 'foto.jpg',
-        contentType: 'image/jpeg',
-      });
+      .attach(
+        'imagem',
+        Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.from('conteudo-de-imagem')]),
+        {
+          filename: 'foto.jpg',
+          contentType: 'image/jpeg',
+        },
+      );
 
     expect(response.status).toBe(201);
     expect(response.body.url).toMatch(/\/uploads\/itens\/.+\.jpg$/);

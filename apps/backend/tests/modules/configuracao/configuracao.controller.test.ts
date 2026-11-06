@@ -81,7 +81,10 @@ describe('POST /api/admin/configuracao/logo', () => {
   });
 
   it('faz upload de PNG/JPEG/WebP, guarda o arquivo como veio e passa a servir a URL pública', async () => {
-    const conteudo = Buffer.from('conteudo-fake-de-logo-png');
+    const conteudo = Buffer.concat([
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      Buffer.from('conteudo-de-logo-png'),
+    ]);
 
     const response = await request(createApp())
       .post('/api/admin/configuracao/logo')

@@ -77,11 +77,13 @@ describe('a logo aparece nas telas públicas', () => {
     vi.spyOn(api, 'buscarConfiguracao').mockResolvedValue(comLogo);
 
     render(
-      <ConfiguracaoProvider>
-        <AuthShell title="Entrar" subtitle="Acesse sua conta">
-          <p>formulário</p>
-        </AuthShell>
-      </ConfiguracaoProvider>,
+      <MemoryRouter>
+        <ConfiguracaoProvider>
+          <AuthShell title="Entrar" subtitle="Acesse sua conta">
+            <p>formulário</p>
+          </AuthShell>
+        </ConfiguracaoProvider>
+      </MemoryRouter>,
     );
 
     await waitFor(() =>

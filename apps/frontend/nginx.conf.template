@@ -1,0 +1,31 @@
+server {
+    listen 80;
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Não anuncia a versão do nginx.
+    server_tokens off;
+
+    # Cabeçalhos de segurança em todas as respostas. Não repita `add_header` dentro de um `location`: o nginx
+    # descarta os do servidor quando o `location` declara os seus.
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()" always;
+    add_header Cross-Origin-Opener-Policy "same-origin" always;
+    # Política de segurança de conteúdo: só carrega script do próprio site (um XSS não consegue injetar script
+    # nem mandar dados para outro endereço). ${API_ORIGIN} e ${API_WS_ORIGIN} são trocados ao iniciar o contêiner.
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; style-src-attr 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: ${API_ORIGIN}; connect-src 'self' ${API_ORIGIN} ${API_WS_ORIGIN}; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'" always;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+        # A página inicial nunca fica em cache, para uma versão nova valer logo após o deploy.
+        expires -1;
+    }
+
+    # Arquivos com hash no nome mudam a cada build, então podem ficar um ano em cache.
+    location /assets/ {
+        expires 1y;
+    }
+}

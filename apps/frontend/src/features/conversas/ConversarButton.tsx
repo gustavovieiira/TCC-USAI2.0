@@ -27,7 +27,7 @@ export function ConversarButton({
 
     try {
       const conversa = await abrirConversa({ usuarioId, postOrigemId });
-      navigate(`/conversas/${conversa.id}`);
+      void navigate(`/conversas/${conversa.id}`);
     } catch (err) {
       setErro(extractErrorMessage(err));
     } finally {

@@ -148,7 +148,7 @@ export function ContratarPage() {
         cpfCnpj,
         aceiteTermos: declaro,
       });
-      navigate(`/contratacao/${contratacao.assinaturaId}`, { replace: true });
+      void navigate(`/contratacao/${contratacao.assinaturaId}`, { replace: true });
     } catch (err) {
       setErro(extractErrorMessage(err));
     } finally {
@@ -328,6 +328,24 @@ export function ContratarPage() {
                     {preco && periodo
                       ? ` de ${formatCurrency(preco.valorTotal)} por PIX ${frequenciaDoPeriodo(periodo.meses)}`
                       : ' por PIX'}
+                    . Li e aceito os{' '}
+                    <a
+                      href="/termos"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-semibold text-fachada-coral-texto underline underline-offset-2 hover:no-underline"
+                    >
+                      Termos de Uso
+                    </a>{' '}
+                    e a{' '}
+                    <a
+                      href="/privacidade"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-semibold text-fachada-coral-texto underline underline-offset-2 hover:no-underline"
+                    >
+                      Política de Privacidade
+                    </a>
                     .
                   </span>
                 </label>

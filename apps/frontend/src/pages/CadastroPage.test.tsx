@@ -28,7 +28,7 @@ describe('CadastroPage', () => {
     renderPage('/cadastro?condominio=residencial-aurora');
 
     expect(screen.getByText('Condomínio: residencial-aurora')).toBeInTheDocument();
-    expect(screen.getByText('Use pelo menos 8 caracteres.')).toBeInTheDocument();
+    expect(screen.getByText(/Use de 8 a 72 caracteres/)).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('link', { name: 'Entrar' }));
     expect(screen.getByText('Página de login')).toBeInTheDocument();
@@ -54,6 +54,7 @@ describe('CadastroPage', () => {
     await userEvent.type(screen.getByLabelText('E-mail'), 'ana@exemplo.com');
     await userEvent.type(screen.getByLabelText('Senha'), 'senha12345');
     await userEvent.type(screen.getByLabelText('Apartamento (opcional)'), '101');
+    await userEvent.click(screen.getByRole('checkbox', { name: /Li e aceito os Termos de Uso/ }));
     await userEvent.click(screen.getByRole('button', { name: 'Criar conta' }));
 
     expect(cadastrar).toHaveBeenCalledWith(
@@ -61,6 +62,7 @@ describe('CadastroPage', () => {
         linkSlug: 'residencial-aurora',
         pin: '123456',
         email: 'ana@exemplo.com',
+        aceiteTermos: true,
       }),
     );
     expect(await screen.findByText('Mural do condomínio')).toBeInTheDocument();
@@ -78,6 +80,7 @@ describe('CadastroPage', () => {
     await userEvent.type(screen.getByLabelText('Nome completo'), 'Ana Moradora');
     await userEvent.type(screen.getByLabelText('E-mail'), 'ana@exemplo.com');
     await userEvent.type(screen.getByLabelText('Senha'), 'senha12345');
+    await userEvent.click(screen.getByRole('checkbox', { name: /Li e aceito os Termos de Uso/ }));
     await userEvent.click(screen.getByRole('button', { name: 'Criar conta' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('PIN inválido');
@@ -95,5 +98,24 @@ describe('CadastroPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Continuar' }));
 
     expect(screen.getByText('Condomínio: meu-condominio')).toBeInTheDocument();
+  });
+
+  it('só deixa criar a conta depois de aceitar os Termos e a Política de Privacidade (LGPD)', async () => {
+    const cadastrar = vi.spyOn(authApi, 'cadastrarMorador');
+    renderPage('/cadastro?condominio=residencial-aurora');
+
+    const botao = screen.getByRole('button', { name: 'Criar conta' });
+    expect(botao).toBeDisabled();
+    // O aceite traz os links (e as telas de acesso repetem os dois no rodapé do cartão).
+    const links = screen.getAllByRole('link', { name: 'Termos de Uso' });
+    expect(links.length).toBeGreaterThanOrEqual(2);
+    links.forEach((link) => expect(link).toHaveAttribute('href', '/termos'));
+    screen
+      .getAllByRole('link', { name: 'Política de Privacidade' })
+      .forEach((link) => expect(link).toHaveAttribute('href', '/privacidade'));
+
+    await userEvent.click(screen.getByRole('checkbox', { name: /Li e aceito os Termos de Uso/ }));
+    expect(botao).toBeEnabled();
+    expect(cadastrar).not.toHaveBeenCalled();
   });
 });

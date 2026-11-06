@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { iguaisEmTempoConstante } from '@/common/config';
 import { prisma } from '@/common/prisma';
 import { NotificacoesService } from '@/modules/notificacoes/notificacoes.service';
 import { logger } from '@/common/logger';
@@ -39,7 +40,7 @@ export const asaasWebhookController = {
     const tokenEsperado = process.env.ASAAS_WEBHOOK_TOKEN;
     const tokenRecebido = req.header('asaas-access-token');
 
-    if (!tokenEsperado || tokenRecebido !== tokenEsperado) {
+    if (!tokenEsperado || !tokenRecebido || !iguaisEmTempoConstante(tokenRecebido, tokenEsperado)) {
       res.status(401).json({ error: 'Token inválido' });
       return;
     }

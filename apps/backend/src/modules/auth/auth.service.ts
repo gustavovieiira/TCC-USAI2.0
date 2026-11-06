@@ -3,7 +3,9 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
 import { AppError, ConflictError, NotFoundError, UnauthorizedError } from '@/common/errors';
+import { segredosJwt, iguaisEmTempoConstante } from '@/common/config';
 import { logger } from '@/common/logger';
+import { VERSAO_TERMOS } from '@/common/termos';
 import { Mailer, SmtpMailer, urlDoApp } from '@/common/mailer';
 import { emailRedefinicaoSenha } from './auth.emails';
 import {
@@ -19,6 +21,16 @@ const ACCESS_TOKEN_TTL = '15m';
 const REFRESH_TOKEN_TTL = '7d';
 /** Reaproveitado pelo Admin USAI ao criar contas de síndico (`admin.service.ts`). */
 export const BCRYPT_ROUNDS = 10;
+
+/**
+ * Hash de uma senha que ninguém usa. No login de um e-mail que não existe, a senha é comparada com ele
+ * mesmo assim, para a resposta demorar o mesmo tempo e não revelar quais e-mails têm conta.
+ */
+let hashFalso: Promise<string> | undefined;
+function obterHashFalso(): Promise<string> {
+  hashFalso ??= bcrypt.hash('senha-que-ninguem-usa', BCRYPT_ROUNDS);
+  return hashFalso;
+}
 
 /** Tamanho do código do link de acesso: 32 bytes aleatórios em base64url, sem preenchimento. */
 export const TAMANHO_TOKEN_ACESSO = 43;
@@ -66,18 +78,25 @@ export class AuthService {
   ) {}
 
   private getSecrets() {
-    return {
-      accessSecret: process.env.JWT_ACCESS_SECRET ?? 'dev-secret',
-      refreshSecret: process.env.JWT_REFRESH_SECRET ?? 'dev-refresh-secret',
-    };
+    return segredosJwt();
   }
 
-  private issueTokens(user: AuthenticatedUser): AuthTokens {
+  /**
+   * `versao` é o `tokenVersion` da conta: o refresh token guarda esse número (`v`) e só vale enquanto
+   * ele não mudar. Sair da conta e trocar a senha aumentam o número, o que derruba todas as sessões.
+   */
+  private issueTokens(user: AuthenticatedUser, versao = 0): AuthTokens {
     const { accessSecret, refreshSecret } = this.getSecrets();
     const payload = { userId: user.id, papel: user.papel, condominioId: user.condominioId };
 
-    const accessToken = jwt.sign(payload, accessSecret, { expiresIn: ACCESS_TOKEN_TTL });
-    const refreshToken = jwt.sign(payload, refreshSecret, { expiresIn: REFRESH_TOKEN_TTL });
+    const accessToken = jwt.sign(payload, accessSecret, {
+      expiresIn: ACCESS_TOKEN_TTL,
+      algorithm: 'HS256',
+    });
+    const refreshToken = jwt.sign({ ...payload, v: versao }, refreshSecret, {
+      expiresIn: REFRESH_TOKEN_TTL,
+      algorithm: 'HS256',
+    });
 
     return { accessToken, refreshToken };
   }
@@ -96,7 +115,7 @@ export class AuthService {
       throw new NotFoundError('Condomínio não encontrado ou inativo');
     }
 
-    if (condominio.pin !== input.pin) {
+    if (!iguaisEmTempoConstante(condominio.pin, input.pin)) {
       throw new AppError('PIN inválido para este condomínio', 401, 'INVALID_PIN');
     }
 
@@ -129,11 +148,13 @@ export class AuthService {
         apartamento: input.apartamento,
         condominioId: condominio.id,
         papel: 'MORADOR',
+        aceitouTermosEm: new Date(),
+        versaoTermos: VERSAO_TERMOS,
       },
     });
 
     const authenticatedUser = toAuthenticatedUser(user);
-    return { ...this.issueTokens(authenticatedUser), user: authenticatedUser };
+    return { ...this.issueTokens(authenticatedUser, user.tokenVersion), user: authenticatedUser };
   }
 
   /** RF03, login com e-mail e senha, válido para todos os perfis. */
@@ -143,6 +164,7 @@ export class AuthService {
       include: { condominio: { include: { assinatura: true } } },
     });
     if (!user) {
+      await bcrypt.compare(input.senha, await obterHashFalso());
       throw new UnauthorizedError('Credenciais inválidas');
     }
 
@@ -158,7 +180,15 @@ export class AuthService {
     this.garantirCondominioEmDia(user);
 
     const authenticatedUser = toAuthenticatedUser(user);
-    return { ...this.issueTokens(authenticatedUser), user: authenticatedUser };
+    return { ...this.issueTokens(authenticatedUser, user.tokenVersion), user: authenticatedUser };
+  }
+
+  /** Sair da conta: derruba as sessões abertas (os refresh tokens deixam de valer em todos os aparelhos). */
+  async encerrarSessoes(userId: string): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { tokenVersion: { increment: 1 } },
+    });
   }
 
   /**
@@ -273,7 +303,7 @@ export class AuthService {
     }
 
     const authenticatedUser = toAuthenticatedUser(user);
-    return { ...this.issueTokens(authenticatedUser), user: authenticatedUser };
+    return { ...this.issueTokens(authenticatedUser, user.tokenVersion), user: authenticatedUser };
   }
 
   /**
@@ -370,7 +400,11 @@ export class AuthService {
         where: { userId: registro.userId, usadoEm: null },
         data: { usadoEm: new Date() },
       });
-      await tx.user.update({ where: { id: registro.userId }, data: { senhaHash } });
+      // Quem perdeu a senha pode ter perdido também o controle de uma sessão aberta: derruba todas.
+      await tx.user.update({
+        where: { id: registro.userId },
+        data: { senhaHash, tokenVersion: { increment: 1 } },
+      });
       return true;
     });
 
@@ -402,9 +436,12 @@ export class AuthService {
   async refresh(refreshToken: string): Promise<AuthTokens> {
     const { refreshSecret } = this.getSecrets();
 
-    let payload: { userId: string };
+    let payload: { userId: string; v?: number };
     try {
-      payload = jwt.verify(refreshToken, refreshSecret) as { userId: string };
+      payload = jwt.verify(refreshToken, refreshSecret, { algorithms: ['HS256'] }) as {
+        userId: string;
+        v?: number;
+      };
     } catch {
       throw new UnauthorizedError('Refresh token inválido ou expirado');
     }
@@ -417,8 +454,13 @@ export class AuthService {
       throw new UnauthorizedError('Usuário não encontrado');
     }
 
+    // Token emitido antes de um logout ou de uma troca de senha: não vale mais.
+    if ((payload.v ?? 0) !== (user.tokenVersion ?? 0)) {
+      throw new UnauthorizedError('Sessão encerrada. Entre novamente.');
+    }
+
     this.garantirCondominioEmDia(user);
 
-    return this.issueTokens(toAuthenticatedUser(user));
+    return this.issueTokens(toAuthenticatedUser(user), user.tokenVersion);
   }
 }

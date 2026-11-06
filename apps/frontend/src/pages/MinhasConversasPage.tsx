@@ -43,7 +43,7 @@ export function MinhasConversasPage() {
 
     try {
       const conversa = await abrirConversa({ usuarioId });
-      navigate(`/conversas/${conversa.id}`);
+      void navigate(`/conversas/${conversa.id}`);
     } catch (err) {
       setErroAbrir(extractErrorMessage(err));
     } finally {

@@ -14,7 +14,7 @@ export function LoginPage() {
       <LoginForm
         onSuccess={(result) => {
           saveSession(result.accessToken, result.refreshToken, result.user);
-          navigate(homeRouteFor(result.user.papel));
+          void navigate(homeRouteFor(result.user.papel));
         }}
       />
       <p className="mt-4 text-center text-sm">

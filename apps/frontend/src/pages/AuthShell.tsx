@@ -2,6 +2,7 @@ import { PropsWithChildren } from 'react';
 import { CeuNoturno } from '@/components/fachada/CeuNoturno';
 import { ContatoSuporte } from '@/components/ui/ContatoSuporte';
 import { Logo } from '@/components/ui/Logo';
+import { LinksLegais } from '@/features/privacidade/LinksLegais';
 
 interface AuthShellProps {
   title: string;
@@ -25,6 +26,7 @@ export function AuthShell({ title, subtitle, children }: PropsWithChildren<AuthS
           <p className="mt-1.5 text-sm text-fachada-tinta-suave">{subtitle}</p>
         </div>
         {children}
+        <LinksLegais className="mt-5 justify-center text-xs" />
         <ContatoSuporte className="mt-6 border-t border-fachada-tinta/15 pt-4 text-center text-xs text-fachada-tinta-suave" />
       </div>
     </div>

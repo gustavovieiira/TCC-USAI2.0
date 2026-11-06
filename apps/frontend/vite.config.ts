@@ -29,6 +29,7 @@ export default defineConfig({
         'src/components/**/*.{ts,tsx}',
         'src/pages/**/*.{ts,tsx}',
         'src/lib/**/*.{ts,tsx}',
+        'src/App.tsx',
       ],
     },
   },

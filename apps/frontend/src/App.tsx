@@ -21,6 +21,8 @@ import { PerfilPage } from '@/pages/PerfilPage';
 import { PostDetalhePage } from '@/pages/PostDetalhePage';
 import { PublicarItemPage } from '@/pages/PublicarItemPage';
 import { NotificacoesPage } from '@/pages/NotificacoesPage';
+import { PrivacidadePage } from '@/pages/PrivacidadePage';
+import { TermosPage } from '@/pages/TermosPage';
 import { RedefinirSenhaPage } from '@/pages/RedefinirSenhaPage';
 import { SaquesPage } from '@/pages/SaquesPage';
 import { SindicoPage } from '@/pages/SindicoPage';
@@ -36,6 +38,8 @@ export default function App() {
       <Route path="/definir-senha" element={<DefinirSenhaPage />} />
       <Route path="/esqueci-senha" element={<EsqueciSenhaPage />} />
       <Route path="/redefinir-senha" element={<RedefinirSenhaPage />} />
+      <Route path="/termos" element={<TermosPage />} />
+      <Route path="/privacidade" element={<PrivacidadePage />} />
 
       <Route element={<ProtectedRoute />}>
         <Route element={<AppShell />}>

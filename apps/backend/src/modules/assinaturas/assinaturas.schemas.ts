@@ -6,10 +6,11 @@ export const contratarSchema = z.object({
   periodoCodigo: z.string().min(1, 'Escolha o período de cobrança'),
   nomeCondominio: z.string().trim().min(3, 'Informe o nome do condomínio').max(80),
   nomeSindico: z.string().trim().min(2, 'Informe o seu nome').max(80),
-  email: z.string().trim().email('E-mail inválido'),
-  cpfCnpj: z.string().refine(cpfOuCnpjValido, 'CPF ou CNPJ inválido'),
+  email: z.string().trim().max(254).email('E-mail inválido'),
+  cpfCnpj: z.string().max(30).refine(cpfOuCnpjValido, 'CPF ou CNPJ inválido'),
   aceiteTermos: z.literal(true, {
-    errorMap: () => ({ message: 'É preciso confirmar a contratação marcando a declaração' }),
+    error:
+      'É preciso marcar a declaração (inclui o aceite dos Termos e da Política de Privacidade)',
   }),
 });
 

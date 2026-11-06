@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { Papel } from '@prisma/client';
+import { segredosJwt } from './config';
 import { UnauthorizedError, ForbiddenError } from './errors';
 
 export interface AuthPayload {
@@ -20,8 +21,7 @@ declare global {
 
 /** Compartilhado com o servidor de WebSocket (`realtime/socket.ts`), que autentica fora do ciclo HTTP. */
 export function verifyAccessToken(token: string): AuthPayload {
-  const secret = process.env.JWT_ACCESS_SECRET ?? 'dev-secret';
-  return jwt.verify(token, secret) as AuthPayload;
+  return jwt.verify(token, segredosJwt().accessSecret, { algorithms: ['HS256'] }) as AuthPayload;
 }
 
 export function authGuard(req: Request, _res: Response, next: NextFunction) {

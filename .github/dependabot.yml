@@ -1,0 +1,24 @@
+# Atualizações automáticas: o GitHub abre PRs quando uma dependência tem versão nova ou falha de segurança,
+# e o CI (testes + Sonar + auditoria) diz se pode entrar.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      ferramentas-de-desenvolvimento:
+        dependency-type: development
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+  - package-ecosystem: docker
+    directory: /apps/backend
+    schedule:
+      interval: monthly
+  - package-ecosystem: docker
+    directory: /apps/frontend
+    schedule:
+      interval: monthly

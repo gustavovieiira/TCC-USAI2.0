@@ -58,11 +58,49 @@ describe('POST /api/auth/cadastro', () => {
       senha: 'senha-forte-123',
       linkSlug: 'residencial-jardim-europa',
       pin: '1234',
+      aceiteTermos: true,
     });
 
     expect(response.status).toBe(201);
     expect(response.body.user.email).toBe('ana@example.com');
     expect(response.body.accessToken).toEqual(expect.any(String));
+  });
+
+  it('rejeita o cadastro sem o aceite dos Termos e da Política de Privacidade (LGPD)', async () => {
+    const app = createApp();
+
+    const response = await request(app).post('/api/auth/cadastro').send({
+      nome: 'Ana Proprietaria',
+      email: 'ana@example.com',
+      senha: 'senha-forte-123',
+      linkSlug: 'residencial-jardim-europa',
+      pin: '1234',
+    });
+
+    expect(response.status).toBe(400);
+    expect(prisma.user.create).not.toHaveBeenCalled();
+  });
+
+  it('rejeita senha fácil de adivinhar e senha longa demais para o bcrypt', async () => {
+    const app = createApp();
+    const base = {
+      nome: 'Ana Proprietaria',
+      email: 'ana@example.com',
+      linkSlug: 'residencial-jardim-europa',
+      pin: '1234',
+      aceiteTermos: true,
+    };
+
+    const fraca = await request(app)
+      .post('/api/auth/cadastro')
+      .send({ ...base, senha: 'password' });
+    const longa = await request(app)
+      .post('/api/auth/cadastro')
+      .send({ ...base, senha: 'a1'.repeat(40) });
+
+    expect(fraca.status).toBe(400);
+    expect(longa.status).toBe(400);
+    expect(prisma.user.create).not.toHaveBeenCalled();
   });
 
   it('rejeita PIN incorreto com 401', async () => {
@@ -75,6 +113,7 @@ describe('POST /api/auth/cadastro', () => {
       senha: 'senha-forte-123',
       linkSlug: 'residencial-jardim-europa',
       pin: '0000',
+      aceiteTermos: true,
     });
 
     expect(response.status).toBe(401);

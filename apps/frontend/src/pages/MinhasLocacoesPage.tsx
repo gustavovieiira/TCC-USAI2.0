@@ -84,7 +84,7 @@ export function MinhasLocacoesPage() {
   async function handleAbrirConversa(locacaoId: string) {
     try {
       const conversa = await abrirConversaDaLocacao(locacaoId);
-      navigate(`/conversas/${conversa.id}`);
+      void navigate(`/conversas/${conversa.id}`);
     } catch (err) {
       setErro(extractErrorMessage(err));
     }

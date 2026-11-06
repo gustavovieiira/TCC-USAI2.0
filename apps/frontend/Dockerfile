@@ -11,5 +11,8 @@ RUN npm run build
 
 FROM nginx:1.27-alpine AS runtime
 COPY --from=build /app/apps/frontend/dist /usr/share/nginx/html
-COPY apps/frontend/nginx.conf /etc/nginx/conf.d/default.conf
+# O nginx troca ${API_ORIGIN} e ${API_WS_ORIGIN} neste modelo ao iniciar (vão na política de segurança de conteúdo).
+COPY apps/frontend/nginx.conf.template /etc/nginx/templates/default.conf.template
+ENV API_ORIGIN=http://localhost:3000
+ENV API_WS_ORIGIN=ws://localhost:3000
 EXPOSE 80

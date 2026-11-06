@@ -3,12 +3,16 @@ import http from 'http';
 import { createApp } from './app';
 import { setSocketServer } from './realtime/emitter';
 import { createSocketServer } from './realtime/socket';
+import { validarConfiguracao } from '@/common/config';
 import { logger } from '@/common/logger';
 import { prisma } from '@/common/prisma';
 import { assinaturasService } from '@/modules/assinaturas/assinaturas.controller';
 import { NotificacoesService } from '@/modules/notificacoes/notificacoes.service';
 import { AsaasClient } from '@/modules/pagamentos/asaas.client';
 import { PagamentosService } from '@/modules/pagamentos/pagamentos.service';
+
+// Em produção, não sobe com segredo padrão, CORS vazio ou webhook sem token.
+validarConfiguracao();
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
 const UMA_HORA_MS = 60 * 60 * 1000;
