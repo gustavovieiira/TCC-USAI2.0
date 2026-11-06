@@ -1,4 +1,4 @@
-FROM node:24-alpine AS base
+FROM node:25-alpine AS base
 # O Prisma precisa do OpenSSL para escolher o motor certo no Alpine.
 RUN apk add --no-cache openssl
 WORKDIR /app
