@@ -33,6 +33,16 @@ export function rotuloDoMes(mes: string): string {
 export type FiltroAssinaturas =
   'TODAS' | 'VENCE_7' | 'VENCE_15' | 'VENCE_30' | 'VENCIDAS' | 'AGUARDANDO';
 
+/** Os filtros da lista de assinaturas, na ordem em que aparecem na tela. */
+export const OPCOES_FILTRO_ASSINATURAS: { valor: FiltroAssinaturas; rotulo: string }[] = [
+  { valor: 'TODAS', rotulo: 'Todas' },
+  { valor: 'VENCE_7', rotulo: 'Vencem em 7 dias' },
+  { valor: 'VENCE_15', rotulo: 'Em 15 dias' },
+  { valor: 'VENCE_30', rotulo: 'Em 30 dias' },
+  { valor: 'VENCIDAS', rotulo: 'Vencidas' },
+  { valor: 'AGUARDANDO', rotulo: 'Aguardando pagamento' },
+];
+
 function semAcento(texto: string): string {
   return texto.normalize('NFD').replaceAll(/[̀-ͯ]/g, '').toLowerCase();
 }

@@ -24,6 +24,7 @@ import {
   filtrarAssinaturas,
   FiltroAssinaturas,
   mesAtualBr,
+  OPCOES_FILTRO_ASSINATURAS,
   rotuloDoMes,
   situacaoDaAssinatura,
   TomSituacao,
@@ -239,38 +240,10 @@ export function AbaPlataforma() {
               rotulo="Filtrar assinaturas"
               valor={filtro}
               onChange={setFiltro}
-              opcoes={[
-                {
-                  valor: 'TODAS',
-                  rotulo: 'Todas',
-                  total: filtrarAssinaturas(itens, 'TODAS', busca).length,
-                },
-                {
-                  valor: 'VENCE_7',
-                  rotulo: 'Vencem em 7 dias',
-                  total: filtrarAssinaturas(itens, 'VENCE_7', busca).length,
-                },
-                {
-                  valor: 'VENCE_15',
-                  rotulo: 'Em 15 dias',
-                  total: filtrarAssinaturas(itens, 'VENCE_15', busca).length,
-                },
-                {
-                  valor: 'VENCE_30',
-                  rotulo: 'Em 30 dias',
-                  total: filtrarAssinaturas(itens, 'VENCE_30', busca).length,
-                },
-                {
-                  valor: 'VENCIDAS',
-                  rotulo: 'Vencidas',
-                  total: filtrarAssinaturas(itens, 'VENCIDAS', busca).length,
-                },
-                {
-                  valor: 'AGUARDANDO',
-                  rotulo: 'Aguardando pagamento',
-                  total: filtrarAssinaturas(itens, 'AGUARDANDO', busca).length,
-                },
-              ]}
+              opcoes={OPCOES_FILTRO_ASSINATURAS.map((opcao) => ({
+                ...opcao,
+                total: filtrarAssinaturas(itens, opcao.valor, busca).length,
+              }))}
             />
 
             {visiveis.length === 0 ? (
