@@ -6,6 +6,30 @@
 
 ---
 
+## 2026-11-09: Deploy em nuvem e entrega automática (CD)
+
+A USAI passa a rodar num servidor da DigitalOcean (Ubuntu 22.04, 2 GB de RAM, 50 GB de disco) com o domínio
+`usainet.com.br`. Tudo em `infra/producao/`.
+- **Desenho:** um proxy Caddy emite e renova o HTTPS sozinho e separa por caminho: `/api`, `/uploads` e `/socket.io`
+  vão para o backend, o resto para o front (nginx, com a CSP). Mesmo endereço para tudo, então não há CORS entre
+  domínios. `monitor.usainet.com.br` abre o Grafana, com login próprio.
+- **Só o Caddy abre portas** (80 e 443). MySQL, backend, Prometheus e `/metrics` ficam na rede interna do Docker. O
+  firewall do servidor (ufw) libera apenas 22, 80 e 443.
+- **Migrações automáticas:** o serviço `migrar` roda `prisma migrate deploy` antes de o backend subir.
+- **Memória:** cada serviço tem limite (MySQL com buffer de 192 MB e sem `performance_schema`), para caber nos 2 GB.
+- **Entrega contínua** (`.github/workflows/deploy.yml`): depois que o CI passa na `main`, o GitHub Actions monta as
+  imagens do backend e do front, publica no GitHub Container Registry, envia a configuração por SSH (usuário `deploy`,
+  chave só do CI, impressão digital do servidor fixada) e roda `docker compose up -d --wait`. Dois deploys nunca rodam
+  juntos, e voltar uma versão é trocar `USAI_TAG` no `.env`.
+- **Segredos** (JWT, senhas do banco e do Grafana, token do webhook) foram gerados no próprio servidor, no `.env` com
+  permissão 600, fora do Git. Modelo em `infra/producao/.env.example`.
+- **Backup** diário do banco e das fotos (`infra/producao/backup.sh`), guardando 7 dias.
+- O servidor já tinha outro projeto; foi feito backup completo na máquina do autor e a máquina foi limpa antes do deploy.
+- **Falta:** apontar o DNS (A de `usainet.com.br`, `www` e `monitor`), o primeiro deploy e, por último, trocar o Asaas
+  para produção (chave, webhook e e-mail).
+
+---
+
 ## 2026-11-09: Fotos nos posts do Mural
 
 Os posts do Mural (avisos e pedidos de ajuda) agora aceitam **até 4 fotos**.

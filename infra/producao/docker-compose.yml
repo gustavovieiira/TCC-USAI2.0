@@ -1,0 +1,162 @@
+# USAI em produção (um servidor só, 2 GB de RAM). Roda em /opt/usai/infra/producao, ao lado do arquivo `.env`
+# (modelo em `.env.example`). Só o Caddy abre portas (80 e 443): MySQL, backend, Prometheus e Grafana ficam na rede
+# interna do Docker. As imagens do backend e do front vêm do GitHub Container Registry e são montadas pelo CI.
+name: usai
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    environment:
+      DOMAIN: ${DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - frontend
+      - backend
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+
+  frontend:
+    image: ghcr.io/gustavovieiira/usai-frontend:${USAI_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      # Origem da API liberada na política de segurança de conteúdo (CSP) do nginx do front.
+      API_ORIGIN: https://${DOMAIN}
+      API_WS_ORIGIN: wss://${DOMAIN}
+    deploy:
+      resources:
+        limits:
+          memory: 64m
+
+  backend:
+    image: ghcr.io/gustavovieiira/usai-backend:${USAI_TAG:-latest}
+    restart: unless-stopped
+    environment: &ambiente-do-backend
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: mysql://usai:${MYSQL_PASSWORD}@mysql:3306/usai
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      CORS_ORIGINS: https://${DOMAIN}
+      # Um proxy (o Caddy) fica entre a internet e a API.
+      TRUST_PROXY: 1
+      FRONTEND_URL: https://${DOMAIN}
+      APP_URL: https://${DOMAIN}
+      ASAAS_API_KEY: ${ASAAS_API_KEY:-}
+      ASAAS_WEBHOOK_TOKEN: ${ASAAS_WEBHOOK_TOKEN:-}
+      ASAAS_BASE_URL: ${ASAAS_BASE_URL:-https://api-sandbox.asaas.com/v3}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      MAIL_REPLY_TO: ${MAIL_REPLY_TO:-}
+      PLANO_TESTE_ATIVO: ${PLANO_TESTE_ATIVO:-false}
+    volumes:
+      - uploads:/app/apps/backend/uploads
+    depends_on:
+      mysql:
+        condition: service_healthy
+      migrar:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:3000/health']
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 384m
+
+  # Aplica as migrações do banco antes de o backend subir (roda e termina).
+  migrar:
+    image: ghcr.io/gustavovieiira/usai-backend:${USAI_TAG:-latest}
+    restart: 'no'
+    command: ['npx', 'prisma', 'migrate', 'deploy']
+    environment:
+      DATABASE_URL: mysql://usai:${MYSQL_PASSWORD}@mysql:3306/usai
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    # Ajustado para 2 GB de RAM no servidor inteiro: buffer menor e sem o performance_schema.
+    command:
+      - --innodb-buffer-pool-size=192M
+      - --performance-schema=OFF
+      - --max-connections=60
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_DATABASE: usai
+      MYSQL_USER: usai
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ['CMD-SHELL', 'mysqladmin ping -h 127.0.0.1 -uroot -p"$$MYSQL_ROOT_PASSWORD"']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 640m
+
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=7d
+    volumes:
+      - ../prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    deploy:
+      resources:
+        limits:
+          memory: 192m
+
+  grafana:
+    image: grafana/grafana:latest
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+      GF_AUTH_ANONYMOUS_ENABLED: 'false'
+      GF_SERVER_ROOT_URL: https://monitor.${DOMAIN}
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ../grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+    deploy:
+      resources:
+        limits:
+          memory: 192m
+
+volumes:
+  mysql-data:
+  uploads:
+  prometheus-data:
+  grafana-data:
+  caddy-data:
+  caddy-config:
