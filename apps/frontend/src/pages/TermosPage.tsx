@@ -42,7 +42,9 @@ export function TermosPage() {
         é de quem empresta e fica sob a guarda de quem aluga. Se algo for perdido, furtado, roubado,
         danificado ou der defeito, a responsabilidade é{' '}
         <strong>exclusivamente de quem empresta e de quem aluga</strong>, que resolvem tudo entre
-        si, em comum acordo. A USAI não participa, não decide e não responde por isso (item 5).
+        si, em comum acordo. A USAI não participa, não decide e não responde por isso (item 5). O
+        mesmo vale para os serviços que os moradores oferecem uns aos outros: a USAI só os divulga,
+        e o serviço e o pagamento são combinados entre quem presta e quem contrata.
       </Destaque>
 
       <Secao id="aceitacao" titulo="1. Aceitação destes Termos">
@@ -65,10 +67,11 @@ export function TermosPage() {
       <Secao id="o-que-e" titulo="2. O que é a USAI e o que ela não é">
         <p>
           A USAI é uma plataforma de tecnologia que ajuda moradores de um mesmo condomínio a
-          emprestar e alugar itens entre si. Ela oferece catálogo, pedido e aprovação, pagamento por
-          PIX, registro da retirada e da devolução em documento numerado, chat, mural e painel para
-          o síndico. É um projeto de portfólio acadêmico (Engenharia de Software, Católica SC), de
-          autoria de Gustavo Vieira Wesolowski.
+          emprestar e alugar itens entre si e a divulgar serviços que prestam aos vizinhos. Ela
+          oferece catálogo, pedido e aprovação, pagamento por PIX, registro da retirada e da
+          devolução em documento numerado, chat, mural e painel para o síndico. É um projeto de
+          portfólio acadêmico (Engenharia de Software, Católica SC), de autoria de Gustavo Vieira
+          Wesolowski.
         </p>
         <p>
           <strong>A USAI não é dona dos itens nem parte da locação.</strong> Ela não é proprietária,
@@ -237,11 +240,52 @@ export function TermosPage() {
           responsabilidade pelo item é de quem empresta e de quem aluga. Em qualquer caso, a USAI
           continua fora da relação entre as duas partes.
         </p>
+
+        <h3 className="font-marca text-base font-extrabold">
+          5.7 Serviços oferecidos por moradores
+        </h3>
+        <p>
+          Os moradores também podem divulgar no catálogo serviços que prestam (por exemplo
+          eletricista, maquiagem, unha, aulas), com o valor por hora ou por serviço. A USAI apenas
+          mostra o anúncio e permite a conversa entre as duas pessoas.
+        </p>
+        <ul className={LISTA}>
+          <li>
+            O serviço, o preço, a data, o local e o pagamento são combinados{' '}
+            <strong>direto entre quem presta e quem contrata</strong>, fora da plataforma. A USAI
+            não cobra nenhuma taxa, não recebe nem repassa dinheiro de serviço e não faz
+            agendamento.
+          </li>
+          <li>
+            Quem presta responde pela qualidade, pela segurança e pelo resultado do serviço, por
+            qualquer dano que ele cause a pessoas ou bens, e por ter a habilitação, o registro ou a
+            autorização que a lei exigir para aquela atividade. Também é responsável pelos tributos
+            sobre o que receber.
+          </li>
+          <li>
+            A USAI não verifica a qualificação, a experiência nem os antecedentes de quem anuncia,
+            não indica nem recomenda ninguém e não garante que o serviço será prestado, nem sua
+            qualidade.
+          </li>
+          <li>
+            Entre quem presta e quem contrata não há vínculo de trabalho com a USAI. Qualquer
+            problema (atraso, mau serviço, dano, pagamento) é resolvido entre as duas pessoas, de
+            comum acordo, como no item 5.4.
+          </li>
+          <li>
+            Serviços ilegais, que exijam habilitação que a pessoa não tem, ou que ponham alguém em
+            risco não podem ser anunciados (item 8).
+          </li>
+        </ul>
       </Secao>
 
       <Secao id="como-funcionam-locacoes" titulo="6. Como funcionam as locações">
         <ul className={LISTA}>
           <li>O locatário pede o item informando o período e, se quiser, a finalidade de uso.</li>
+          <li>
+            Serviços não passam por pedido nem por pagamento na plataforma: quem se interessar fala
+            com quem presta pelo chat (item 5.7).
+          </li>
           <li>O proprietário aprova ou recusa. Não é obrigado a aprovar nenhum pedido.</li>
           <li>
             Aprovado o pedido, o locatário paga por PIX. O período só fica reservado quando o
@@ -265,8 +309,9 @@ export function TermosPage() {
       <Secao id="pagamentos" titulo="7. Pagamentos, taxa, planos e saques">
         <ul className={LISTA}>
           <li>
-            Os pagamentos são feitos por PIX e processados por uma instituição de pagamento parceira
-            (Asaas). A USAI não guarda dados de cartão. O pagamento é considerado feito quando a
+            Os pagamentos de locação e do plano do condomínio são feitos por PIX e processados por
+            uma instituição de pagamento parceira (Asaas). O pagamento de serviços não passa pela
+            USAI. A USAI não guarda dados de cartão. O pagamento é considerado feito quando a
             instituição o confirma.
           </li>
           <li>

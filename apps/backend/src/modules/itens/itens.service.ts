@@ -1,8 +1,17 @@
 import { Item, ItemImagem, PrismaClient } from '@prisma/client';
-import { ForbiddenError, NotFoundError } from '@/common/errors';
+import { AppError, ForbiddenError, NotFoundError } from '@/common/errors';
+import { MENSAGEM_VALOR_MINIMO, VALOR_MINIMO_COBRANCA } from '@/common/valores';
 import { AtualizarItemInput, CriarItemInput, ItemDTO, ListarItensFiltro } from './itens.types';
 
-type ItemComImagens = Item & { imagens: ItemImagem[] };
+type ItemComImagens = Item & {
+  imagens: ItemImagem[];
+  owner?: { nome: string; apartamento: string | null } | null;
+};
+
+const COM_IMAGENS_E_DONO = {
+  imagens: true,
+  owner: { select: { nome: true, apartamento: true } },
+} as const;
 
 /** `acessorios` é JSON no banco; só passa adiante o que for lista de textos. */
 export function lerAcessorios(valor: unknown): string[] {
@@ -16,6 +25,11 @@ function toItemDTO(item: ItemComImagens): ItemDTO {
     descricao: item.descricao,
     categoria: item.categoria,
     valorDiaria: Number(item.valorDiaria),
+    tipo: item.tipo,
+    unidadeCobranca: item.unidadeCobranca,
+    proprietario: item.owner
+      ? { nome: item.owner.nome, apartamento: item.owner.apartamento }
+      : null,
     fabricante: item.fabricante,
     modelo: item.modelo,
     numeroSerie: item.numeroSerie,
@@ -39,6 +53,8 @@ export class ItensService {
         descricao: input.descricao,
         categoria: input.categoria,
         valorDiaria: input.valorDiaria,
+        tipo: input.tipo ?? 'ITEM',
+        unidadeCobranca: input.unidadeCobranca ?? 'DIA',
         fabricante: input.fabricante,
         modelo: input.modelo,
         numeroSerie: input.numeroSerie,
@@ -47,7 +63,7 @@ export class ItensService {
         condominioId,
         imagens: input.imagens ? { create: input.imagens.map((url) => ({ url })) } : undefined,
       },
-      include: { imagens: true },
+      include: COM_IMAGENS_E_DONO,
     });
 
     return toItemDTO(item);
@@ -63,8 +79,9 @@ export class ItensService {
         condominioId,
         ativo: true,
         ...(filtro.categoria ? { categoria: filtro.categoria } : {}),
+        ...(filtro.tipo ? { tipo: filtro.tipo } : {}),
       },
-      include: { imagens: true },
+      include: COM_IMAGENS_E_DONO,
       orderBy: { createdAt: 'desc' },
     });
 
@@ -74,7 +91,7 @@ export class ItensService {
   async buscarPorId(itemId: string, condominioId: string): Promise<ItemDTO> {
     const item = await this.prisma.item.findFirst({
       where: { id: itemId, condominioId },
-      include: { imagens: true },
+      include: COM_IMAGENS_E_DONO,
     });
 
     if (!item) {
@@ -96,10 +113,45 @@ export class ItensService {
       throw new ForbiddenError('Apenas o proprietário pode editar este item');
     }
 
+    // O piso de R$ 5,00 (o menor valor que o PIX aceita) vale só para item alugado pela plataforma.
+    if (
+      input.valorDiaria !== undefined &&
+      existente.tipo !== 'SERVICO' &&
+      input.valorDiaria < VALOR_MINIMO_COBRANCA
+    ) {
+      throw new AppError(MENSAGEM_VALOR_MINIMO, 400, 'VALOR_MINIMO');
+    }
+    if (input.unidadeCobranca !== undefined) {
+      const valida =
+        existente.tipo !== 'SERVICO'
+          ? input.unidadeCobranca === 'DIA'
+          : input.unidadeCobranca === 'HORA' || input.unidadeCobranca === 'SERVICO';
+      if (!valida) {
+        throw new AppError(
+          existente.tipo !== 'SERVICO'
+            ? 'Um item é cobrado por dia'
+            : 'Um serviço é cobrado por hora ou por serviço',
+          400,
+          'UNIDADE_INVALIDA',
+        );
+      }
+    }
+
+    const dados =
+      existente.tipo === 'SERVICO'
+        ? {
+            ...input,
+            fabricante: undefined,
+            modelo: undefined,
+            numeroSerie: undefined,
+            acessorios: undefined,
+          }
+        : input;
+
     const item = await this.prisma.item.update({
       where: { id: itemId },
-      data: input,
-      include: { imagens: true },
+      data: dados,
+      include: COM_IMAGENS_E_DONO,
     });
 
     return toItemDTO(item);

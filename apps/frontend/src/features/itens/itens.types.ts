@@ -1,4 +1,13 @@
+export type TipoAnuncio = 'ITEM' | 'SERVICO';
+/** Item: por dia. Serviço: por hora ou por serviço (preço fechado). */
+export type UnidadeCobranca = 'DIA' | 'HORA' | 'SERVICO';
+
 export interface ItemDTO {
+  /** Anúncios antigos não trazem o campo: são itens cobrados por dia. */
+  tipo?: TipoAnuncio;
+  unidadeCobranca?: UnidadeCobranca;
+  /** Quem anuncia ou presta o serviço (nome e apartamento, como no Mural). */
+  proprietario?: { nome: string; apartamento: string | null } | null;
   id: string;
   titulo: string;
   descricao: string;
@@ -17,6 +26,8 @@ export interface ItemDTO {
 }
 
 export interface CriarItemInput {
+  tipo?: TipoAnuncio;
+  unidadeCobranca?: UnidadeCobranca;
   titulo: string;
   descricao: string;
   categoria: string;
@@ -29,6 +40,7 @@ export interface CriarItemInput {
 }
 
 export interface AtualizarItemInput {
+  unidadeCobranca?: UnidadeCobranca;
   titulo?: string;
   descricao?: string;
   categoria?: string;
@@ -37,4 +49,5 @@ export interface AtualizarItemInput {
 
 export interface ListarItensFiltro {
   categoria?: string;
+  tipo?: TipoAnuncio;
 }

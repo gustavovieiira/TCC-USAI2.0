@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { escalonar } from '@/lib/animacao';
 import { formatCurrency } from '@/lib/format';
+import { ehServico, sufixoDoValor } from './anuncio';
 import { ItemDTO } from './itens.types';
 
 interface ItemCardProps {
@@ -19,7 +20,12 @@ export function ItemCard({ item, indice = 0 }: ItemCardProps) {
       className="notch entra group flex flex-col overflow-hidden border border-paper-line
         bg-paper-surface shadow-paper transition hover:-translate-y-0.5 hover:shadow-paper-2"
     >
-      <div className="aspect-[4/3] w-full overflow-hidden bg-paper-line">
+      <div className="relative aspect-[4/3] w-full overflow-hidden bg-paper-line">
+        {ehServico(item) && (
+          <span className="absolute left-2 top-2 z-10 rounded-full bg-fachada-luz px-2.5 py-0.5 text-xs font-bold text-fachada-tinta shadow-sm">
+            Serviço
+          </span>
+        )}
         {imagem ? (
           <img
             src={imagem}
@@ -40,7 +46,9 @@ export function ItemCard({ item, indice = 0 }: ItemCardProps) {
         <h3 className="line-clamp-1 font-display font-semibold text-ink">{item.titulo}</h3>
         <p className="mt-auto pt-2 font-display text-lg font-bold text-barro-700">
           {formatCurrency(item.valorDiaria)}
-          <span className="ml-1 font-sans text-xs font-normal text-ink-soft">/ dia</span>
+          <span className="ml-1 font-sans text-xs font-normal text-ink-soft">
+            {sufixoDoValor(item)}
+          </span>
         </p>
       </div>
     </Link>

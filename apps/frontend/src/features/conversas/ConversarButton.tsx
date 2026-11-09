@@ -7,7 +7,7 @@ interface ConversarButtonProps {
   usuarioId: string;
   nomeDoOutro: string;
   postOrigemId?: string;
-  variant?: 'icon' | 'text';
+  variant?: 'icon' | 'text' | 'botao';
 }
 
 /** Abre (ou continua) um chat privado 1:1 com a pessoa, usado a partir do Mural (post/comentário). */
@@ -36,7 +36,15 @@ export function ConversarButton({
   }
 
   return (
-    <div className={variant === 'icon' ? 'inline-flex flex-col' : 'flex flex-col items-start'}>
+    <div
+      className={
+        variant === 'icon'
+          ? 'inline-flex flex-col'
+          : variant === 'botao'
+            ? 'flex flex-col'
+            : 'flex flex-col items-start'
+      }
+    >
       <button
         type="button"
         onClick={handleClick}
@@ -45,11 +53,14 @@ export function ConversarButton({
         className={
           variant === 'icon'
             ? 'flex items-center gap-1 text-ink-faint transition hover:text-barro-700 disabled:opacity-50'
-            : 'flex items-center gap-1.5 text-sm font-semibold text-barro-700 transition hover:text-barro-500 disabled:opacity-50'
+            : variant === 'botao'
+              ? 'botao-coral inline-flex w-full items-center justify-center gap-2 disabled:opacity-50'
+              : 'flex items-center gap-1.5 text-sm font-semibold text-barro-700 transition hover:text-barro-500 disabled:opacity-50'
         }
       >
         <IconConversar className="h-4 w-4" />
         {variant === 'text' && 'Conversar'}
+        {variant === 'botao' && `Conversar com ${nomeDoOutro}`}
       </button>
       {erro && (
         <p role="alert" className="mt-1 text-xs text-carmim-700">

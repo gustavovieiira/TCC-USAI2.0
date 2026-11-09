@@ -2,7 +2,7 @@ import { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { Papel } from '@prisma/client';
 import { segredosJwt } from './config';
-import { UnauthorizedError, ForbiddenError } from './errors';
+import { AppError, UnauthorizedError, ForbiddenError } from './errors';
 
 export interface AuthPayload {
   userId: string;
@@ -36,7 +36,8 @@ export function authGuard(req: Request, _res: Response, next: NextFunction) {
     req.auth = verifyAccessToken(token);
     next();
   } catch {
-    throw new UnauthorizedError('Token inválido ou expirado');
+    // Código próprio: o front renova a sessão sozinho só neste caso (e não quando, por exemplo, a senha está errada).
+    throw new AppError('Token inválido ou expirado', 401, 'TOKEN_INVALIDO');
   }
 }
 

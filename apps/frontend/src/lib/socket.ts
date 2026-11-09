@@ -40,7 +40,8 @@ const SOCKET_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api')
 
 export function createConversaSocket(): ConversaSocket {
   return io(SOCKET_URL, {
-    auth: { token: getAccessToken() ?? undefined },
+    // Função: lê o token de novo a cada (re)conexão, para não usar um token vencido.
+    auth: (enviar) => enviar({ token: getAccessToken() ?? undefined }),
     transports: ['websocket'],
   });
 }

@@ -6,6 +6,34 @@
 
 ---
 
+## 2026-11-09: Catálogo de serviços, engrenagem no perfil e sessão que se renova sozinha
+
+**Serviços no catálogo.** Os moradores podem publicar serviços que prestam (eletricista, maquiagem, unha, aulas...),
+com o valor **por hora** ou **por serviço** (preço fechado). Escolha de projeto: **vitrine + conversa**. Não há pedido,
+PIX nem taxa para serviços; quem se interessa fala com quem presta pelo chat e combinam data e pagamento por fora, e
+a USAI fica fora (mesma regra dos itens, agora escrita no item 5.7 dos Termos).
+- Backend: `itens.tipo` (`ITEM` ou `SERVICO`) e `itens.unidadeCobranca` (`DIA`, `HORA`, `SERVICO`), migration
+  `20261109200000_catalogo_de_servicos` (aditiva; o que já existia continua item por dia). Item mantém o piso de
+  R$ 5,00 (o menor valor do PIX); serviço não tem piso. O anúncio devolve quem presta (nome e apartamento). O
+  catálogo aceita `?tipo=SERVICO`. Pedir a locação de um serviço devolve 400 `SERVICO_NAO_ALUGAVEL`.
+- Frontend: Publicar tem a escolha "Item para alugar" ou "Serviço" (serviço sem a identificação do bem, com "por hora"
+  ou "por serviço"); o catálogo ganhou os filtros Tudo, Itens para alugar e Serviços, com a etiqueta "Serviço" e o
+  valor por hora no cartão; o detalhe do serviço mostra quem presta e o botão "Conversar com ..." no lugar do formulário
+  de locação; o dono edita valor e forma de cobrança. Aviso curto de responsabilidade também para serviços.
+- Termos e tela inicial atualizados (serviços divulgados pela USAI, combinados e pagos direto entre as pessoas).
+
+**Perfil.** "Baixar meus dados" e "Excluir minha conta" saíram do cartão grande e foram para uma engrenagem discreta ao
+lado de "Editar", que abre um menu (com os links dos Termos e da Política e a data do aceite). Excluir continua
+pedindo senha e confirmação.
+
+**Defeito corrigido: sessão vencia em 15 minutos.** O front nunca renovava o token de acesso (15 min), então depois
+disso toda tela mostrava "Token inválido ou expirado" até sair e entrar de novo. Agora, ao vencer, o front renova sozinho
+com o token de renovação e repete a chamada (várias chamadas vencidas ao mesmo tempo compartilham uma renovação); se a
+sessão acabou de verdade, volta ao login. O servidor passou a devolver o código `TOKEN_INVALIDO` nesse caso (para não
+confundir com "senha incorreta"), e o socket lê o token de novo a cada conexão.
+
+---
+
 ## 2026-11-09: Termos de Uso e Política de Privacidade completos
 
 Os dois documentos foram reescritos por inteiro (`TermosPage.tsx`, `PrivacidadePage.tsx`), com índice, seções

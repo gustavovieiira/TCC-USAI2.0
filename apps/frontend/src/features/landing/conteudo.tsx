@@ -22,7 +22,7 @@ export const PILARES: Cartao[] = [
   {
     titulo: 'Serviços e ajuda de quem mora aqui',
     texto:
-      'Precisa de um eletricista, uma maquiadora, uma diarista ou aulas particulares? Peça no Mural e quem presta o serviço no condomínio responde. Você também pode divulgar o seu trabalho para os vizinhos.',
+      'Precisa de um eletricista, uma maquiadora, uma manicure ou aulas particulares? Veja os serviços que os vizinhos oferecem no catálogo, com o valor por hora ou por serviço, e converse pelo chat. Também dá para divulgar o seu trabalho, ou pedir ajuda no Mural.',
     icone: (
       <path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.4 2.4-2.6-.6-.6-2.6 2.6-2.2z" />
     ),
@@ -191,7 +191,7 @@ export const PERGUNTAS = [
   {
     pergunta: 'Posso pedir ou oferecer serviços?',
     resposta:
-      'Sim. No Mural você pede ajuda (eletricista, maquiadora, diarista, aulas particulares e o que mais precisar) e quem presta o serviço no condomínio responde. Dá para divulgar o seu trabalho aos vizinhos também. Valor e horário são combinados direto pelo chat privado.',
+      'Sim. No catálogo, os moradores divulgam serviços (eletricista, maquiagem, unha, aulas e o que mais fizerem) com o valor por hora ou por serviço. Você conversa pelo chat privado e combina data, horário e pagamento direto com quem presta, fora da plataforma: a USAI não cobra taxa nem se responsabiliza pelo serviço. Também dá para pedir ajuda no Mural.',
   },
   {
     pergunta: 'Os moradores pagam mensalidade?',

@@ -92,6 +92,10 @@ describe('AvisoResponsabilidade', () => {
   });
 });
 
+async function abrirMenu() {
+  await userEvent.click(screen.getByRole('button', { name: 'Dados e privacidade' }));
+}
+
 describe('SeusDados (direitos do titular)', () => {
   it('"Baixar meus dados" pede o arquivo e dispara o download', async () => {
     const baixar = vi
@@ -103,7 +107,8 @@ describe('SeusDados (direitos do titular)', () => {
       .mockImplementation(() => undefined);
 
     dentroDoRouter(<SeusDados aoExcluir={vi.fn()} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Baixar meus dados' }));
+    await abrirMenu();
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Baixar meus dados' }));
 
     expect(baixar).toHaveBeenCalled();
     expect(criarUrl).toHaveBeenCalled();
@@ -114,7 +119,8 @@ describe('SeusDados (direitos do titular)', () => {
     vi.spyOn(privacidadeApi, 'baixarMeusDados').mockRejectedValue(new Error('rede'));
 
     dentroDoRouter(<SeusDados aoExcluir={vi.fn()} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Baixar meus dados' }));
+    await abrirMenu();
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Baixar meus dados' }));
 
     expect(await screen.findByRole('alert')).toBeInTheDocument();
   });
@@ -124,7 +130,8 @@ describe('SeusDados (direitos do titular)', () => {
     const aoExcluir = vi.fn();
 
     dentroDoRouter(<SeusDados aoExcluir={aoExcluir} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Excluir minha conta' }));
+    await abrirMenu();
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Excluir minha conta' }));
 
     const confirmar = screen.getByRole('button', { name: 'Excluir para sempre' });
     expect(confirmar).toBeDisabled();
@@ -152,7 +159,8 @@ describe('SeusDados (direitos do titular)', () => {
     const aoExcluir = vi.fn();
 
     dentroDoRouter(<SeusDados aoExcluir={aoExcluir} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Excluir minha conta' }));
+    await abrirMenu();
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Excluir minha conta' }));
     await userEvent.type(screen.getByLabelText('Sua senha'), 'senha-forte-123');
     await userEvent.type(screen.getByLabelText('Digite EXCLUIR para confirmar'), 'EXCLUIR');
     await userEvent.click(screen.getByRole('button', { name: 'Excluir para sempre' }));
@@ -165,7 +173,8 @@ describe('SeusDados (direitos do titular)', () => {
     const excluir = vi.spyOn(privacidadeApi, 'excluirMinhaConta');
 
     dentroDoRouter(<SeusDados aoExcluir={vi.fn()} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Excluir minha conta' }));
+    await abrirMenu();
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Excluir minha conta' }));
     await userEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -174,7 +183,8 @@ describe('SeusDados (direitos do titular)', () => {
 
   it('a tecla Esc também fecha a janela de exclusão', async () => {
     dentroDoRouter(<SeusDados aoExcluir={vi.fn()} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Excluir minha conta' }));
+    await abrirMenu();
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Excluir minha conta' }));
     expect(screen.getByRole('dialog')).toBeInTheDocument();
 
     await userEvent.keyboard('{Escape}');
@@ -182,16 +192,46 @@ describe('SeusDados (direitos do titular)', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('mostra no perfil quando a pessoa aceitou os Termos (registro feito no cadastro)', () => {
+  it('mostra no menu quando a pessoa aceitou os Termos (registro feito no cadastro)', async () => {
     dentroDoRouter(<SeusDados aceitouTermosEm="2026-11-09T12:00:00.000Z" aoExcluir={vi.fn()} />);
+    await abrirMenu();
 
     expect(screen.getByText(/Aceite registrado/)).toHaveTextContent(/09\/11\/2026/);
-    expect(screen.getByRole('link', { name: 'Termos de Uso' })).toHaveAttribute('href', '/termos');
+    expect(screen.getByRole('menuitem', { name: 'Termos de Uso' })).toHaveAttribute(
+      'href',
+      '/termos',
+    );
+    expect(screen.getByRole('menuitem', { name: 'Política de Privacidade' })).toHaveAttribute(
+      'href',
+      '/privacidade',
+    );
   });
 
-  it('sem registro de aceite (conta antiga), não mostra a linha do aceite', () => {
+  it('sem registro de aceite (conta antiga), não mostra a linha do aceite', async () => {
     dentroDoRouter(<SeusDados aoExcluir={vi.fn()} />);
+    await abrirMenu();
 
     expect(screen.queryByText(/Aceite registrado/)).not.toBeInTheDocument();
+  });
+
+  it('as opções ficam escondidas até abrir a engrenagem, e Esc ou clicar fora fecham o menu', async () => {
+    dentroDoRouter(
+      <div>
+        <p>fora do menu</p>
+        <SeusDados aoExcluir={vi.fn()} />
+      </div>,
+    );
+
+    expect(screen.queryByRole('menuitem', { name: 'Excluir minha conta' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Excluir minha conta' })).not.toBeInTheDocument();
+
+    await abrirMenu();
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+
+    await abrirMenu();
+    await userEvent.click(screen.getByText('fora do menu'));
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });
 });

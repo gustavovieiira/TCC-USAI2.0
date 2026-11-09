@@ -101,12 +101,28 @@ model User {
   @@map("users")
 }
 
+/// O que se anuncia no catálogo: um ITEM para alugar ou um SERVIÇO prestado por um morador.
+enum TipoAnuncio {
+  ITEM
+  SERVICO
+}
+
+/// Como o valor é cobrado: item por DIA; serviço por HORA ou por SERVICO (preço fechado).
+enum UnidadeCobranca {
+  DIA
+  HORA
+  SERVICO
+}
+
 model Item {
   id           String   @id @default(uuid())
   titulo       String
   descricao    String   @db.Text
   categoria    String
+  /// Valor do anúncio: por dia (item), por hora ou por serviço, conforme `unidadeCobranca`.
   valorDiaria  Decimal  @db.Decimal(10, 2)
+  tipo            TipoAnuncio     @default(ITEM)
+  unidadeCobranca UnidadeCobranca @default(DIA)
   /// Identificação do bem, opcionais: o que o dono souber informar (ex.: furadeira Bosch GSB 13 RE).
   fabricante   String?  @db.VarChar(120)
   modelo       String?  @db.VarChar(120)

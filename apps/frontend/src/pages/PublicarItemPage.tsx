@@ -7,12 +7,21 @@ import { Card } from '@/components/ui/Card';
 import { extractErrorMessage } from '@/lib/apiClient';
 import { AvisoResponsabilidade } from '@/features/privacidade/AvisoResponsabilidade';
 import { criarItem, uploadImagemItem } from '@/features/itens/itens.api';
+import { FiltroChips } from '@/components/ui/FiltroChips';
+import {
+  MENSAGEM_VALOR_SERVICO,
+  ROTULO_UNIDADE_DO_SERVICO,
+  rotuloDoCampoDeValor,
+} from '@/features/itens/anuncio';
+import { TipoAnuncio } from '@/features/itens/itens.types';
 import { MENSAGEM_VALOR_MINIMO, VALOR_MINIMO_DIARIA } from '@/features/itens/valores';
 
 const TIPOS_ACEITOS = ['image/jpeg', 'image/png', 'image/webp'];
 
 export function PublicarItemPage() {
   const navigate = useNavigate();
+  const [tipo, setTipo] = useState<TipoAnuncio>('ITEM');
+  const [unidadeServico, setUnidadeServico] = useState<'HORA' | 'SERVICO'>('HORA');
   const [titulo, setTitulo] = useState('');
   const [categoria, setCategoria] = useState('');
   const [descricao, setDescricao] = useState('');
@@ -64,12 +73,25 @@ export function PublicarItemPage() {
     setNovoAcessorio('');
   }
 
+  const ehServico = tipo === 'SERVICO';
+
+  function trocarTipo(novo: TipoAnuncio) {
+    setTipo(novo);
+    setErroValor(null);
+  }
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setErro(null);
 
-    // Abaixo do mínimo o PIX seria recusado na hora de pagar; barra já na publicação.
-    if (!(Number(valorDiaria) >= VALOR_MINIMO_DIARIA)) {
+    if (ehServico) {
+      // Serviço é combinado direto entre os moradores: não tem o piso do PIX, só precisa de um valor.
+      if (!(Number(valorDiaria) > 0)) {
+        setErroValor(MENSAGEM_VALOR_SERVICO);
+        return;
+      }
+    } else if (!(Number(valorDiaria) >= VALOR_MINIMO_DIARIA)) {
+      // Abaixo do mínimo o PIX seria recusado na hora de pagar; barra já na publicação.
       setErroValor(MENSAGEM_VALOR_MINIMO);
       return;
     }
@@ -84,14 +106,16 @@ export function PublicarItemPage() {
       }
 
       const item = await criarItem({
+        tipo,
+        unidadeCobranca: ehServico ? unidadeServico : 'DIA',
         titulo,
         categoria,
         descricao,
         valorDiaria: Number(valorDiaria),
-        fabricante: fabricante.trim() || undefined,
-        modelo: modelo.trim() || undefined,
-        numeroSerie: numeroSerie.trim() || undefined,
-        acessorios: acessorios.length > 0 ? acessorios : undefined,
+        fabricante: !ehServico ? fabricante.trim() || undefined : undefined,
+        modelo: !ehServico ? modelo.trim() || undefined : undefined,
+        numeroSerie: !ehServico ? numeroSerie.trim() || undefined : undefined,
+        acessorios: !ehServico && acessorios.length > 0 ? acessorios : undefined,
         imagens,
       });
       void navigate(`/itens/${item.id}`);
@@ -105,9 +129,25 @@ export function PublicarItemPage() {
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-5">
       <div>
-        <h1 className="font-display text-2xl font-bold text-ink">Publicar item</h1>
-        <p className="text-sm text-ink-soft">Anuncie um item ocioso pros vizinhos alugarem.</p>
+        <h1 className="font-display text-2xl font-bold text-ink">
+          {ehServico ? 'Publicar serviço' : 'Publicar item'}
+        </h1>
+        <p className="text-sm text-ink-soft">
+          {ehServico
+            ? 'Ofereça um serviço seu pros vizinhos, com o valor por hora ou por serviço.'
+            : 'Anuncie um item ocioso pros vizinhos alugarem.'}
+        </p>
       </div>
+
+      <FiltroChips<TipoAnuncio>
+        rotulo="O que você quer publicar"
+        valor={tipo}
+        onChange={trocarTipo}
+        opcoes={[
+          { valor: 'ITEM', rotulo: 'Item para alugar' },
+          { valor: 'SERVICO', rotulo: 'Serviço' },
+        ]}
+      />
 
       <Card>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
@@ -116,7 +156,7 @@ export function PublicarItemPage() {
             name="titulo"
             required
             minLength={3}
-            placeholder="Ex.: Furadeira Bosch"
+            placeholder={ehServico ? 'Ex.: Eletricista residencial' : 'Ex.: Furadeira Bosch'}
             value={titulo}
             onChange={(e) => setTitulo(e.target.value)}
           />
@@ -125,7 +165,7 @@ export function PublicarItemPage() {
             name="categoria"
             required
             minLength={2}
-            placeholder="Ex.: Ferramentas"
+            placeholder={ehServico ? 'Ex.: Elétrica, Beleza, Unhas, Aulas' : 'Ex.: Ferramentas'}
             value={categoria}
             onChange={(e) => setCategoria(e.target.value)}
           />
@@ -134,15 +174,30 @@ export function PublicarItemPage() {
             name="descricao"
             required
             minLength={10}
-            placeholder="Estado do item, o que está incluso, cuidados na devolução..."
+            placeholder={
+              ehServico
+                ? 'O que você faz, sua experiência, o que está incluso, dias e horários e a região que atende...'
+                : 'Estado do item, o que está incluso, cuidados na devolução...'
+            }
             value={descricao}
             onChange={(e) => setDescricao(e.target.value)}
           />
+          {ehServico && (
+            <FiltroChips<'HORA' | 'SERVICO'>
+              rotulo="Como você cobra"
+              valor={unidadeServico}
+              onChange={setUnidadeServico}
+              opcoes={[
+                { valor: 'HORA', rotulo: ROTULO_UNIDADE_DO_SERVICO.HORA },
+                { valor: 'SERVICO', rotulo: ROTULO_UNIDADE_DO_SERVICO.SERVICO },
+              ]}
+            />
+          )}
           <TextField
-            label="Valor por diária (R$)"
+            label={rotuloDoCampoDeValor(tipo, ehServico ? unidadeServico : 'DIA')}
             name="valorDiaria"
             type="number"
-            min={VALOR_MINIMO_DIARIA}
+            min={ehServico ? 0.01 : VALOR_MINIMO_DIARIA}
             step="0.01"
             inputMode="decimal"
             required
@@ -155,94 +210,100 @@ export function PublicarItemPage() {
             }}
           />
           <p id="dica-valor-minimo" className="-mt-2 text-xs text-ink-faint">
-            Mínimo de R$ 5,00 por diária (o menor valor que a cobrança por PIX aceita).
+            {ehServico
+              ? 'O pagamento é combinado direto com quem contratar. A USAI não cobra nem recebe pelo serviço.'
+              : 'Mínimo de R$ 5,00 por diária (o menor valor que a cobrança por PIX aceita).'}
           </p>
 
-          <fieldset className="flex min-w-0 flex-col gap-3 border border-paper-line p-3">
-            <legend className="px-1 text-sm font-medium text-ink">
-              Identificação do bem (opcional)
-            </legend>
-            <p className="text-xs text-ink-faint">
-              O que você souber informar. Aparece no documento de retirada e devolução, e ajuda a
-              identificar o item sem dúvida.
-            </p>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <TextField
-                label="Fabricante"
-                name="fabricante"
-                maxLength={120}
-                value={fabricante}
-                onChange={(e) => setFabricante(e.target.value)}
-              />
-              <TextField
-                label="Modelo"
-                name="modelo"
-                maxLength={120}
-                value={modelo}
-                onChange={(e) => setModelo(e.target.value)}
-              />
-            </div>
-            <TextField
-              label="Número de série"
-              name="numeroSerie"
-              maxLength={120}
-              value={numeroSerie}
-              onChange={(e) => setNumeroSerie(e.target.value)}
-            />
-
-            <div className="flex flex-col gap-2">
-              <span className="text-sm font-medium text-ink">Acessórios que acompanham</span>
-              {acessorios.length > 0 && (
-                <ul className="flex flex-wrap gap-2">
-                  {acessorios.map((nome) => (
-                    <li
-                      key={nome}
-                      className="notch-sm flex items-center gap-1 bg-paper px-2 py-1 text-sm text-ink"
-                    >
-                      {nome}
-                      <button
-                        type="button"
-                        aria-label={`Remover ${nome}`}
-                        onClick={() => setAcessorios((atual) => atual.filter((a) => a !== nome))}
-                        className="text-ink-faint hover:text-carmim-700"
-                      >
-                        ✕
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <div className="flex items-end gap-2">
-                <div className="min-w-0 flex-1">
-                  <TextField
-                    label="Novo acessório"
-                    name="novoAcessorio"
-                    maxLength={80}
-                    placeholder="Ex.: Maleta, jogo de brocas…"
-                    value={novoAcessorio}
-                    onChange={(e) => setNovoAcessorio(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        adicionarAcessorio();
-                      }
-                    }}
-                  />
-                </div>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  fullWidth={false}
-                  onClick={adicionarAcessorio}
-                >
-                  Adicionar
-                </Button>
+          {!ehServico && (
+            <fieldset className="flex min-w-0 flex-col gap-3 border border-paper-line p-3">
+              <legend className="px-1 text-sm font-medium text-ink">
+                Identificação do bem (opcional)
+              </legend>
+              <p className="text-xs text-ink-faint">
+                O que você souber informar. Aparece no documento de retirada e devolução, e ajuda a
+                identificar o item sem dúvida.
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <TextField
+                  label="Fabricante"
+                  name="fabricante"
+                  maxLength={120}
+                  value={fabricante}
+                  onChange={(e) => setFabricante(e.target.value)}
+                />
+                <TextField
+                  label="Modelo"
+                  name="modelo"
+                  maxLength={120}
+                  value={modelo}
+                  onChange={(e) => setModelo(e.target.value)}
+                />
               </div>
-            </div>
-          </fieldset>
+              <TextField
+                label="Número de série"
+                name="numeroSerie"
+                maxLength={120}
+                value={numeroSerie}
+                onChange={(e) => setNumeroSerie(e.target.value)}
+              />
+
+              <div className="flex flex-col gap-2">
+                <span className="text-sm font-medium text-ink">Acessórios que acompanham</span>
+                {acessorios.length > 0 && (
+                  <ul className="flex flex-wrap gap-2">
+                    {acessorios.map((nome) => (
+                      <li
+                        key={nome}
+                        className="notch-sm flex items-center gap-1 bg-paper px-2 py-1 text-sm text-ink"
+                      >
+                        {nome}
+                        <button
+                          type="button"
+                          aria-label={`Remover ${nome}`}
+                          onClick={() => setAcessorios((atual) => atual.filter((a) => a !== nome))}
+                          className="text-ink-faint hover:text-carmim-700"
+                        >
+                          ✕
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <div className="flex items-end gap-2">
+                  <div className="min-w-0 flex-1">
+                    <TextField
+                      label="Novo acessório"
+                      name="novoAcessorio"
+                      maxLength={80}
+                      placeholder="Ex.: Maleta, jogo de brocas…"
+                      value={novoAcessorio}
+                      onChange={(e) => setNovoAcessorio(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          adicionarAcessorio();
+                        }
+                      }}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    fullWidth={false}
+                    onClick={adicionarAcessorio}
+                  >
+                    Adicionar
+                  </Button>
+                </div>
+              </div>
+            </fieldset>
+          )}
 
           <div className="flex flex-col gap-1">
-            <span className="text-sm font-medium text-ink">Foto (opcional)</span>
+            <span className="text-sm font-medium text-ink">
+              {ehServico ? 'Foto (opcional, do seu trabalho)' : 'Foto (opcional)'}
+            </span>
             <div className="flex items-center gap-3">
               {imagemPreview ? (
                 <img
@@ -280,7 +341,7 @@ export function PublicarItemPage() {
               {erro}
             </p>
           )}
-          <AvisoResponsabilidade papel="proprietario" />
+          <AvisoResponsabilidade papel={ehServico ? 'prestador' : 'proprietario'} />
 
           <Button type="submit" isLoading={isLoading}>
             Publicar
