@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { AdminPage } from './AdminPage';
 import * as adminApi from '@/features/admin/admin.api';
+import * as plataformaApi from '@/features/admin/plataforma.api';
 import * as saquesApi from '@/features/saques/saques.api';
 import { CondominioAdminDTO, ResumoFinanceiroDTO } from '@/features/admin/admin.types';
 import { SaqueDTO } from '@/features/saques/saques.types';
@@ -255,6 +256,41 @@ describe('AdminPage: taxas e extratos', () => {
 
     expect(await screen.findByRole('button', { name: /Ana Proprietaria/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Conta da USAI' })).toBeInTheDocument();
+  });
+});
+
+describe('AdminPage: aba Plataforma', () => {
+  it('abre o financeiro das vendas da plataforma (assinaturas, o que entrou e saiu no mês e despesas)', async () => {
+    mockApis();
+    vi.spyOn(plataformaApi, 'buscarVendasDoMes').mockResolvedValue({
+      mes: '2026-11',
+      resumo: {
+        entrou: 299,
+        taxasAsaas: 1.99,
+        despesas: 0,
+        resultado: 297.01,
+        pagamentos: 1,
+        taxasNaoInformadas: 0,
+      },
+      recebimentos: [],
+      despesas: [],
+    });
+    vi.spyOn(plataformaApi, 'listarAssinaturasAdmin').mockResolvedValue({
+      resumo: { total: 0, ativas: 0, aguardandoPagamento: 0, suspensas: 0, vencidas: 0 },
+      itens: [],
+    });
+
+    render(<AdminPage />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Plataforma' }));
+
+    expect(
+      await screen.findByRole('heading', { name: 'Vendas da plataforma' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Assinaturas dos condomínios' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Despesas da plataforma' })).toBeInTheDocument();
+    expect(plataformaApi.buscarVendasDoMes).toHaveBeenCalled();
   });
 });
 

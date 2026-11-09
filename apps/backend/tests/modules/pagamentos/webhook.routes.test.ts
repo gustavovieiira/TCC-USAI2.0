@@ -22,7 +22,11 @@ jest.mock('@/common/prisma', () => {
     },
     user: { update: jest.fn(), findMany: jest.fn().mockResolvedValue([]) },
     // Mensalidades de condomínio (SaaS) também chegam por este webhook.
-    cobrancaAssinatura: { findUnique: jest.fn().mockResolvedValue(null), updateMany: jest.fn() },
+    cobrancaAssinatura: {
+      findUnique: jest.fn().mockResolvedValue(null),
+      updateMany: jest.fn(),
+      update: jest.fn(),
+    },
     assinatura: { findUniqueOrThrow: jest.fn(), update: jest.fn() },
     condominio: { update: jest.fn() },
     tokenAcesso: { updateMany: jest.fn(), create: jest.fn() },

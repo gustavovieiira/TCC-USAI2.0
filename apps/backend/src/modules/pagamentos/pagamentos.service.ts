@@ -9,6 +9,7 @@ import { NotificacoesService } from '@/modules/notificacoes/notificacoes.service
 import { emitirParaUsuario } from '@/realtime/emitter';
 import type { AssinaturasService } from '@/modules/assinaturas/assinaturas.service';
 import { AsaasClient, STATUS_ASAAS_PAGO } from './asaas.client';
+import { consultarTaxaAsaas } from './taxaAsaas';
 import { CriarCobrancaResultado } from './pagamentos.types';
 
 const DIAS_ATE_VENCIMENTO = 2;
@@ -180,7 +181,7 @@ export class PagamentosService {
     if (await this.assinaturas?.confirmarCobranca(asaasChargeId, recebido)) return;
 
     // A taxa que o Asaas cobrou neste PIX sai do que o dono recebe (valor pago menos o líquido que o Asaas informa).
-    const taxaAsaas = await this.consultarTaxaAsaas(asaasChargeId);
+    const taxaAsaas = await consultarTaxaAsaas(this.asaas, asaasChargeId);
 
     const resultado = await this.prisma.$transaction(async (tx) => {
       const flipPagamento = await tx.pagamento.updateMany({
@@ -334,31 +335,6 @@ export class PagamentosService {
         }
       }),
     );
-  }
-
-  /**
-   * Taxa que o Asaas cobrou num PIX: valor da cobrança menos o líquido que ele informa. Se a consulta falhar ou o
-   * Asaas não informar o líquido, devolve 0 e registra no log (o aluguel não pode ficar sem confirmar por isso).
-   */
-  private async consultarTaxaAsaas(asaasChargeId: string): Promise<number> {
-    try {
-      const cobranca = await this.asaas.buscarCobranca(asaasChargeId);
-      if (typeof cobranca.value === 'number' && typeof cobranca.netValue === 'number') {
-        return Math.max(0, Math.round((cobranca.value - cobranca.netValue) * 100) / 100);
-      }
-      logger.warn(
-        'O Asaas não informou o valor líquido da cobrança; taxa do Asaas gravada como 0',
-        {
-          asaasChargeId,
-        },
-      );
-    } catch (error) {
-      logger.error('Não foi possível consultar a taxa do Asaas; taxa gravada como 0', {
-        asaasChargeId,
-        error,
-      });
-    }
-    return 0;
   }
 
   /** Perdeu a corrida: avisa o locatário (que já pagou) e o Admin, que precisa devolver o dinheiro. */

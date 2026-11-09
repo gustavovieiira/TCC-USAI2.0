@@ -66,6 +66,7 @@ function buildPrismaMock() {
       findFirst: jest.fn().mockResolvedValue(null),
       findMany: jest.fn().mockResolvedValue([]),
       updateMany: jest.fn(),
+      update: jest.fn(),
     },
     tokenAcesso: {
       create: jest.fn(),
@@ -588,6 +589,66 @@ describe('AssinaturasService.confirmarCobranca', () => {
     expect(email.para).toBe('silvia@exemplo.com');
     expect(email.texto).toContain('/definir-senha?token=');
     expect(email.texto).not.toContain(salvo.tokenHash);
+  });
+
+  it('grava na cobrança a taxa que o Asaas cobrou (valor − líquido) e até quando o pagamento deixou o condomínio ativo', async () => {
+    const prisma = buildPrismaMock();
+    prisma.cobrancaAssinatura.findUnique.mockResolvedValue({
+      id: 'cob-1',
+      assinaturaId: 'assin-1',
+      periodoCodigo: 'MENSAL',
+      dias: 30,
+      valor: 299,
+    });
+    prisma.cobrancaAssinatura.updateMany.mockResolvedValue({ count: 1 });
+    prisma.assinatura.findUniqueOrThrow.mockResolvedValue(assinaturaPaga());
+    const asaas = buildAsaasMock();
+    asaas.buscarCobranca.mockResolvedValue({
+      id: 'pay_1',
+      status: 'RECEIVED',
+      value: 299,
+      netValue: 297.01,
+    });
+    const service = new AssinaturasService(prisma, asaas, mailerVazio());
+
+    await service.confirmarCobranca('pay_1');
+
+    expect(prisma.cobrancaAssinatura.updateMany).toHaveBeenCalledWith({
+      where: { id: 'cob-1', status: 'PENDENTE' },
+      data: { status: 'PAGO', pagoEm: expect.any(Date), taxaAsaas: 1.99 },
+    });
+    const { ativaAte } = prisma.assinatura.update.mock.calls[0][0].data;
+    expect(prisma.cobrancaAssinatura.update).toHaveBeenCalledWith({
+      where: { id: 'cob-1' },
+      data: { ativaAteApos: ativaAte },
+    });
+  });
+
+  it('se o Asaas não informar a taxa, a mensalidade confirma do mesmo jeito (taxa 0)', async () => {
+    const prisma = buildPrismaMock();
+    prisma.cobrancaAssinatura.findUnique.mockResolvedValue({
+      id: 'cob-1',
+      assinaturaId: 'assin-1',
+      periodoCodigo: 'MENSAL',
+      dias: 30,
+      valor: 299,
+    });
+    prisma.cobrancaAssinatura.updateMany.mockResolvedValue({ count: 1 });
+    prisma.assinatura.findUniqueOrThrow.mockResolvedValue(assinaturaPaga());
+    const asaas = buildAsaasMock();
+    asaas.buscarCobranca.mockRejectedValue(new Error('Asaas fora do ar'));
+    const service = new AssinaturasService(prisma, asaas, mailerVazio());
+
+    expect(await service.confirmarCobranca('pay_1')).toBe(true);
+
+    expect(prisma.cobrancaAssinatura.updateMany).toHaveBeenCalledWith({
+      where: { id: 'cob-1', status: 'PENDENTE' },
+      data: { status: 'PAGO', pagoEm: expect.any(Date), taxaAsaas: 0 },
+    });
+    expect(prisma.condominio.update).toHaveBeenCalledWith({
+      where: { id: 'cond-1' },
+      data: { ativo: true },
+    });
   });
 
   it('o e-mail do 1º pagamento traz o recibo: número, forma, pagador (documento mascarado), valor e vigência', async () => {
