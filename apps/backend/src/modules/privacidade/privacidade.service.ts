@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import { PrismaClient } from '@prisma/client';
 import { AppError, ForbiddenError, NotFoundError, UnauthorizedError } from '@/common/errors';
+import { removerArquivosDeUpload } from '@/common/uploads';
 import { BCRYPT_ROUNDS } from '@/modules/auth/auth.service';
 import { SaquesService } from '@/modules/saques/saques.service';
 
@@ -129,6 +130,21 @@ export class PrivacidadeService {
 
     const senhaAleatoria = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), BCRYPT_ROUNDS);
 
+    // As fotos que a pessoa enviou (posts do Mural e anúncios) também saem do disco junto com a conta.
+    const [postsComFotos, fotosDosItens] = await Promise.all([
+      this.prisma.post.findMany({ where: { autorId: userId }, select: { imagens: true } }),
+      this.prisma.itemImagem.findMany({
+        where: { item: { ownerId: userId } },
+        select: { url: true },
+      }),
+    ]);
+    const enderecosDasFotos = [
+      ...postsComFotos.flatMap((p) =>
+        Array.isArray(p.imagens) ? p.imagens.filter((i): i is string => typeof i === 'string') : [],
+      ),
+      ...fotosDosItens.map((f) => f.url),
+    ];
+
     await this.prisma.$transaction(async (tx) => {
       await tx.user.update({
         where: { id: userId },
@@ -150,6 +166,7 @@ export class PrivacidadeService {
 
       // Anúncios saem do ar; o histórico das locações que já aconteceram continua.
       await tx.item.updateMany({ where: { ownerId: userId }, data: { ativo: false } });
+      await tx.itemImagem.deleteMany({ where: { item: { ownerId: userId } } });
 
       // Mural: some o que a pessoa escreveu (apagar o post leva os comentários dele junto).
       await tx.comentarioPost.deleteMany({ where: { autorId: userId } });
@@ -173,6 +190,8 @@ export class PrivacidadeService {
         data: { chavePixUsada: '[removida]' },
       });
     });
+
+    await removerArquivosDeUpload(enderecosDasFotos);
   }
 
   private async garantirSemPendencias(userId: string, papel: string): Promise<void> {

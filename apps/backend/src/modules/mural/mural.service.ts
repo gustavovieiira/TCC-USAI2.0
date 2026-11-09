@@ -1,5 +1,6 @@
 import { ComentarioPost, Post, PrismaClient, User } from '@prisma/client';
 import { ForbiddenError, NotFoundError } from '@/common/errors';
+import { removerArquivosDeUpload } from '@/common/uploads';
 import { NotificacoesService } from '@/modules/notificacoes/notificacoes.service';
 import {
   ComentarioDTO,
@@ -17,6 +18,11 @@ function toAutorDTO(autor: User) {
   return { id: autor.id, nome: autor.nome, papel: autor.papel };
 }
 
+/** `imagens` é JSON no banco; só passa adiante o que for lista de textos. */
+function lerImagens(valor: unknown): string[] {
+  return Array.isArray(valor) ? valor.filter((i): i is string => typeof i === 'string') : [];
+}
+
 function toPostDTO(post: PostComAutor, comentariosCount = 0): PostDTO {
   return {
     id: post.id,
@@ -27,6 +33,7 @@ function toPostDTO(post: PostComAutor, comentariosCount = 0): PostDTO {
     createdAt: post.createdAt,
     autor: toAutorDTO(post.autor),
     comentariosCount,
+    imagens: lerImagens(post.imagens),
   };
 }
 
@@ -68,6 +75,7 @@ export class MuralService {
         tipo: input.tipo,
         categoria: input.categoria,
         status: input.tipo === 'PEDIDO' ? 'ABERTO' : null,
+        imagens: input.imagens && input.imagens.length > 0 ? input.imagens : undefined,
         autorId,
         condominioId,
       },
@@ -162,6 +170,8 @@ export class MuralService {
     }
 
     await this.prisma.post.delete({ where: { id: postId } });
+    // As fotos do post não ficam esquecidas no disco depois de o post sumir.
+    await removerArquivosDeUpload(lerImagens(post.imagens));
   }
 
   private async resolverCondominioId(

@@ -225,6 +225,8 @@ model Post {
   tipo         TipoPost    @default(PEDIDO)
   categoria    String?
   status       StatusPost?
+  /// Fotos do post (até 4): endereços de imagens enviadas pela própria plataforma (/uploads/mural/...).
+  imagens      Json?
   autorId      String
   condominioId String
   createdAt    DateTime    @default(now())

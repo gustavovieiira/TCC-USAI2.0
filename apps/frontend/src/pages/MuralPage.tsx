@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react';
 import { Avatar } from '@/components/ui/Avatar';
 import { PostCard } from '@/features/mural/PostCard';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -8,10 +8,19 @@ import { Spinner } from '@/components/ui/Spinner';
 import { extractErrorMessage } from '@/lib/apiClient';
 import { escalonar } from '@/lib/animacao';
 import { getStoredUser } from '@/lib/authStorage';
-import { criarPost, excluirPost, listarPosts } from '@/features/mural/mural.api';
+import { criarPost, excluirPost, listarPosts, uploadImagemPost } from '@/features/mural/mural.api';
 import { PostDTO, TipoPost } from '@/features/mural/mural.types';
 
 type FiltroTipo = 'TODOS' | TipoPost;
+
+const MAXIMO_DE_FOTOS = 4;
+const TAMANHO_MAXIMO_BYTES = 5 * 1024 * 1024;
+const TIPOS_ACEITOS = ['image/jpeg', 'image/png', 'image/webp'];
+
+interface FotoEscolhida {
+  arquivo: File;
+  previa: string;
+}
 
 export function MuralPage() {
   const user = getStoredUser();
@@ -23,8 +32,10 @@ export function MuralPage() {
   const [conteudo, setConteudo] = useState('');
   const [tipo, setTipo] = useState<TipoPost>('AVISO');
   const [categoria, setCategoria] = useState('');
+  const [fotos, setFotos] = useState<FotoEscolhida[]>([]);
   const [erroForm, setErroForm] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const campoDeFotos = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     listarPosts()
@@ -32,21 +43,68 @@ export function MuralPage() {
       .catch((err) => setErroLista(extractErrorMessage(err)));
   }, []);
 
+  // Libera as prévias da memória quando a página sai.
+  const fotosRef = useRef<FotoEscolhida[]>([]);
+  fotosRef.current = fotos;
+  useEffect(() => () => fotosRef.current.forEach((f) => URL.revokeObjectURL(f.previa)), []);
+
+  function aoEscolherFotos(evento: ChangeEvent<HTMLInputElement>) {
+    const escolhidas = Array.from(evento.target.files ?? []);
+    evento.target.value = '';
+    setErroForm(null);
+
+    const aceitas: FotoEscolhida[] = [];
+    for (const arquivo of escolhidas) {
+      if (!TIPOS_ACEITOS.includes(arquivo.type)) {
+        setErroForm('Formato de imagem não suportado. Use JPEG, PNG ou WebP.');
+        continue;
+      }
+      if (arquivo.size > TAMANHO_MAXIMO_BYTES) {
+        setErroForm('Cada foto pode ter no máximo 5 MB.');
+        continue;
+      }
+      aceitas.push({ arquivo, previa: URL.createObjectURL(arquivo) });
+    }
+
+    setFotos((atuais) => {
+      const total = [...atuais, ...aceitas];
+      if (total.length > MAXIMO_DE_FOTOS) {
+        setErroForm(`No máximo ${MAXIMO_DE_FOTOS} fotos por post.`);
+        total.slice(MAXIMO_DE_FOTOS).forEach((f) => URL.revokeObjectURL(f.previa));
+      }
+      return total.slice(0, MAXIMO_DE_FOTOS);
+    });
+  }
+
+  function removerFoto(indice: number) {
+    setFotos((atuais) => {
+      URL.revokeObjectURL(atuais[indice].previa);
+      return atuais.filter((_, i) => i !== indice);
+    });
+  }
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setErroForm(null);
     setIsLoading(true);
 
     try {
+      const enderecos =
+        fotos.length > 0
+          ? await Promise.all(fotos.map((f) => uploadImagemPost(f.arquivo).then((r) => r.url)))
+          : undefined;
       const novo = await criarPost({
         conteudo,
         tipo,
         categoria: tipo === 'PEDIDO' ? categoria || undefined : undefined,
+        imagens: enderecos,
       });
       setPosts((atual) => (atual ? [novo, ...atual] : [novo]));
       setConteudo('');
       setCategoria('');
       setTipo('AVISO');
+      fotos.forEach((f) => URL.revokeObjectURL(f.previa));
+      setFotos([]);
     } catch (err) {
       setErroForm(extractErrorMessage(err));
     } finally {
@@ -120,13 +178,72 @@ export function MuralPage() {
               )}
             </div>
 
+            {fotos.length > 0 && (
+              <ul aria-label="Fotos escolhidas" className="flex flex-wrap gap-2">
+                {fotos.map((foto, i) => (
+                  <li key={foto.previa} className="relative">
+                    <img
+                      src={foto.previa}
+                      alt={`Prévia da foto ${i + 1}`}
+                      className="h-20 w-20 rounded-[10px] object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removerFoto(i)}
+                      aria-label={`Remover foto ${i + 1}`}
+                      className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full bg-ink text-xs text-ink-inverse shadow"
+                    >
+                      ✕
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+
             {erroForm && (
               <p role="alert" className="text-sm text-carmim-700">
                 {erroForm}
               </p>
             )}
 
-            <div className="flex justify-end">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <input
+                  ref={campoDeFotos}
+                  id="fotos-do-post"
+                  type="file"
+                  multiple
+                  accept="image/jpeg,image/png,image/webp"
+                  className="sr-only"
+                  onChange={aoEscolherFotos}
+                />
+                <button
+                  type="button"
+                  onClick={() => campoDeFotos.current?.click()}
+                  disabled={fotos.length >= MAXIMO_DE_FOTOS}
+                  className="notch-sm flex min-h-[44px] items-center gap-2 px-3 py-2 text-sm font-semibold text-ink-soft transition hover:bg-paper disabled:opacity-50"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden="true">
+                    <rect
+                      x="3"
+                      y="5"
+                      width="18"
+                      height="14"
+                      rx="2"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                    />
+                    <circle cx="9" cy="10" r="1.5" stroke="currentColor" strokeWidth="1.6" />
+                    <path
+                      d="M21 16l-5.5-5.5L5 21"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                  {fotos.length > 0 ? `Fotos (${fotos.length}/${MAXIMO_DE_FOTOS})` : 'Foto'}
+                </button>
+              </div>
               <button
                 type="submit"
                 disabled={isLoading || conteudo.trim().length < 3}

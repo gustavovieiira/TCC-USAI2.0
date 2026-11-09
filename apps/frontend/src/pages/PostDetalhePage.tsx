@@ -10,6 +10,7 @@ import { extractErrorMessage } from '@/lib/apiClient';
 import { getStoredUser } from '@/lib/authStorage';
 import { formatRelativeTime } from '@/lib/format';
 import { buscarPost, excluirPost, marcarAtendido, responderPost } from '@/features/mural/mural.api';
+import { GaleriaDeImagens } from '@/features/mural/GaleriaDeImagens';
 import { PostComComentariosDTO } from '@/features/mural/mural.types';
 
 export function PostDetalhePage() {
@@ -123,6 +124,10 @@ export function PostDetalhePage() {
             <p className="mt-2 whitespace-pre-line font-display text-lg font-semibold leading-snug text-ink">
               {post.conteudo}
             </p>
+            <GaleriaDeImagens
+              imagens={post.imagens ?? []}
+              descricao={`Foto do post de ${post.autor.nome}`}
+            />
 
             <div className="mt-3 flex flex-wrap items-center gap-3">
               {post.tipo === 'PEDIDO' && post.status && <PostStatusBadge status={post.status} />}
