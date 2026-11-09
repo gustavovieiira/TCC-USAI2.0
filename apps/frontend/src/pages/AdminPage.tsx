@@ -5,6 +5,7 @@ import { CardClicavel } from '@/components/ui/CardClicavel';
 import { AbaDocumentos } from '@/features/admin/AbaDocumentos';
 import { AbaExtratos } from '@/features/admin/AbaExtratos';
 import { AbaIdentidade } from '@/features/admin/AbaIdentidade';
+import { AbaPlataforma } from '@/features/admin/AbaPlataforma';
 import { AbaTermos } from '@/features/admin/AbaTermos';
 import { formatarPercentual, ModalComissao } from '@/features/admin/ComissaoDoCondominio';
 import {
@@ -42,7 +43,14 @@ import {
 import { SaqueDTO } from '@/features/saques/saques.types';
 
 type Aba =
-  'financeiro' | 'extratos' | 'documentos' | 'termos' | 'identidade' | 'condominios' | 'sindicos';
+  | 'financeiro'
+  | 'plataforma'
+  | 'extratos'
+  | 'documentos'
+  | 'termos'
+  | 'identidade'
+  | 'condominios'
+  | 'sindicos';
 
 export function AdminPage() {
   const [aba, setAba] = useState<Aba>('financeiro');
@@ -96,6 +104,7 @@ export function AdminPage() {
         {(
           [
             ['financeiro', 'Financeiro'],
+            ['plataforma', 'Plataforma'],
             ['extratos', 'Extratos'],
             ['documentos', 'Documentos'],
             ['termos', 'Termos'],
@@ -147,6 +156,7 @@ export function AdminPage() {
         />
       )}
 
+      {aba === 'plataforma' && <AbaPlataforma />}
       {aba === 'extratos' && <AbaExtratos />}
       {aba === 'documentos' && <AbaDocumentos />}
       {aba === 'termos' && <AbaTermos />}

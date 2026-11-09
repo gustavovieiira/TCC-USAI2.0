@@ -549,12 +549,31 @@ model CobrancaAssinatura {
   status        String
   referencia    String
   pagoEm        DateTime?
+  /// Taxa que o Asaas cobrou nesta mensalidade (valor pago menos o líquido que ele informa). Nulo nas anteriores.
+  taxaAsaas     Decimal?  @db.Decimal(10, 2)
+  /// Até quando o condomínio ficou ativo depois deste pagamento (a vigência paga vai de `ativaAteApos - dias` até aqui).
+  ativaAteApos  DateTime?
   createdAt     DateTime  @default(now())
 
   assinatura Assinatura @relation(fields: [assinaturaId], references: [id], onDelete: Cascade)
 
   @@index([assinaturaId, status])
   @@map("cobrancas_assinatura")
+}
+
+/// Despesa da plataforma lançada pelo Admin à mão (servidor, domínio, e-mail...), para o resultado do mês.
+/// categoria: SERVIDOR | DOMINIO | EMAIL | TAXAS | OUTRO
+model DespesaPlataforma {
+  id          String   @id @default(uuid())
+  data        DateTime
+  valor       Decimal  @db.Decimal(10, 2)
+  descricao   String
+  categoria   String
+  criadoPorId String
+  createdAt   DateTime @default(now())
+
+  @@index([data])
+  @@map("despesas_plataforma")
 }
 
 /// Link de uso único enviado por e-mail pro síndico definir a própria senha. Vale até a senha ser

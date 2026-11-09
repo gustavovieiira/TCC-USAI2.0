@@ -6,6 +6,33 @@
 
 ---
 
+## 2026-11-09: Financeiro da plataforma (assinaturas, entrou e saiu no mês, recibos e despesas)
+
+Nova aba **Plataforma** no painel do Admin, só para acompanhar o dinheiro das **vendas da plataforma** (as mensalidades que
+os síndicos pagam), separado do dinheiro das locações entre moradores (que continua na aba Financeiro).
+- **Assinaturas dos condomínios:** lista do que vence primeiro para o que vence depois, com a situação ("Vence em 3 dias",
+  "Vence hoje", "Vencida há 2 dias", "Suspensa", "Aguardando o 1º pagamento"), o valor de cada cobrança e a data de
+  vencimento. Filtros com contagem (vencem em 7, 15 ou 30 dias, vencidas, aguardando pagamento) e busca por condomínio ou
+  síndico (sem diferenciar acento).
+- **O que entrou e saiu no mês:** quadros de **Entrou**, **Taxas do Asaas**, **Despesas** e **Resultado do mês**
+  (entrou − taxas − despesas), com navegação entre os meses (o mês é o de Brasília).
+- **Pagamentos recebidos:** cada mensalidade paga por um síndico (quem pagou, condomínio, plano, valor, taxa do Asaas e
+  líquido) abre um **recibo** para imprimir ou salvar em PDF, com o mesmo número do e-mail que o síndico recebeu
+  (`USAI-XXXXXXXX`), a vigência paga e o documento mascarado.
+- **Despesas lançadas à mão** (servidor, domínio, e-mail, taxas, outro), com data, valor e descrição, e remoção com
+  confirmação. Elas entram na conta do mês em que a data cair.
+- **Backend:** `GET /api/admin/plataforma/vendas?mes=AAAA-MM`, `GET /api/admin/plataforma/assinaturas`,
+  `POST /api/admin/plataforma/despesas` e `DELETE /api/admin/plataforma/despesas/:id`, todas só para Admin. Migration
+  `20261109500000_financeiro_da_plataforma`: `cobrancas_assinatura.taxaAsaas` e `ativaAteApos` (a taxa que o Asaas cobrou
+  em cada mensalidade, lida do Asaas ao confirmar o pagamento, e até quando ele deixou o condomínio ativo) e a tabela
+  `despesas_plataforma`.
+- **Mensalidades pagas antes desta mudança** não têm a taxa gravada: aparecem sem taxa e a tela avisa quantas são (contam como
+  R$ 0,00 na conta do mês).
+- Testes: backend 795 e frontend 530 (cálculo do mês e dos limites, ordenação e filtros das assinaturas, recibo, despesas e a
+  tela inteira). O serviço também foi conferido contra um MySQL de verdade.
+
+---
+
 ## 2026-11-09: Sem comissão fixa de 10%, comissão por condomínio e taxa do Asaas descontada do dono
 
 A regra fixa de "10% de cada locação vai para o condomínio" deixou de existir. O percentual passa a ser **negociado com o

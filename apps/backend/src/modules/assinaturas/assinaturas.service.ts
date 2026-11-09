@@ -9,6 +9,7 @@ import { Mailer, SmtpMailer, urlDoApp } from '@/common/mailer';
 import { BCRYPT_ROUNDS } from '@/modules/auth/auth.service';
 import { NotificacoesService } from '@/modules/notificacoes/notificacoes.service';
 import { AsaasClient } from '@/modules/pagamentos/asaas.client';
+import { consultarTaxaAsaas } from '@/modules/pagamentos/taxaAsaas';
 import { DetalhesContratacao, emailAcessoSindico } from './assinaturas.emails';
 import {
   buscarPeriodo,
@@ -488,11 +489,13 @@ export class AssinaturasService {
     }
 
     const pagoEm = new Date();
+    // A taxa que o Asaas cobrou nesta mensalidade fica gravada, para o financeiro da plataforma mostrar o que sobrou.
+    const taxaAsaas = await consultarTaxaAsaas(this.asaas, asaasChargeId);
 
     const resultado = await this.prisma.$transaction(async (tx) => {
       const virou = await tx.cobrancaAssinatura.updateMany({
         where: { id: cobranca.id, status: 'PENDENTE' },
-        data: { status: 'PAGO', pagoEm },
+        data: { status: 'PAGO', pagoEm, taxaAsaas },
       });
       if (virou.count === 0) return null;
 
@@ -514,6 +517,10 @@ export class AssinaturasService {
           periodoCodigo: cobranca.periodoCodigo,
           valorCiclo: cobranca.valor,
         },
+      });
+      await tx.cobrancaAssinatura.update({
+        where: { id: cobranca.id },
+        data: { ativaAteApos: ativaAte },
       });
       await tx.condominio.update({ where: { id: assinatura.condominioId }, data: { ativo: true } });
       if (primeiroPagamento) {
