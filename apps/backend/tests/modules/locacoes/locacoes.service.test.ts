@@ -296,16 +296,55 @@ describe('LocacoesService.listarComoLocatario / listarComoProprietario', () => {
 });
 
 describe('calcularRepasse', () => {
-  it('desconta a taxa de 10% da plataforma e devolve o líquido do dono', () => {
-    expect(calcularRepasse(100)).toEqual({ taxaPlataforma: 10, valorLiquido: 90 });
+  it('sem comissão (o padrão), o dono recebe o valor pago menos só a taxa do Asaas', () => {
+    expect(calcularRepasse(100, 1.99)).toEqual({
+      taxaAsaas: 1.99,
+      taxaPlataforma: 0,
+      valorLiquido: 98.01,
+    });
   });
 
-  it('arredonda em centavos e taxa + líquido sempre somam o valor bruto', () => {
-    const { taxaPlataforma, valorLiquido } = calcularRepasse(33.33);
+  it('sem nenhuma taxa e sem comissão, o dono recebe tudo', () => {
+    expect(calcularRepasse(100)).toEqual({ taxaAsaas: 0, taxaPlataforma: 0, valorLiquido: 100 });
+  });
 
-    expect(valorLiquido).toBe(30);
-    expect(taxaPlataforma).toBe(3.33);
-    expect(Math.round((taxaPlataforma + valorLiquido) * 100) / 100).toBe(33.33);
+  it('com comissão do condomínio, ela é calculada sobre o valor pago e sai do que o dono recebe', () => {
+    expect(calcularRepasse(100, 1.99, 10)).toEqual({
+      taxaAsaas: 1.99,
+      taxaPlataforma: 10,
+      valorLiquido: 88.01,
+    });
+  });
+
+  it('arredonda em centavos e taxa + comissão + líquido sempre somam o valor pago', () => {
+    for (const [bruto, asaas, pct] of [
+      [33.33, 1.99, 10],
+      [7.77, 1.99, 33.33],
+      [149, 1.99, 7.5],
+      [5, 1.99, 0],
+    ]) {
+      const r = calcularRepasse(bruto, asaas, pct);
+      expect(Math.round((r.taxaAsaas + r.taxaPlataforma + r.valorLiquido) * 100) / 100).toBe(bruto);
+      expect(r.valorLiquido).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it('o PIX de R$ 5,00 com taxa de R$ 1,99 deixa R$ 3,01 para o dono', () => {
+    expect(calcularRepasse(5, 1.99).valorLiquido).toBe(3.01);
+  });
+
+  it('a comissão nunca passa do que sobra depois da taxa do Asaas (líquido nunca fica negativo)', () => {
+    const r = calcularRepasse(5, 1.99, 100);
+
+    expect(r.taxaPlataforma).toBe(3.01);
+    expect(r.valorLiquido).toBe(0);
+  });
+
+  it('percentual fora de 0 a 100 é limitado, e taxa negativa ou maior que o valor também', () => {
+    expect(calcularRepasse(100, 0, -5).taxaPlataforma).toBe(0);
+    expect(calcularRepasse(100, 0, 250).taxaPlataforma).toBe(100);
+    expect(calcularRepasse(10, -3).taxaAsaas).toBe(0);
+    expect(calcularRepasse(10, 50).taxaAsaas).toBe(10);
   });
 });
 

@@ -6,6 +6,32 @@
 
 ---
 
+## 2026-11-09: Sem comissão fixa de 10%, comissão por condomínio e taxa do Asaas descontada do dono
+
+A regra fixa de "10% de cada locação vai para o condomínio" deixou de existir. O percentual passa a ser **negociado com o
+síndico de cada condomínio** e definido só pelo Admin; o padrão é **0%**.
+- **O dono do item recebe o valor pago menos as taxas do Asaas.** Um aluguel de R$ 100,00 deixa R$ 98,01 para o dono (o PIX
+  custa R$ 1,99 ao Asaas). A taxa vem do próprio Asaas: ao confirmar o pagamento, o backend consulta a cobrança e usa
+  `value - netValue`. Se o Asaas não responder, o aluguel confirma mesmo assim, com taxa 0 e um aviso no log.
+- **Comissão do condomínio (opcional).** `condominios.percentualComissao` (0 a 100, 2 casas, migration
+  `20261109400000_comissao_por_condominio`). Quando maior que 0, vale sobre o valor pago, sai da parte do dono e vai para
+  o(s) síndico(s) ativo(s) (dividida em partes iguais). A comissão entra no cálculo só dos aluguéis pagos dali em diante;
+  cada locação guarda o que foi aplicado (`taxaAsaas`, `taxaPlataforma`, `valorLiquido`), então o histórico não muda.
+- **Fechamento das contas:** `taxa do Asaas + comissão + líquido = valor pago`, sempre; o líquido nunca fica negativo (a
+  comissão é limitada ao que sobra depois da taxa do Asaas).
+- **Admin:** na aba Condomínios, cada cartão mostra a comissão e o botão "Comissão" abre uma janela para alterar (aceita
+  vírgula, de 0 a 100, até 2 casas). O servidor valida de novo (`PATCH /api/admin/condominios/:id`).
+- **Extrato e recibos:** o dono vê "Taxa do PIX (Asaas)" e, se houver, "Comissão do condomínio"; o locatário vê a mesma
+  quebra do que pagou. Notificações dizem só o que foi descontado.
+- **Textos:** saiu da tela inicial, dos planos, dos Termos e das perguntas frequentes a promessa de 10% para o condomínio
+  (a seção virou "O dinheiro vai para quem empresta", com o exemplo de R$ 100,00 = R$ 98,01 + R$ 1,99 de taxa do PIX). O
+  item dos Termos passou a falar da taxa do PIX e da possibilidade de comissão negociada, e a versão dos Termos virou
+  `2026-11-09.2` (backend e frontend).
+- Testes: backend 755 e frontend 472 (o cálculo, o livro-razão, o webhook com o líquido do Asaas, a validação do percentual
+  e a janela do Admin).
+
+---
+
 ## 2026-11-09: Deploy em nuvem e entrega automática (CD)
 
 A USAI passa a rodar num servidor da DigitalOcean (Ubuntu 22.04, 2 GB de RAM, 50 GB de disco) com o domínio

@@ -19,7 +19,7 @@ const INCLUSO = [
   'Catálogo, locação e mural do condomínio',
   'Pagamento por PIX com confirmação automática',
   'Termo de responsabilidade na retirada e na devolução',
-  'Extrato com a taxa repassada ao condomínio',
+  'Extrato detalhado de cada aluguel e de cada saque',
 ];
 
 /** Seção "Planos e preços" da tela inicial: o síndico escolhe pelo tamanho e pelo período. */

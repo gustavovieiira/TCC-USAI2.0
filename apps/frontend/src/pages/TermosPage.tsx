@@ -315,9 +315,11 @@ export function TermosPage() {
             instituição o confirma.
           </li>
           <li>
-            <strong>Taxa de 10% da locação:</strong> de cada aluguel, 10% é repassado ao condomínio
-            (ao síndico) e o restante vai para o proprietário do item. Os valores são mostrados
-            antes do pagamento.
+            <strong>Taxa do PIX e comissão do condomínio:</strong> o Asaas cobra uma taxa por cada
+            PIX recebido, e o proprietário do item recebe o valor pago menos essa taxa. A USAI não
+            fica com uma porcentagem do aluguel. O condomínio pode combinar com a USAI uma comissão,
+            em porcentagem do aluguel, descontada do valor do proprietário e paga ao síndico; quando
+            existe, ela aparece separada no extrato e nos recibos de cada operação.
           </li>
           <li>
             <strong>Plano do condomínio:</strong> o síndico escolhe o plano pela quantidade de
@@ -373,7 +375,7 @@ export function TermosPage() {
           </li>
           <li>
             tentar burlar a plataforma para fugir de taxas ou de planos, por exemplo combinando e
-            recebendo o pagamento do aluguel por fora para evitar a taxa do condomínio (acordos
+            recebendo o pagamento do aluguel por fora para evitar as taxas da plataforma (acordos
             sobre reparo ou indenização de um item danificado não entram aqui, veja o item 5.4);
           </li>
           <li>usar a plataforma para qualquer finalidade ilícita.</li>

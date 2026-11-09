@@ -19,7 +19,10 @@ const pagamento: PagamentoConfirmado = {
   donoId: 'dono-1',
   locatarioId: 'locatario-1',
   valorBruto: 100,
+  // Condomínio que negociou 10% de comissão (o padrão de um condomínio novo é 0, ver os testes "sem comissão").
   taxa: 10,
+  taxaAsaas: 0,
+  percentualComissao: 10,
   valorLiquido: 90,
 };
 
@@ -156,6 +159,55 @@ describe('registrarPagamentoConfirmado', () => {
 
       expect(Math.round(entrou * 100)).toBe(3333);
     }
+  });
+
+  it('sem comissão negociada (percentual 0): só o dono recebe e o locatário ganha o registro, ninguém mais', async () => {
+    const tx = buildTxMock([{ id: 'sindico-1' }]);
+
+    const resultado = await registrarPagamentoConfirmado(tx, {
+      ...pagamento,
+      taxa: 0,
+      percentualComissao: 0,
+      taxaAsaas: 1.99,
+      valorLiquido: 98.01,
+    });
+
+    const dados = lancamentosGravados(tx);
+    expect(dados).toHaveLength(2);
+    expect(dados.map((l) => l.tipo).sort()).toEqual(['ALUGUEL_PAGO', 'ALUGUEL_RECEBIDO']);
+    expect(dados).toContainEqual(
+      expect.objectContaining({ userId: 'dono-1', tipo: 'ALUGUEL_RECEBIDO', valor: 98.01 }),
+    );
+    expect(resultado).toEqual({ comissoes: [], retidoPelaPlataforma: 0 });
+  });
+
+  it('sem comissão e sem síndico ativo, nada fica retido pela plataforma', async () => {
+    const tx = buildTxMock([]);
+
+    const resultado = await registrarPagamentoConfirmado(tx, {
+      ...pagamento,
+      taxa: 0,
+      percentualComissao: 0,
+      valorLiquido: 100,
+    });
+
+    expect(lancamentosGravados(tx)).toHaveLength(2);
+    expect(resultado.retidoPelaPlataforma).toBe(0);
+  });
+
+  it('a descrição do dono diz a taxa do Asaas que foi descontada', async () => {
+    const tx = buildTxMock([]);
+
+    await registrarPagamentoConfirmado(tx, {
+      ...pagamento,
+      taxa: 0,
+      percentualComissao: 0,
+      taxaAsaas: 1.99,
+      valorLiquido: 98.01,
+    });
+
+    const dono = lancamentosGravados(tx).find((l) => l.tipo === 'ALUGUEL_RECEBIDO');
+    expect(dono?.descricao).toContain('taxa do Asaas de R$ 1,99');
   });
 
   it('título de item enorme é cortado na descrição (cabe na coluna)', async () => {

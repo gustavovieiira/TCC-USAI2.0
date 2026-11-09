@@ -9,6 +9,8 @@ export interface AtualizarCondominioInput {
   nome?: string;
   pin?: string;
   ativo?: boolean;
+  /** Comissão do condomínio sobre cada aluguel, em % do valor pago (0 a 100). Só o Admin define. */
+  percentualComissao?: number;
 }
 
 export interface ListarCondominiosFiltro {
@@ -21,6 +23,8 @@ export interface CondominioDTO {
   linkSlug: string;
   pin: string;
   ativo: boolean;
+  /** Comissão do condomínio sobre cada aluguel, em % (padrão 0). */
+  percentualComissao: number;
   createdAt: Date;
 }
 

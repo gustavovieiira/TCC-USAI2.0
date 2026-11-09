@@ -46,6 +46,9 @@ model Condominio {
   linkSlug  String   @unique
   pin       String
   ativo     Boolean  @default(true)
+  /// Comissão do condomínio sobre cada aluguel, em % do valor pago (0 a 100). Padrão 0: só o Admin altera, por
+  /// negociação com o síndico. Vale para os aluguéis seguintes; os já pagos guardam o que foi aplicado.
+  percentualComissao Decimal @default(0) @db.Decimal(5, 2)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -168,6 +171,8 @@ model Locacao {
   /// Preenchidos quando o pagamento é confirmado (M3): a taxa da plataforma e o que o dono recebe,
   /// gravados pra o histórico e o extrato não mudarem se a taxa mudar um dia.
   taxaPlataforma Decimal?   @db.Decimal(10, 2)
+  /// Taxa cobrada pelo Asaas nesse pagamento (valor pago menos o líquido que o Asaas informa).
+  taxaAsaas      Decimal?   @db.Decimal(10, 2)
   valorLiquido   Decimal?   @db.Decimal(10, 2)
   status      StatusLocacao @default(PENDENTE)
   createdAt   DateTime      @default(now())

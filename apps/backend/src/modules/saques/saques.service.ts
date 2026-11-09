@@ -186,6 +186,7 @@ export class SaquesService {
         valor: Number(lancamento.valor),
         valorBruto: lancamento.baseCalculo === null ? undefined : Number(lancamento.baseCalculo),
         taxa: locacao?.taxaPlataforma ? Number(locacao.taxaPlataforma) : undefined,
+        taxaAsaas: locacao?.taxaAsaas ? Number(locacao.taxaAsaas) : undefined,
         taxaPercentual:
           lancamento.taxaPercentual === null ? undefined : Number(lancamento.taxaPercentual),
         divididoEntre: lancamento.divididoEntre ?? undefined,
@@ -228,6 +229,7 @@ export class SaquesService {
           contraparte: { id: locacao.item.owner.id, nome: locacao.item.owner.nome },
           valor: Number(lancamento.valor),
           taxa: locacao.taxaPlataforma ? Number(locacao.taxaPlataforma) : undefined,
+          taxaAsaas: locacao.taxaAsaas ? Number(locacao.taxaAsaas) : undefined,
           repasseDono: locacao.valorLiquido ? Number(locacao.valorLiquido) : undefined,
           taxaPercentual:
             lancamento.taxaPercentual === null ? undefined : Number(lancamento.taxaPercentual),

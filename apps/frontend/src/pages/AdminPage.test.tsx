@@ -37,6 +37,7 @@ const condominioBase: CondominioAdminDTO = {
   linkSlug: 'residencial-jardim-europa',
   pin: '1234',
   ativo: true,
+  percentualComissao: 0,
   createdAt: '2026-09-01T00:00:00.000Z',
 };
 
@@ -266,6 +267,7 @@ describe('AdminPage: aba Condomínios', () => {
       linkSlug: 'residencial-monte-verde',
       pin: '4321',
       ativo: true,
+      percentualComissao: 0,
       createdAt: '2026-09-15T00:00:00.000Z',
     });
 
@@ -304,6 +306,33 @@ describe('AdminPage: aba Condomínios', () => {
 
     expect(adminApi.atualizarCondominio).toHaveBeenCalledWith('cond-1', { ativo: false });
     expect(await screen.findByRole('button', { name: 'Ativar' })).toBeInTheDocument();
+  });
+
+  it('mostra a comissão de cada condomínio (padrão 0%) e o Admin a altera numa janela', async () => {
+    mockApis();
+    vi.spyOn(adminApi, 'atualizarCondominio').mockResolvedValue({
+      ...condominioBase,
+      percentualComissao: 7.5,
+    });
+
+    render(<AdminPage />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Condomínios' }));
+    await screen.findByText('Residencial Jardim Europa');
+    expect(screen.getByText(/Comissão do condomínio:/)).toHaveTextContent('0% do aluguel');
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Alterar a comissão de Residencial Jardim Europa' }),
+    );
+    const campo = screen.getByLabelText('Comissão (% do aluguel)');
+    await userEvent.clear(campo);
+    await userEvent.type(campo, '7,5');
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar comissão' }));
+
+    expect(adminApi.atualizarCondominio).toHaveBeenCalledWith('cond-1', {
+      percentualComissao: 7.5,
+    });
+    expect(await screen.findByText(/Comissão do condomínio:/)).toHaveTextContent('7,5% do aluguel');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('cancelar a janela mantém o condomínio ativo', async () => {

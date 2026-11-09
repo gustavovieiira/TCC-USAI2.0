@@ -6,6 +6,7 @@ import { AbaDocumentos } from '@/features/admin/AbaDocumentos';
 import { AbaExtratos } from '@/features/admin/AbaExtratos';
 import { AbaIdentidade } from '@/features/admin/AbaIdentidade';
 import { AbaTermos } from '@/features/admin/AbaTermos';
+import { formatarPercentual, ModalComissao } from '@/features/admin/ComissaoDoCondominio';
 import {
   buscarSaques,
   filtrarCondominios,
@@ -525,6 +526,7 @@ function AbaCondominios({ condominios, onCriado, onAtualizado, onErro }: AbaCond
   const [erroForm, setErroForm] = useState<string | null>(null);
   const [alternandoId, setAlternandoId] = useState<string | null>(null);
   const [aDesativar, setADesativar] = useState<CondominioAdminDTO | null>(null);
+  const [comissaoDe, setComissaoDe] = useState<CondominioAdminDTO | null>(null);
   const [busca, setBusca] = useState('');
   const [filtro, setFiltro] = useState<FiltroCondominios>('TODOS');
 
@@ -666,22 +668,47 @@ function AbaCondominios({ condominios, onCriado, onAtualizado, onErro }: AbaCond
                     {condominio.ativo ? 'Ativo' : 'Inativo'} · cadastrado em{' '}
                     {formatDate(condominio.createdAt)}
                   </p>
+                  <p className="text-xs text-ink-soft">
+                    Comissão do condomínio:{' '}
+                    <strong>{formatarPercentual(condominio.percentualComissao)}</strong> do aluguel
+                  </p>
                 </div>
-                <Button
-                  variant={condominio.ativo ? 'danger' : 'secondary'}
-                  fullWidth={false}
-                  isLoading={alternandoId === condominio.id}
-                  onClick={() =>
-                    condominio.ativo ? setADesativar(condominio) : handleAlternarAtivo(condominio)
-                  }
-                >
-                  {condominio.ativo ? 'Desativar' : 'Ativar'}
-                </Button>
+                <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+                  <Button
+                    variant="secondary"
+                    fullWidth={false}
+                    aria-label={`Alterar a comissão de ${condominio.nome}`}
+                    onClick={() => setComissaoDe(condominio)}
+                  >
+                    Comissão
+                  </Button>
+                  <Button
+                    variant={condominio.ativo ? 'danger' : 'secondary'}
+                    fullWidth={false}
+                    isLoading={alternandoId === condominio.id}
+                    onClick={() =>
+                      condominio.ativo ? setADesativar(condominio) : handleAlternarAtivo(condominio)
+                    }
+                  >
+                    {condominio.ativo ? 'Desativar' : 'Ativar'}
+                  </Button>
+                </div>
               </Card>
             ))}
           </div>
         )}
       </div>
+
+      {comissaoDe && (
+        <ModalComissao
+          condominio={comissaoDe}
+          onFechar={() => setComissaoDe(null)}
+          onSalvo={(atualizado) => {
+            setComissaoDe(null);
+            onAtualizado(atualizado);
+          }}
+        />
+      )}
 
       {aDesativar && (
         <Modal titulo="Desativar condomínio" onFechar={() => setADesativar(null)}>

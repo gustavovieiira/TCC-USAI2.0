@@ -27,6 +27,7 @@ function toCondominioDTO(condominio: Condominio): CondominioDTO {
     linkSlug: condominio.linkSlug,
     pin: condominio.pin,
     ativo: condominio.ativo,
+    percentualComissao: Number(condominio.percentualComissao),
     createdAt: condominio.createdAt,
   };
 }
@@ -64,7 +65,10 @@ export class AdminService {
     return condominios.map(toCondominioDTO);
   }
 
-  /** Admin USAI ativa/desativa, renomeia ou reseta o PIN de um condomínio existente. */
+  /**
+   * Admin USAI ativa/desativa, renomeia, reseta o PIN ou define a comissão (% do aluguel) de um condomínio
+   * existente. A comissão vale para os aluguéis pagos daí em diante; os já pagos guardam o que foi aplicado.
+   */
   async atualizarCondominio(
     condominioId: string,
     input: AtualizarCondominioInput,

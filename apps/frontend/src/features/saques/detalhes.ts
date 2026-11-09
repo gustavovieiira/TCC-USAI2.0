@@ -72,10 +72,17 @@ export function detalheMovimento(movimento: MovimentoExtratoDTO): Detalhe {
             ]
           : []),
         { rotulo: 'Valor do aluguel', valor: formatCurrency(movimento.valorBruto ?? 0) },
-        {
-          rotulo: `Taxa${pct(movimento.taxaPercentual)}`,
-          valor: `− ${formatCurrency(movimento.taxa ?? 0)}`,
-        },
+        ...(movimento.taxaAsaas
+          ? [{ rotulo: 'Taxa do PIX (Asaas)', valor: `− ${formatCurrency(movimento.taxaAsaas)}` }]
+          : []),
+        ...(movimento.taxa
+          ? [
+              {
+                rotulo: `Comissão do condomínio${pct(movimento.taxaPercentual)}`,
+                valor: `− ${formatCurrency(movimento.taxa)}`,
+              },
+            ]
+          : []),
         { rotulo: 'Você recebeu', valor: formatCurrency(movimento.valor) },
         { rotulo: 'Pagamento confirmado em', valor: formatDateHora(movimento.data) },
       ],
@@ -111,7 +118,7 @@ export function detalheMovimento(movimento: MovimentoExtratoDTO): Detalhe {
           valor: formatCurrency(movimento.valorBruto ?? 0),
         },
         {
-          rotulo: `Taxa do condomínio${pct(movimento.taxaPercentual)}`,
+          rotulo: `Comissão do condomínio${pct(movimento.taxaPercentual)}`,
           valor: formatCurrency(movimento.taxa ?? 0),
         },
         ...(movimento.divididoEntre && movimento.divididoEntre > 1
@@ -162,16 +169,23 @@ export function detalhePagamento(pagamento: PagamentoExtratoDTO): Detalhe {
         valor: periodo(pagamento.periodo.inicio, pagamento.periodo.fim),
       },
       { rotulo: 'Valor pago', valor: formatCurrency(pagamento.valor) },
-      ...(pagamento.repasseDono !== undefined && pagamento.taxa !== undefined
+      ...(pagamento.repasseDono !== undefined
         ? [
             {
               rotulo: `Foi para ${pagamento.contraparte?.nome ?? 'o dono'}`,
               valor: formatCurrency(pagamento.repasseDono),
             },
-            {
-              rotulo: `Taxa do condomínio${pct(pagamento.taxaPercentual)}`,
-              valor: formatCurrency(pagamento.taxa),
-            },
+            ...(pagamento.taxaAsaas
+              ? [{ rotulo: 'Taxa do PIX (Asaas)', valor: formatCurrency(pagamento.taxaAsaas) }]
+              : []),
+            ...(pagamento.taxa
+              ? [
+                  {
+                    rotulo: `Comissão do condomínio${pct(pagamento.taxaPercentual)}`,
+                    valor: formatCurrency(pagamento.taxa),
+                  },
+                ]
+              : []),
           ]
         : []),
       { rotulo: 'Pagamento confirmado em', valor: formatDateHora(pagamento.data) },

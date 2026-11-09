@@ -56,8 +56,10 @@ export interface MovimentoExtratoDTO {
   valor: number;
   /** Base de cálculo: o aluguel que o locatário pagou. */
   valorBruto?: number;
-  /** Taxa total do condomínio sobre esse aluguel. */
+  /** Comissão total do condomínio sobre esse aluguel (só existe se o condomínio negociou um percentual). */
   taxa?: number;
+  /** Taxa cobrada pelo Asaas nesse PIX (descontada do que o dono recebe). */
+  taxaAsaas?: number;
   taxaPercentual?: number;
   /** Em quantos síndicos a comissão foi dividida. */
   divididoEntre?: number;
@@ -83,8 +85,9 @@ export interface PagamentoExtratoDTO {
   /** O dono do item, quem recebeu. */
   contraparte: ContraparteDTO | null;
   valor: number;
-  /** Do que foi pago: a taxa do condomínio e o que foi repassado ao dono. */
+  /** Do que foi pago: a taxa do Asaas, a comissão do condomínio (se houver) e o que foi repassado ao dono. */
   taxa?: number;
+  taxaAsaas?: number;
   repasseDono?: number;
   taxaPercentual?: number;
   periodo: { inicio: Date; fim: Date };

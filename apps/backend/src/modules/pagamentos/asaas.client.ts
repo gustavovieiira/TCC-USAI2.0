@@ -42,6 +42,10 @@ export interface AsaasCobranca {
 export interface AsaasStatusCobranca {
   id: string;
   status: string;
+  /** Valor da cobrança. */
+  value?: number;
+  /** Valor líquido depois das taxas do Asaas (o que cai de fato na conta). A diferença para `value` é a taxa. */
+  netValue?: number;
 }
 
 interface AsaasErroBody {

@@ -147,6 +147,7 @@ describe('PerfilPage', () => {
         linkSlug: 'a',
         pin: '1',
         ativo: true,
+        percentualComissao: 0,
         createdAt: '2026-09-01T00:00:00.000Z',
       },
       {
@@ -155,6 +156,7 @@ describe('PerfilPage', () => {
         linkSlug: 'b',
         pin: '2',
         ativo: true,
+        percentualComissao: 0,
         createdAt: '2026-09-01T00:00:00.000Z',
       },
     ]);

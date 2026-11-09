@@ -29,7 +29,7 @@ const TEXTOS = {
     saldo: 'Disponível para sacar',
     movimentos: 'Movimentações do seu saldo',
     entrou:
-      'quando alguém pagou o aluguel de um item seu (já sem a taxa de 10%) ou quando você recebeu a comissão do condomínio.',
+      'quando alguém pagou o aluguel de um item seu (já sem a taxa do PIX) ou quando você recebeu uma comissão do condomínio.',
     saiu: 'quando você pediu um saque.',
     vazio: 'Quando alguém pagar um aluguel de um item seu, o valor aparece aqui.',
     pagou: 'O que você pagou',
@@ -42,7 +42,7 @@ const TEXTOS = {
     saldo: 'Disponível para sacar',
     movimentos: 'Movimentações do saldo',
     entrou:
-      'quando alguém pagou o aluguel de um item dele (já sem a taxa de 10%) ou quando ele recebeu a comissão do condomínio.',
+      'quando alguém pagou o aluguel de um item dele (já sem a taxa do PIX) ou quando ele recebeu uma comissão do condomínio.',
     saiu: 'quando ele pediu um saque.',
     vazio: 'Esta conta ainda não tem movimentações.',
     pagou: 'O que pagou como locatário',
@@ -290,6 +290,21 @@ function percentual(valor: number | undefined): string {
   return valor === undefined ? '' : `${String(valor).replace('.', ',')}%`;
 }
 
+/** "R$ 98,01 foi para Davi, R$ 1,99 foi a taxa do PIX e R$ 10,00 (10%) foi comissão do condomínio": só as partes que existem. */
+function descricaoDoRepasse(pagamento: PagamentoExtratoDTO): string {
+  const partes = [
+    `${formatCurrency(pagamento.repasseDono ?? 0)} foi para ${pagamento.contraparte?.nome ?? 'o dono'}`,
+  ];
+  if (pagamento.taxaAsaas) partes.push(`${formatCurrency(pagamento.taxaAsaas)} foi a taxa do PIX`);
+  if (pagamento.taxa) {
+    const pct =
+      pagamento.taxaPercentual !== undefined ? ` (${percentual(pagamento.taxaPercentual)})` : '';
+    partes.push(`${formatCurrency(pagamento.taxa)}${pct} foi comissão do condomínio`);
+  }
+  const ultima = partes.pop() as string;
+  return partes.length > 0 ? `${partes.join(', ')} e ${ultima}` : ultima;
+}
+
 function LinhaMovimento({
   movimento,
   perspectiva,
@@ -339,16 +354,22 @@ function LinhaMovimento({
 
       {movimento.tipo === 'RECEBIMENTO' && movimento.valorBruto !== undefined && (
         <p className="text-sm text-ink-soft">
-          Aluguel de {formatCurrency(movimento.valorBruto)} − taxa{' '}
-          {movimento.taxaPercentual !== undefined && `(${percentual(movimento.taxaPercentual)}) `}
-          de {formatCurrency(movimento.taxa ?? 0)} = {formatCurrency(movimento.valor)}{' '}
-          {TEXTOS[perspectiva].parteDele}
+          Aluguel de {formatCurrency(movimento.valorBruto)}
+          {movimento.taxaAsaas ? ` − taxa do PIX ${formatCurrency(movimento.taxaAsaas)}` : ''}
+          {movimento.taxa
+            ? ` − comissão do condomínio${
+                movimento.taxaPercentual !== undefined
+                  ? ` (${percentual(movimento.taxaPercentual)})`
+                  : ''
+              } ${formatCurrency(movimento.taxa)}`
+            : ''}{' '}
+          = {formatCurrency(movimento.valor)} {TEXTOS[perspectiva].parteDele}
         </p>
       )}
 
       {comissao && movimento.valorBruto !== undefined && (
         <p className="text-sm text-ink-soft">
-          Taxa{' '}
+          Comissão{' '}
           {movimento.taxaPercentual !== undefined && `de ${percentual(movimento.taxaPercentual)} `}
           sobre {formatCurrency(movimento.valorBruto)} = {formatCurrency(movimento.taxa ?? 0)}
           {movimento.divididoEntre && movimento.divididoEntre > 1
@@ -401,14 +422,8 @@ function LinhaPagamento({
         </p>
       </div>
 
-      {pagamento.taxa !== undefined && pagamento.repasseDono !== undefined && (
-        <p className="text-sm text-ink-soft">
-          Do valor pago: {formatCurrency(pagamento.repasseDono)} foi para{' '}
-          {pagamento.contraparte?.nome ?? 'o dono'} e {formatCurrency(pagamento.taxa)}
-          {pagamento.taxaPercentual !== undefined &&
-            ` (${percentual(pagamento.taxaPercentual)})`}{' '}
-          foi taxa do condomínio.
-        </p>
+      {pagamento.repasseDono !== undefined && (
+        <p className="text-sm text-ink-soft">Do valor pago: {descricaoDoRepasse(pagamento)}.</p>
       )}
 
       <div className="flex flex-wrap items-center gap-2">

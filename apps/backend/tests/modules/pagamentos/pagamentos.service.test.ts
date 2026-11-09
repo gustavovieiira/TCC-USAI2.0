@@ -251,13 +251,20 @@ describe('PagamentosService.confirmarPagamento', () => {
       pagamento: { asaasChargeId: 'pay_concorrente' },
     };
     prisma.locacao.findMany.mockResolvedValue([concorrente]);
+    // O Asaas informa o líquido: R$ 100,00 pagos, R$ 98,01 depois da taxa dele (R$ 1,99).
+    asaas.buscarCobranca.mockResolvedValue({
+      id: 'pay_123',
+      status: 'RECEIVED',
+      value: 100,
+      netValue: 98.01,
+    });
 
     const service = new PagamentosService(prisma, asaas);
     await service.confirmarPagamento('pay_123');
 
     expect(prisma.locacao.updateMany).toHaveBeenNthCalledWith(1, {
       where: { id: LOCACAO_ID, status: 'APROVADA' },
-      data: { status: 'PAGA', taxaPlataforma: 10, valorLiquido: 90 },
+      data: { status: 'PAGA', taxaAsaas: 1.99, taxaPlataforma: 0, valorLiquido: 98.01 },
     });
     expect(prisma.locacao.updateMany).toHaveBeenNthCalledWith(2, {
       where: { id: { in: ['locacao-concorrente'] } },
@@ -401,17 +408,22 @@ describe('PagamentosService.confirmarPagamento: notificações', () => {
     });
   }
 
-  it('avisa o locatário, o dono (com o líquido e a taxa) e cada concorrente cancelado', async () => {
+  it('avisa o locatário, o dono (com o líquido e a taxa do Asaas) e cada concorrente cancelado', async () => {
     const prisma = buildPrismaMock();
     prepararConfirmacao(prisma);
     prisma.locacao.findMany.mockResolvedValue([
       { id: 'locacao-concorrente', locatarioId: 'outro-locatario', pagamento: null },
     ]);
     const notificacoes = comNotificacoes();
+    const asaas = buildAsaasMock();
+    asaas.buscarCobranca.mockResolvedValue({
+      id: 'pay_123',
+      status: 'RECEIVED',
+      value: 100,
+      netValue: 98.01,
+    });
 
-    await new PagamentosService(prisma, buildAsaasMock(), notificacoes).confirmarPagamento(
-      'pay_123',
-    );
+    await new PagamentosService(prisma, asaas, notificacoes).confirmarPagamento('pay_123');
 
     expect(notificacoes.notificar).toHaveBeenCalledWith(
       expect.objectContaining({ userId: LOCATARIO_ID, tipo: 'PAGAMENTO_CONFIRMADO' }),
@@ -421,8 +433,9 @@ describe('PagamentosService.confirmarPagamento: notificações', () => {
       .find((n: { tipo: string }) => n.tipo === 'PAGAMENTO_RECEBIDO');
     expect(recebido.userId).toBe(OWNER_ID);
     expect(recebido.mensagem).toContain('Bruno Locatario pagou "Furadeira Bosch"');
-    expect(recebido.mensagem).toContain('R$ 90,00');
-    expect(recebido.mensagem).toContain('R$ 10,00');
+    expect(recebido.mensagem).toContain('R$ 98,01');
+    expect(recebido.mensagem).toContain('taxa do Asaas de R$ 1,99');
+    expect(recebido.mensagem).not.toContain('comissão');
     expect(notificacoes.notificar).toHaveBeenCalledWith(
       expect.objectContaining({ userId: 'outro-locatario', tipo: 'LOCACAO_CANCELADA' }),
     );
@@ -494,9 +507,17 @@ describe('PagamentosService.confirmarPagamento: livro-razão e comissão do sín
     });
   }
 
-  it('grava no livro-razão: líquido pro dono, 10% pro síndico e o registro do que o locatário pagou, tudo na mesma transação', async () => {
+  /** Condomínio que negociou comissão com o Admin (o padrão de um condomínio é 0). */
+  function condominioComComissao(prisma: ReturnType<typeof buildPrismaMock>, percentual = 10) {
+    prisma.locacao.findUnique.mockResolvedValue({
+      item: { condominio: { percentualComissao: percentual } },
+    });
+  }
+
+  it('grava no livro-razão: líquido pro dono, a comissão negociada pro síndico e o registro do que o locatário pagou, tudo na mesma transação', async () => {
     const prisma = buildPrismaMock();
     prepararConfirmacao(prisma);
+    condominioComComissao(prisma);
     prisma.user.findMany.mockResolvedValue([{ id: 'sindico-1' }]);
 
     await new PagamentosService(prisma, buildAsaasMock()).confirmarPagamento('pay_123');
@@ -529,6 +550,7 @@ describe('PagamentosService.confirmarPagamento: livro-razão e comissão do sín
   it('avisa cada síndico do valor da comissão, dizendo quando foi dividida', async () => {
     const prisma = buildPrismaMock();
     prepararConfirmacao(prisma);
+    condominioComComissao(prisma);
     prisma.user.findMany.mockResolvedValue([{ id: 's-1' }, { id: 's-2' }]);
     const notificacoes = {
       notificar: jest.fn().mockResolvedValue(undefined),
@@ -547,13 +569,15 @@ describe('PagamentosService.confirmarPagamento: livro-razão e comissão do sín
       .filter((n) => n.tipo === 'COMISSAO_RECEBIDA');
     expect(avisos.map((n) => n.userId)).toEqual(['s-1', 's-2']);
     expect(avisos[0].mensagem).toContain('R$ 5,00');
+    expect(avisos[0].mensagem).toContain('10% sobre o aluguel');
     expect(avisos[0].mensagem).toContain('dividida entre 2 síndicos');
     expect(avisos[0].link).toBe('/saques');
   });
 
-  it('sem síndico ativo ninguém recebe aviso de comissão (a taxa fica com a USAI)', async () => {
+  it('sem síndico ativo ninguém recebe aviso de comissão (a comissão fica com a USAI)', async () => {
     const prisma = buildPrismaMock();
     prepararConfirmacao(prisma);
+    condominioComComissao(prisma);
     const notificacoes = {
       notificar: jest.fn().mockResolvedValue(undefined),
       notificarAdmins: jest.fn().mockResolvedValue(undefined),
@@ -570,6 +594,75 @@ describe('PagamentosService.confirmarPagamento: livro-razão e comissão do sín
     expect(prisma.lancamento.createMany.mock.calls[0][0].data).toContainEqual(
       expect.objectContaining({ tipo: 'TAXA_PLATAFORMA', userId: null, valor: 10 }),
     );
+  });
+
+  it('condomínio sem comissão (padrão): o dono recebe o valor pago menos a taxa do Asaas e o síndico não recebe nada', async () => {
+    const prisma = buildPrismaMock();
+    prepararConfirmacao(prisma);
+    prisma.user.findMany.mockResolvedValue([{ id: 'sindico-1' }]);
+    const asaas = buildAsaasMock();
+    asaas.buscarCobranca.mockResolvedValue({
+      id: 'pay_123',
+      status: 'RECEIVED',
+      value: 100,
+      netValue: 98.01,
+    });
+    const notificacoes = {
+      notificar: jest.fn().mockResolvedValue(undefined),
+      notificarAdmins: jest.fn().mockResolvedValue(undefined),
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await new PagamentosService(prisma, asaas, notificacoes as any).confirmarPagamento('pay_123');
+
+    const dados = prisma.lancamento.createMany.mock.calls[0][0].data;
+    expect(
+      dados.map((l: { tipo: string; userId: string | null; valor: number }) => [
+        l.tipo,
+        l.userId,
+        l.valor,
+      ]),
+    ).toEqual([
+      ['ALUGUEL_RECEBIDO', OWNER_ID, 98.01],
+      ['ALUGUEL_PAGO', LOCATARIO_ID, 100],
+    ]);
+    expect(notificacoes.notificar).not.toHaveBeenCalledWith(
+      expect.objectContaining({ tipo: 'COMISSAO_RECEBIDA' }),
+    );
+  });
+
+  it('a comissão é a do condomínio e entra no cálculo junto com a taxa do Asaas', async () => {
+    const prisma = buildPrismaMock();
+    prepararConfirmacao(prisma);
+    condominioComComissao(prisma, 5);
+    const asaas = buildAsaasMock();
+    asaas.buscarCobranca.mockResolvedValue({
+      id: 'pay_123',
+      status: 'RECEIVED',
+      value: 100,
+      netValue: 98.01,
+    });
+
+    await new PagamentosService(prisma, asaas).confirmarPagamento('pay_123');
+
+    expect(prisma.locacao.updateMany).toHaveBeenNthCalledWith(1, {
+      where: { id: LOCACAO_ID, status: 'APROVADA' },
+      data: { status: 'PAGA', taxaAsaas: 1.99, taxaPlataforma: 5, valorLiquido: 93.01 },
+    });
+  });
+
+  it('se o Asaas não conseguir informar o líquido, o aluguel confirma mesmo assim, com taxa 0 registrada', async () => {
+    const prisma = buildPrismaMock();
+    prepararConfirmacao(prisma);
+    const asaas = buildAsaasMock();
+    asaas.buscarCobranca.mockRejectedValue(new Error('Asaas fora do ar'));
+
+    await new PagamentosService(prisma, asaas).confirmarPagamento('pay_123');
+
+    expect(prisma.locacao.updateMany).toHaveBeenNthCalledWith(1, {
+      where: { id: LOCACAO_ID, status: 'APROVADA' },
+      data: { status: 'PAGA', taxaAsaas: 0, taxaPlataforma: 0, valorLiquido: 100 },
+    });
   });
 
   it('pagamento órfão e reentrega do webhook não gravam nada no livro-razão', async () => {

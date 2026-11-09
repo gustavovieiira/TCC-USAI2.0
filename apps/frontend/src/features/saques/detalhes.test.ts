@@ -82,7 +82,7 @@ describe('detalheMovimento', () => {
     status: 'CONFIRMADO',
   };
 
-  it('aluguel recebido sempre gera recibo, com a conta bruto − taxa = líquido e o período', () => {
+  it('aluguel recebido sempre gera recibo, com a conta bruto − comissão = líquido e o período', () => {
     const detalhe = detalheMovimento(recebimento);
     const v = valoresPor(detalhe);
 
@@ -90,8 +90,24 @@ describe('detalheMovimento', () => {
     expect(v['Pago por']).toBe('Carla Locataria');
     expect(v['Período do aluguel']).toBe('05/10/2026 a 07/10/2026');
     expect(v['Valor do aluguel']).toMatch(/100,00/);
-    expect(v['Taxa']).toMatch(/10,00/);
+    expect(v['Comissão do condomínio']).toMatch(/10,00/);
+    expect(v['Taxa do PIX (Asaas)']).toBeUndefined();
     expect(v['Você recebeu']).toMatch(/90,00/);
+  });
+
+  it('sem comissão, o recibo mostra só a taxa do PIX: R$ 100,00 − R$ 1,99 = R$ 98,01', () => {
+    const detalhe = detalheMovimento({
+      ...recebimento,
+      valor: 98.01,
+      taxa: undefined,
+      taxaAsaas: 1.99,
+    });
+    const v = valoresPor(detalhe);
+
+    expect(v['Valor do aluguel']).toMatch(/100,00/);
+    expect(v['Taxa do PIX (Asaas)']).toMatch(/1,99/);
+    expect(Object.keys(v).some((rotulo) => rotulo.startsWith('Comissão'))).toBe(false);
+    expect(v['Você recebeu']).toMatch(/98,01/);
   });
 
   it('saque pago gera recibo com a chave mascarada; em análise ou aprovado não', () => {
@@ -182,7 +198,7 @@ describe('detalheMovimento: comissão do condomínio', () => {
     expect(v['Pago por']).toBe('Carla Locataria');
     expect(v['Período do aluguel']).toBe('05/10/2026 a 07/10/2026');
     expect(v['Base de cálculo (aluguel pago)']).toMatch(/100,00/);
-    expect(v['Taxa do condomínio (10%)']).toMatch(/10,00/);
+    expect(v['Comissão do condomínio (10%)']).toMatch(/10,00/);
     expect(v['Dividida entre']).toBe('2 síndicos');
     expect(v['Comissão recebida']).toMatch(/5,00/);
     expect(detalhe.protocolo).toBe('l-1');
@@ -196,7 +212,7 @@ describe('detalheMovimento: comissão do condomínio', () => {
 });
 
 describe('detalhePagamento: quebra do que foi pago', () => {
-  it('mostra quanto foi pro dono e quanto foi taxa do condomínio', () => {
+  it('mostra quanto foi pro dono e quanto foi comissão do condomínio', () => {
     const detalhe = detalhePagamento({
       id: 'p-1',
       data: '2026-10-02T12:00:00.000Z',
@@ -212,7 +228,26 @@ describe('detalhePagamento: quebra do que foi pago', () => {
     const v = valoresPor(detalhe);
 
     expect(v['Foi para Davi Dono']).toMatch(/90,00/);
-    expect(v['Taxa do condomínio (10%)']).toMatch(/10,00/);
+    expect(v['Comissão do condomínio (10%)']).toMatch(/10,00/);
+  });
+
+  it('sem comissão, mostra o que foi para o dono e a taxa do PIX', () => {
+    const detalhe = detalhePagamento({
+      id: 'p-2',
+      data: '2026-10-02T12:00:00.000Z',
+      descricao: 'Aluguel de "Escada"',
+      contraparte: { id: 'u-3', nome: 'Davi Dono' },
+      valor: 100,
+      taxaAsaas: 1.99,
+      repasseDono: 98.01,
+      periodo: { inicio: '2026-10-10T00:00:00.000Z', fim: '2026-10-11T00:00:00.000Z' },
+      status: 'CONFIRMADO',
+    });
+    const v = valoresPor(detalhe);
+
+    expect(v['Foi para Davi Dono']).toMatch(/98,01/);
+    expect(v['Taxa do PIX (Asaas)']).toMatch(/1,99/);
+    expect(Object.keys(v).some((rotulo) => rotulo.startsWith('Comissão'))).toBe(false);
   });
 });
 

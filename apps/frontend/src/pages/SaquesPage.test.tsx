@@ -290,7 +290,9 @@ describe('SaquesPage: síndico com comissões do condomínio', () => {
     expect(
       await screen.findByText('Aluguel pago por Carla Locataria a Davi Dono'),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Taxa de 10% sobre/)).toHaveTextContent('dividida entre 2 síndicos');
+    expect(screen.getByText(/Comissão de 10% sobre/)).toHaveTextContent(
+      'dividida entre 2 síndicos',
+    );
     expect(screen.getByText(/\+\s*R\$\s*5,00/)).toBeInTheDocument();
     expect(screen.getByText('Comissões do condomínio').nextSibling).toHaveTextContent(/5,00/);
   });
@@ -320,7 +322,7 @@ describe('SaquesPage: síndico com comissões do condomínio', () => {
     expect(screen.getByRole('button', { name: 'Gerar recibo' })).toBeInTheDocument();
   });
 
-  it('o locatário vê no que pagou quanto foi pro dono e quanto foi taxa', async () => {
+  it('o locatário vê no que pagou quanto foi pro dono, quanto foi a taxa do PIX e quanto foi comissão', async () => {
     vi.spyOn(saquesApi, 'buscarExtrato').mockResolvedValue(
       buildExtrato({
         pagamentos: [
@@ -331,7 +333,8 @@ describe('SaquesPage: síndico com comissões do condomínio', () => {
             contraparte: { id: 'u-3', nome: 'Davi Dono' },
             valor: 100,
             taxa: 10,
-            repasseDono: 90,
+            taxaAsaas: 1.99,
+            repasseDono: 88.01,
             taxaPercentual: 10,
             periodo: { inicio: '2026-10-10T00:00:00.000Z', fim: '2026-10-11T00:00:00.000Z' },
             status: 'CONFIRMADO',
@@ -342,9 +345,35 @@ describe('SaquesPage: síndico com comissões do condomínio', () => {
 
     render(<SaquesPage />);
 
-    expect(await screen.findByText(/foi para Davi Dono e/)).toHaveTextContent(
-      /90,00.*10,00.*\(10%\).*taxa do condomínio/,
+    expect(await screen.findByText(/foi para Davi Dono/)).toHaveTextContent(
+      /88,01 foi para Davi Dono, .*1,99 foi a taxa do PIX e .*10,00.*\(10%\) foi comissão do condomínio/,
     );
+  });
+
+  it('sem comissão, o locatário vê só o que foi pro dono e a taxa do PIX', async () => {
+    vi.spyOn(saquesApi, 'buscarExtrato').mockResolvedValue(
+      buildExtrato({
+        pagamentos: [
+          {
+            id: 'p-2',
+            data: '2026-10-02T12:00:00.000Z',
+            descricao: 'Aluguel de "Escada"',
+            contraparte: { id: 'u-3', nome: 'Davi Dono' },
+            valor: 100,
+            taxaAsaas: 1.99,
+            repasseDono: 98.01,
+            periodo: { inicio: '2026-10-10T00:00:00.000Z', fim: '2026-10-11T00:00:00.000Z' },
+            status: 'CONFIRMADO',
+          },
+        ],
+      }),
+    );
+
+    render(<SaquesPage />);
+
+    const frase = await screen.findByText(/foi para Davi Dono/);
+    expect(frase).toHaveTextContent(/98,01 foi para Davi Dono e .*1,99 foi a taxa do PIX/);
+    expect(frase).not.toHaveTextContent(/comissão/);
   });
 });
 

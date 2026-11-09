@@ -8,7 +8,7 @@ import { CenaHero } from '@/features/landing/CenaHero';
 import { RodapeLanding } from '@/features/landing/RodapeLanding';
 import {
   CONTRATACAO,
-  DESTINO_DO_CAIXA,
+  DESTINO_DO_ALUGUEL,
   PASSOS,
   PERGUNTAS,
   PILARES,
@@ -105,15 +105,15 @@ function DivisaoDoAluguel() {
       <div
         className="mt-6 flex h-7 w-full overflow-hidden rounded-full bg-fachada-noite"
         role="img"
-        aria-label="90% para o dono do item e 10% para o condomínio"
+        aria-label="R$ 98,01 para o dono do item e R$ 1,99 de taxa do PIX"
       >
         <div
           className="barra-cresce h-full bg-fachada-papel"
-          style={{ '--alvo': '90%' } as CSSProperties}
+          style={{ '--alvo': '98%' } as CSSProperties}
         />
         <div
           className="barra-cresce h-full bg-fachada-coral"
-          style={{ '--alvo': '10%' } as CSSProperties}
+          style={{ '--alvo': '2%' } as CSSProperties}
         />
       </div>
       <dl className="mt-7 flex flex-col gap-4">
@@ -122,20 +122,21 @@ function DivisaoDoAluguel() {
             <span className="h-3 w-3 rounded-full bg-fachada-papel" aria-hidden="true" />
             Para o morador dono do item
           </dt>
-          <dd className="font-marca text-3xl font-extrabold tracking-tight">R$ 90,00</dd>
+          <dd className="font-marca text-3xl font-extrabold tracking-tight">R$ 98,01</dd>
         </div>
         <div className="flex items-baseline justify-between gap-3">
           <dt className="flex items-center gap-2.5 text-sm text-fachada-papel-suave">
             <span className="h-3 w-3 rounded-full bg-fachada-coral" aria-hidden="true" />
-            Para o condomínio
+            Taxa do PIX (Asaas)
           </dt>
           <dd className="font-marca text-3xl font-extrabold tracking-tight text-fachada-coral">
-            R$ 10,00
+            R$ 1,99
           </dd>
         </div>
       </dl>
       <p className="mt-7 border-t border-fachada-papel/20 pt-4 text-xs text-fachada-papel-suave">
-        Cada centavo aparece no extrato do dono e no do condomínio, com a origem e a taxa aplicada.
+        Cada centavo aparece no extrato do dono, com a origem e a taxa aplicada. Valores de exemplo:
+        a taxa do PIX é cobrada pelo Asaas e pode mudar.
       </p>
     </div>
   );
@@ -330,13 +331,13 @@ export function LandingPage() {
               <Revelar>
                 <Titulo
                   escuro={false}
-                  apoio="Quando os vizinhos compartilham, o condomínio é remunerado. Não é um favor: faz parte do funcionamento da plataforma."
+                  apoio="Quem empresta o item é quem recebe: o valor do aluguel vai para o dono, com extrato de cada centavo."
                 >
-                  O condomínio também ganha
+                  O dinheiro vai para quem empresta
                 </Titulo>
               </Revelar>
               <ul className="mt-9 flex flex-col gap-7">
-                {DESTINO_DO_CAIXA.map((item, indice) => (
+                {DESTINO_DO_ALUGUEL.map((item, indice) => (
                   <Revelar as="li" key={item.titulo} atraso={indice * 120} className="flex gap-4">
                     <span
                       aria-hidden="true"
