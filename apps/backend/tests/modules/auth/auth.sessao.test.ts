@@ -149,3 +149,28 @@ describe('AuthService: login e cadastro (segurança e LGPD)', () => {
     expect(data.versaoTermos).toEqual(expect.any(String));
   });
 });
+
+describe('AuthService: o aceite dos termos fica no usuário', () => {
+  it('o login devolve a data em que a pessoa aceitou os Termos (e nenhuma data para quem nunca aceitou)', async () => {
+    const hash = bcrypt.hashSync('senha-forte-123', 4);
+    const comAceite = {
+      ...usuario({ id: 'u1', senhaHash: hash }),
+      aceitouTermosEm: new Date('2026-11-09T12:00:00Z'),
+      condominio: { assinatura: null },
+    };
+    const semAceite = {
+      ...usuario({ id: 'u2', senhaHash: hash }),
+      condominio: { assinatura: null },
+    };
+
+    const prisma = buildPrismaMock();
+    prisma.user.findUnique.mockResolvedValueOnce(comAceite).mockResolvedValueOnce(semAceite);
+    const servico = new AuthService(prisma);
+
+    const a = await servico.login({ email: 'ana@example.com', senha: 'senha-forte-123' });
+    const b = await servico.login({ email: 'ana@example.com', senha: 'senha-forte-123' });
+
+    expect(a.user.aceitouTermosEm).toBe('2026-11-09T12:00:00.000Z');
+    expect(b.user.aceitouTermosEm).toBeNull();
+  });
+});

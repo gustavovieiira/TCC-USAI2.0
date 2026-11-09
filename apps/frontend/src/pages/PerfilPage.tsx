@@ -315,7 +315,7 @@ export function PerfilPage() {
         </div>
       </div>
 
-      <SeusDados aoExcluir={handleContaExcluida} />
+      <SeusDados aceitouTermosEm={user.aceitouTermosEm} aoExcluir={handleContaExcluida} />
 
       <Button variant="danger" onClick={handleLogout}>
         Sair

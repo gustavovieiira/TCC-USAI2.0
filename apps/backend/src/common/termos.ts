@@ -3,4 +3,4 @@
  * cada pessoa aceitou. Ao mudar o texto das páginas, mude esta data: quem aceitou a anterior fica registrado
  * como tal e dá para pedir um novo aceite.
  */
-export const VERSAO_TERMOS = '2026-11-05';
+export const VERSAO_TERMOS = '2026-11-09';

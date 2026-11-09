@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -6,6 +6,7 @@ import { PrivacidadePage } from '@/pages/PrivacidadePage';
 import { TermosPage } from '@/pages/TermosPage';
 import { AuthShell } from '@/pages/AuthShell';
 import * as privacidadeApi from './privacidade.api';
+import { AvisoResponsabilidade } from './AvisoResponsabilidade';
 import { SeusDados } from './SeusDados';
 
 afterEach(() => vi.restoreAllMocks());
@@ -21,7 +22,7 @@ describe('páginas legais', () => {
     expect(
       screen.getByRole('heading', { level: 1, name: 'Política de Privacidade' }),
     ).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /Seus direitos/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /10\. Seus direitos/ })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /bases legais/ })).toBeInTheDocument();
     expect(screen.getByText(/Baixar meus dados/)).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: /usaisuporte@gmail\.com/ }).length).toBeGreaterThan(
@@ -38,6 +39,26 @@ describe('páginas legais', () => {
     expect(links[0]).toHaveAttribute('href', '/privacidade');
   });
 
+  it('os Termos dizem que a responsabilidade pelos itens é só de quem empresta e de quem aluga, e que a USAI fica de fora', () => {
+    dentroDoRouter(<TermosPage />);
+
+    expect(
+      screen.getByRole('heading', { name: /5\. Responsabilidade pelos itens/ }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/exclusivamente de quem empresta e de quem aluga/)).toBeInTheDocument();
+    expect(screen.getByText(/sem envolver a USAI/)).toBeInTheDocument();
+    expect(screen.getByText(/A USAI não arbitra disputas/)).toBeInTheDocument();
+  });
+
+  it('os documentos têm índice com links para as seções', () => {
+    dentroDoRouter(<TermosPage />);
+
+    const indice = screen.getByRole('navigation', { name: 'Índice do documento' });
+    expect(
+      within(indice).getByRole('link', { name: /5\. Responsabilidade pelos itens/ }),
+    ).toHaveAttribute('href', '#responsabilidade-pelos-itens');
+  });
+
   it('as telas de acesso trazem os dois links', () => {
     dentroDoRouter(
       <AuthShell title="Entrar" subtitle="Acesse sua conta">
@@ -50,6 +71,24 @@ describe('páginas legais', () => {
       'href',
       '/privacidade',
     );
+  });
+});
+
+describe('AvisoResponsabilidade', () => {
+  it('lembra que a USAI não responde pelo item, nas duas pontas da locação', () => {
+    const { unmount } = render(<AvisoResponsabilidade papel="locatario" />);
+    expect(screen.getByRole('note')).toHaveTextContent(/Quem aluga cuida do item/);
+    expect(screen.getByRole('note')).toHaveTextContent(
+      /não responde por itens perdidos, furtados ou danificados/,
+    );
+    expect(screen.getByRole('link', { name: 'Ler a regra completa' })).toHaveAttribute(
+      'href',
+      '/termos#responsabilidade-pelos-itens',
+    );
+    unmount();
+
+    render(<AvisoResponsabilidade papel="proprietario" />);
+    expect(screen.getByRole('note')).toHaveTextContent(/Quem empresta responde pelas informações/);
   });
 });
 
@@ -141,5 +180,18 @@ describe('SeusDados (direitos do titular)', () => {
     await userEvent.keyboard('{Escape}');
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('mostra no perfil quando a pessoa aceitou os Termos (registro feito no cadastro)', () => {
+    dentroDoRouter(<SeusDados aceitouTermosEm="2026-11-09T12:00:00.000Z" aoExcluir={vi.fn()} />);
+
+    expect(screen.getByText(/Aceite registrado/)).toHaveTextContent(/09\/11\/2026/);
+    expect(screen.getByRole('link', { name: 'Termos de Uso' })).toHaveAttribute('href', '/termos');
+  });
+
+  it('sem registro de aceite (conta antiga), não mostra a linha do aceite', () => {
+    dentroDoRouter(<SeusDados aoExcluir={vi.fn()} />);
+
+    expect(screen.queryByText(/Aceite registrado/)).not.toBeInTheDocument();
   });
 });

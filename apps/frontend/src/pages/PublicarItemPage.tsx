@@ -5,6 +5,7 @@ import { TextField } from '@/components/ui/TextField';
 import { Textarea } from '@/components/ui/Textarea';
 import { Card } from '@/components/ui/Card';
 import { extractErrorMessage } from '@/lib/apiClient';
+import { AvisoResponsabilidade } from '@/features/privacidade/AvisoResponsabilidade';
 import { criarItem, uploadImagemItem } from '@/features/itens/itens.api';
 import { MENSAGEM_VALOR_MINIMO, VALOR_MINIMO_DIARIA } from '@/features/itens/valores';
 
@@ -279,6 +280,8 @@ export function PublicarItemPage() {
               {erro}
             </p>
           )}
+          <AvisoResponsabilidade papel="proprietario" />
+
           <Button type="submit" isLoading={isLoading}>
             Publicar
           </Button>

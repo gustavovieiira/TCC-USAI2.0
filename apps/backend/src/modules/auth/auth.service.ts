@@ -54,6 +54,7 @@ function toAuthenticatedUser(user: {
   condominioId: string | null;
   apartamento?: string | null;
   cpf?: string | null;
+  aceitouTermosEm?: Date | null;
 }): AuthenticatedUser {
   return {
     id: user.id,
@@ -63,6 +64,7 @@ function toAuthenticatedUser(user: {
     condominioId: user.condominioId,
     apartamento: user.apartamento ?? null,
     cpf: user.cpf ?? null,
+    aceitouTermosEm: user.aceitouTermosEm ? user.aceitouTermosEm.toISOString() : null,
   };
 }
 

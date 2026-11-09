@@ -285,7 +285,7 @@ export function SindicoPage() {
             />
           )}
           {moradoresFiltrados.length > 0 ? (
-            <ListaRolavel rotulo="Moradores" alturaMaxima="max-h-[calc(100vh-30rem)] min-h-[16rem]">
+            <ListaRolavel rotulo="Moradores" alturaMaxima="max-h-[26rem]">
               <div className="flex flex-col gap-2">
                 {moradoresFiltrados.map((morador, indice) => (
                   <Card
@@ -304,14 +304,16 @@ export function SindicoPage() {
                         </p>
                       </div>
                     </div>
-                    <Button
-                      variant="danger"
-                      fullWidth={false}
-                      isLoading={removendoId === morador.id}
+                    {/* Pequeno e discreto de propósito: remover alguém não pode ser um clique fácil (ainda pede confirmação). */}
+                    <button
+                      type="button"
+                      disabled={removendoId === morador.id}
+                      aria-label={`Remover ${morador.nome}`}
                       onClick={() => setARemover(morador)}
+                      className="shrink-0 self-start rounded-md px-2 py-1.5 text-xs font-medium text-ink-faint underline underline-offset-2 transition hover:text-carmim-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-carmim-700 disabled:opacity-50"
                     >
-                      Remover
-                    </Button>
+                      {removendoId === morador.id ? 'Removendo…' : 'Remover'}
+                    </button>
                   </Card>
                 ))}
               </div>

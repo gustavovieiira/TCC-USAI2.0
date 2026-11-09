@@ -121,7 +121,7 @@ describe('SindicoPage', () => {
     render(<SindicoPage />);
     await screen.findByText('Ana Proprietária');
 
-    await userEvent.click(screen.getByRole('button', { name: 'Remover' }));
+    await userEvent.click(screen.getByRole('button', { name: /^Remover / }));
     expect(sindicoApi.removerMorador).not.toHaveBeenCalled();
     expect(screen.getByRole('dialog', { name: 'Remover morador' })).toBeInTheDocument();
 
@@ -138,7 +138,7 @@ describe('SindicoPage', () => {
     render(<SindicoPage />);
     await screen.findByText('Ana Proprietária');
 
-    await userEvent.click(screen.getByRole('button', { name: 'Remover' }));
+    await userEvent.click(screen.getByRole('button', { name: /^Remover / }));
     await userEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
 
     expect(sindicoApi.removerMorador).not.toHaveBeenCalled();
