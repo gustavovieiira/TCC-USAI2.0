@@ -200,24 +200,29 @@ describe('marca padrão da USAI e tela inicial', () => {
     expect(dentro.getByText(/Perda, dano, defeito ou qualquer incidente/)).toBeInTheDocument();
   });
 
-  it('explica que o aluguel vai para o dono do item, com o exemplo de R$ 100 (R$ 98,01 e R$ 1,99 de taxa do PIX)', () => {
+  it('diz que o condomínio PODE ganhar uma comissão combinada, com o exemplo de R$ 100 (R$ 88,01, R$ 10,00 e R$ 1,99)', () => {
     renderLanding();
 
     const secao = screen
-      .getByRole('heading', { name: 'O dinheiro vai para quem empresta' })
+      .getByRole('heading', { name: 'O condomínio também pode ganhar' })
       .closest('section');
     const dentro = within(secao as HTMLElement);
 
-    expect(dentro.getByText('O aluguel vai para o dono do item')).toBeInTheDocument();
-    expect(dentro.getByText('Saque quando quiser')).toBeInTheDocument();
-    expect(dentro.getByText('R$ 98,01')).toBeInTheDocument();
+    expect(dentro.getByText('O condomínio pode receber uma comissão')).toBeInTheDocument();
+    expect(dentro.getByText(/pode até ser zero/)).toBeInTheDocument();
+    expect(dentro.getByText(/Dinheiro para melhorias internas/)).toBeInTheDocument();
+    expect(dentro.getByText(/num condomínio que combinou 10% de comissão/)).toBeInTheDocument();
+    expect(dentro.getByText('R$ 88,01')).toBeInTheDocument();
+    expect(dentro.getByText('R$ 10,00')).toBeInTheDocument();
     expect(dentro.getByText('R$ 1,99')).toBeInTheDocument();
     expect(
-      dentro.getByRole('img', { name: 'R$ 98,01 para o dono do item e R$ 1,99 de taxa do PIX' }),
+      dentro.getByRole('img', {
+        name: 'R$ 88,01 para o dono do item, R$ 10,00 de comissão do condomínio e R$ 1,99 de taxa do PIX',
+      }),
     ).toBeInTheDocument();
-    // a regra fixa de 10% para o condomínio deixou de existir: a tela não pode prometê-la
+    // nada de afirmar que o condomínio "ganha" 10%: é uma comissão combinada, que pode ser zero
+    expect(document.body).not.toHaveTextContent(/O condomínio também ganha/);
     expect(document.body).not.toHaveTextContent(/10% (de cada locação|vão para o condomínio)/);
-    expect(document.body).not.toHaveTextContent(/recebe\s+10%/);
   });
 
   it('tem perguntas frequentes que abrem e fecham, sem JavaScript extra', async () => {

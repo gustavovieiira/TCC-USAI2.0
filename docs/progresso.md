@@ -23,10 +23,12 @@ síndico de cada condomínio** e definido só pelo Admin; o padrão é **0%**.
   vírgula, de 0 a 100, até 2 casas). O servidor valida de novo (`PATCH /api/admin/condominios/:id`).
 - **Extrato e recibos:** o dono vê "Taxa do PIX (Asaas)" e, se houver, "Comissão do condomínio"; o locatário vê a mesma
   quebra do que pagou. Notificações dizem só o que foi descontado.
-- **Textos:** saiu da tela inicial, dos planos, dos Termos e das perguntas frequentes a promessa de 10% para o condomínio
-  (a seção virou "O dinheiro vai para quem empresta", com o exemplo de R$ 100,00 = R$ 98,01 + R$ 1,99 de taxa do PIX). O
-  item dos Termos passou a falar da taxa do PIX e da possibilidade de comissão negociada, e a versão dos Termos virou
-  `2026-11-09.2` (backend e frontend).
+- **Textos:** saiu da tela inicial, dos planos, dos Termos e das perguntas frequentes a promessa de que o condomínio
+  recebe 10% de cada locação. A seção da tela inicial agora diz que o condomínio **pode** ganhar ("O condomínio também
+  pode ganhar"): cada condomínio pode combinar uma comissão, que pode até ser zero. O exemplo mostra um aluguel de
+  R$ 100,00 num condomínio que combinou 10%: R$ 88,01 para o dono, R$ 10,00 de comissão e R$ 1,99 de taxa do PIX. O item
+  dos Termos passou a falar da taxa do PIX e da comissão negociada, e a versão dos Termos virou `2026-11-09.2` (backend e
+  frontend).
 - Testes: backend 755 e frontend 472 (o cálculo, o livro-razão, o webhook com o líquido do Asaas, a validação do percentual
   e a janela do Admin).
 

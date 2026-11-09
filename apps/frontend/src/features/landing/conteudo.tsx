@@ -137,19 +137,19 @@ export const RESPONSABILIDADES = [
 
 export const DESTINO_DO_ALUGUEL = [
   {
-    titulo: 'O aluguel vai para o dono do item',
+    titulo: 'O condomínio pode receber uma comissão',
     texto:
-      'De cada aluguel pago pela plataforma, o dono recebe o valor pago menos a taxa do PIX, cobrada pelo Asaas. A USAI não fica com uma porcentagem do aluguel.',
+      'Cada condomínio pode combinar com a USAI uma porcentagem de cada aluguel, que vai para o síndico. O percentual é negociado condomínio a condomínio (pode até ser zero) e, quando existe, sai da parte do dono do item.',
   },
   {
     titulo: 'Extrato detalhado, sem caixa-preta',
     texto:
-      'Cada aluguel mostra o valor pago, a taxa do PIX e o que entrou no saldo do dono, com recibo de cada operação. Se o condomínio combinar uma comissão, ela aparece separada.',
+      'O condomínio acompanha de qual locação veio cada valor, qual comissão foi aplicada e quanto já foi retirado, com recibo de cada operação. O dono vê a taxa do PIX e a comissão separadas.',
   },
   {
-    titulo: 'Saque quando quiser',
+    titulo: 'Dinheiro para melhorias internas',
     texto:
-      'O dono pede o saque pelo próprio app, informa a chave PIX e acompanha o pedido até o dinheiro chegar.',
+      'Pintura, jardim, equipamentos, pequenos reparos: se o condomínio combinar uma comissão, ele decide o destino do valor, e a USAI registra tudo.',
   },
 ];
 
@@ -181,7 +181,7 @@ export const PERGUNTAS = [
   {
     pergunta: 'Como o dono do item recebe?',
     resposta:
-      'Quando o PIX é confirmado, o valor do aluguel, já descontada a taxa do PIX, entra no saldo do dono. Ele pede o saque pelo próprio app e acompanha tudo no extrato, com recibo.',
+      'Quando o PIX é confirmado, o valor do aluguel, já descontadas a taxa do PIX e a comissão do condomínio (quando houver), entra no saldo do dono. Ele pede o saque pelo próprio app e acompanha tudo no extrato, com recibo.',
   },
   {
     pergunta: 'E se o item estragar ou se perder?',
@@ -196,7 +196,7 @@ export const PERGUNTAS = [
   {
     pergunta: 'Os moradores pagam mensalidade?',
     resposta:
-      'Não. Quem assina um plano é o condomínio, pelo síndico. Na locação, o locatário paga o valor combinado e o dono do item recebe esse valor, menos a taxa do PIX.',
+      'Não. Quem assina um plano é o condomínio, pelo síndico. Na locação, o locatário paga o valor combinado e o dono do item recebe esse valor, menos a taxa do PIX e a comissão do condomínio, quando houver.',
   },
   {
     pergunta: 'Qual o valor mínimo de um aluguel?',

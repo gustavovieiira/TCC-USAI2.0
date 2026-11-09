@@ -102,17 +102,24 @@ function DivisaoDoAluguel() {
       <p className="font-mao text-3xl font-bold leading-none text-fachada-luz">
         Exemplo: um aluguel de R$ 100,00
       </p>
+      <p className="mt-2 text-sm text-fachada-papel-suave">
+        num condomínio que combinou 10% de comissão
+      </p>
       <div
         className="mt-6 flex h-7 w-full overflow-hidden rounded-full bg-fachada-noite"
         role="img"
-        aria-label="R$ 98,01 para o dono do item e R$ 1,99 de taxa do PIX"
+        aria-label="R$ 88,01 para o dono do item, R$ 10,00 de comissão do condomínio e R$ 1,99 de taxa do PIX"
       >
         <div
           className="barra-cresce h-full bg-fachada-papel"
-          style={{ '--alvo': '98%' } as CSSProperties}
+          style={{ '--alvo': '88%' } as CSSProperties}
         />
         <div
           className="barra-cresce h-full bg-fachada-coral"
+          style={{ '--alvo': '10%' } as CSSProperties}
+        />
+        <div
+          className="barra-cresce h-full bg-fachada-luz"
           style={{ '--alvo': '2%' } as CSSProperties}
         />
       </div>
@@ -122,21 +129,31 @@ function DivisaoDoAluguel() {
             <span className="h-3 w-3 rounded-full bg-fachada-papel" aria-hidden="true" />
             Para o morador dono do item
           </dt>
-          <dd className="font-marca text-3xl font-extrabold tracking-tight">R$ 98,01</dd>
+          <dd className="font-marca text-3xl font-extrabold tracking-tight">R$ 88,01</dd>
         </div>
         <div className="flex items-baseline justify-between gap-3">
           <dt className="flex items-center gap-2.5 text-sm text-fachada-papel-suave">
             <span className="h-3 w-3 rounded-full bg-fachada-coral" aria-hidden="true" />
-            Taxa do PIX (Asaas)
+            Para o condomínio (comissão)
           </dt>
           <dd className="font-marca text-3xl font-extrabold tracking-tight text-fachada-coral">
+            R$ 10,00
+          </dd>
+        </div>
+        <div className="flex items-baseline justify-between gap-3">
+          <dt className="flex items-center gap-2.5 text-sm text-fachada-papel-suave">
+            <span className="h-3 w-3 rounded-full bg-fachada-luz" aria-hidden="true" />
+            Taxa do PIX (Asaas)
+          </dt>
+          <dd className="font-marca text-2xl font-extrabold tracking-tight text-fachada-luz">
             R$ 1,99
           </dd>
         </div>
       </dl>
       <p className="mt-7 border-t border-fachada-papel/20 pt-4 text-xs text-fachada-papel-suave">
-        Cada centavo aparece no extrato do dono, com a origem e a taxa aplicada. Valores de exemplo:
-        a taxa do PIX é cobrada pelo Asaas e pode mudar.
+        Cada centavo aparece no extrato do dono e no do condomínio, com a origem e a taxa aplicada.
+        Valores de exemplo: a comissão varia de condomínio para condomínio (pode ser zero) e a taxa
+        do PIX é cobrada pelo Asaas e pode mudar.
       </p>
     </div>
   );
@@ -331,9 +348,9 @@ export function LandingPage() {
               <Revelar>
                 <Titulo
                   escuro={false}
-                  apoio="Quem empresta o item é quem recebe: o valor do aluguel vai para o dono, com extrato de cada centavo."
+                  apoio="Quando os vizinhos compartilham, o condomínio também pode ganhar: cada um combina com a USAI uma comissão sobre os aluguéis, se quiser."
                 >
-                  O dinheiro vai para quem empresta
+                  O condomínio também pode ganhar
                 </Titulo>
               </Revelar>
               <ul className="mt-9 flex flex-col gap-7">
