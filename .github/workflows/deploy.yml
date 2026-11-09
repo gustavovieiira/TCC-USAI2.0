@@ -1,0 +1,124 @@
+name: Deploy
+
+# Entrega contínua: depois que o CI passa na main, monta as imagens, publica no GitHub Container Registry e atualiza o
+# servidor. Também pode ser rodado à mão (Actions > Deploy > Run workflow), por exemplo para refazer um deploy.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+# Dois deploys nunca rodam ao mesmo tempo (o segundo espera o primeiro).
+concurrency:
+  group: deploy-producao
+  cancel-in-progress: false
+
+env:
+  DOMINIO: usainet.com.br
+
+jobs:
+  imagens:
+    # Só depois de um CI verde disparado por push (nunca por PR) ou quando alguém pedir à mão.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      versao: ${{ steps.versao.outputs.sha }}
+    strategy:
+      matrix:
+        app: [backend, frontend]
+    steps:
+      - id: versao
+        run: echo "sha=${{ github.event.workflow_run.head_sha || github.sha }}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.versao.outputs.sha }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/${{ matrix.app }}/Dockerfile
+          push: true
+          # O front é compilado com o endereço da API (mesmo endereço do site: o proxy separa por caminho).
+          build-args: ${{ matrix.app == 'frontend' && format('VITE_API_URL=https://{0}/api', env.DOMINIO) || '' }}
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/usai-${{ matrix.app }}:${{ steps.versao.outputs.sha }}
+            ghcr.io/${{ github.repository_owner }}/usai-${{ matrix.app }}:latest
+          cache-from: type=gha,scope=${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.app }}
+
+  servidor:
+    needs: imagens
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.imagens.outputs.versao }}
+
+      - name: Preparar o acesso SSH
+        env:
+          CHAVE: ${{ secrets.DEPLOY_SSH_KEY }}
+          SERVIDOR_CONHECIDO: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$CHAVE" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          # A impressão digital do servidor fica guardada: se o endereço apontar para outra máquina, a conexão falha.
+          printf '%s\n' "$SERVIDOR_CONHECIDO" > ~/.ssh/known_hosts
+
+      - name: Enviar a configuração (compose, Caddy, Prometheus e Grafana)
+        env:
+          DESTINO: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
+        run: |
+          tar czf - infra | ssh -i ~/.ssh/deploy_key "$DESTINO" 'tar xzf - -C /opt/usai'
+
+      - name: Atualizar o servidor
+        env:
+          DESTINO: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
+          VERSAO: ${{ needs.imagens.outputs.versao }}
+          GHCR_USUARIO: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # O token do GitHub só vale durante este job; ele serve para o servidor baixar as imagens privadas.
+          printf '%s' "$GHCR_TOKEN" | ssh -i ~/.ssh/deploy_key "$DESTINO" \
+            "docker login ghcr.io -u '$GHCR_USUARIO' --password-stdin >/dev/null"
+          ssh -i ~/.ssh/deploy_key "$DESTINO" bash -s -- "$VERSAO" <<'REMOTO'
+          set -euo pipefail
+          VERSAO="$1"
+          cd /opt/usai/infra/producao
+          test -f .env || { echo "Falta o .env em /opt/usai/infra/producao"; exit 1; }
+          sed -i '/^USAI_TAG=/d' .env
+          echo "USAI_TAG=$VERSAO" >> .env
+          docker compose pull
+          # --wait espera os contêineres ficarem saudáveis (o backend só fica depois de migrar o banco).
+          docker compose up -d --remove-orphans --wait --wait-timeout 180
+          docker compose ps
+          docker image prune -f >/dev/null
+          REMOTO
+
+      - name: Conferir o site no ar
+        run: |
+          for i in 1 2 3 4 5 6; do
+            if curl -fsS --max-time 10 "https://${DOMINIO}/api/configuracao/marca" -o /dev/null 2>/dev/null \
+              || curl -fsS --max-time 10 "https://${DOMINIO}/" -o /dev/null; then
+              echo "Site respondendo em https://${DOMINIO}"; exit 0
+            fi
+            sleep 10
+          done
+          echo "O site não respondeu depois do deploy"; exit 1

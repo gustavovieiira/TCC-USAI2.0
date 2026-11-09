@@ -1,0 +1,36 @@
+# Proxy de entrada da USAI: emite e renova o HTTPS sozinho (Let's Encrypt) e roteia por caminho.
+# {$DOMAIN} e {$ACME_EMAIL} vêm do `.env` (ver docker-compose.yml).
+{
+	email {$ACME_EMAIL}
+}
+
+www.{$DOMAIN} {
+	redir https://{$DOMAIN}{uri} permanent
+}
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+
+	# API, fotos enviadas e tempo real (chat, notificações) vão para o backend; o resto é o front.
+	# Não há rota para /metrics e /health: ficam só dentro da rede do Docker.
+	@backend path /api/* /uploads/* /socket.io/*
+	handle @backend {
+		reverse_proxy backend:3000
+	}
+
+	handle {
+		reverse_proxy frontend:80
+	}
+}
+
+# Painel de monitoramento (login próprio do Grafana).
+monitor.{$DOMAIN} {
+	encode zstd gzip
+	header Strict-Transport-Security "max-age=31536000"
+	reverse_proxy grafana:3000
+}
