@@ -20,7 +20,7 @@ export const STATUS_QUE_OCUPAM_PERIODO: StatusLocacao[] = ['PAGA', 'EM_ANDAMENTO
 
 /**
  * Status em que o pagamento já foi recebido pelo dono do item, usado por `saques.service.ts` pra
- * calcular o saldo sacável (já descontada a taxa da plataforma, ver `TAXA_PLATAFORMA`). Uma vez que
+ * calcular o saldo sacável (já descontadas a taxa do Asaas e a comissão do condomínio, ver `calcularRepasse`). Uma vez que
  * a locação chega em PAGA, o valor conta pro saldo mesmo que ela avance pro ciclo seguinte
  * (EM_ANDAMENTO/CONCLUIDA); só não conta enquanto ainda é PENDENTE/APROVADA (aprovada pelo dono,
  * mas o inquilino ainda não pagou) nem se foi CANCELADA. A transição pra PAGA é feita pelo M3
@@ -28,26 +28,40 @@ export const STATUS_QUE_OCUPAM_PERIODO: StatusLocacao[] = ['PAGA', 'EM_ANDAMENTO
  */
 export const STATUS_QUE_GERAM_SALDO: StatusLocacao[] = ['PAGA', 'EM_ANDAMENTO', 'CONCLUIDA'];
 
-/** RN, 10% retido pela plataforma; o dono recebe 90% do valor da locação via saque manual (M3). */
-export const TAXA_PLATAFORMA = 0.1;
-
 function arredondarCentavos(valor: number): number {
   return Math.round(valor * 100) / 100;
 }
 
 /**
- * Divide o valor pago pelo locatário entre a taxa da plataforma e o que o dono recebe. Arredonda
- * o líquido a centavos e deixa a taxa como a diferença, então `taxa + líquido` fecha sempre com o
- * valor pago. O resultado é GRAVADO na locação quando o pagamento confirma (ver
- * `pagamentos.service.ts#confirmarPagamento`), assim saldo e extrato somam os mesmos números e
- * o histórico não muda se `TAXA_PLATAFORMA` mudar um dia.
+ * Divide o valor pago pelo locatário. O dono recebe o valor pago MENOS a taxa que o Asaas cobrou pelo PIX e,
+ * quando o condomínio negociou uma comissão (`percentualComissao`, de 0 a 100, definida só pelo Admin), MENOS essa
+ * comissão, calculada sobre o valor pago. Com o percentual em 0 (o padrão) não há comissão nenhuma.
+ *
+ * Arredonda tudo a centavos, nunca deixa o líquido negativo (a comissão é limitada ao que sobra depois da taxa do
+ * Asaas) e fecha sempre: `taxaAsaas + comissão + líquido = valor pago`. O resultado é GRAVADO na locação quando
+ * o pagamento confirma (ver `pagamentos.service.ts#confirmarPagamento`), então saldo e extrato somam os mesmos
+ * números e o histórico não muda se o percentual do condomínio mudar depois.
  */
-export function calcularRepasse(valorBruto: number): {
+export function calcularRepasse(
+  valorBruto: number,
+  taxaAsaas = 0,
+  percentualComissao = 0,
+): {
+  taxaAsaas: number;
+  /** Comissão do condomínio (vai para o(s) síndico(s)); 0 quando o percentual é 0. */
   taxaPlataforma: number;
   valorLiquido: number;
 } {
-  const valorLiquido = arredondarCentavos(valorBruto * (1 - TAXA_PLATAFORMA));
-  return { taxaPlataforma: arredondarCentavos(valorBruto - valorLiquido), valorLiquido };
+  const taxa = Math.min(Math.max(arredondarCentavos(taxaAsaas), 0), valorBruto);
+  const aposTaxa = arredondarCentavos(valorBruto - taxa);
+  const percentual = Math.min(Math.max(percentualComissao, 0), 100);
+  const comissao = Math.min(arredondarCentavos((valorBruto * percentual) / 100), aposTaxa);
+
+  return {
+    taxaAsaas: taxa,
+    taxaPlataforma: comissao,
+    valorLiquido: arredondarCentavos(aposTaxa - comissao),
+  };
 }
 
 /** O locatário vem junto só quando a consulta o inclui (ex.: a lista do proprietário). */

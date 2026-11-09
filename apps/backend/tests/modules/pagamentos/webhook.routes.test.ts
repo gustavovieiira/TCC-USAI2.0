@@ -1,4 +1,5 @@
 import request from 'supertest';
+import { AsaasClient } from '@/modules/pagamentos/asaas.client';
 
 jest.mock('@/modules/pagamentos/asaas.client');
 
@@ -71,6 +72,13 @@ describe('POST /api/webhooks/asaas', () => {
   });
 
   it('confirma o pagamento e responde 200 quando o evento é PAYMENT_RECEIVED', async () => {
+    // O Asaas informa o valor líquido da cobrança: a diferença para o valor pago é a taxa dele (R$ 1,99 no PIX).
+    jest.mocked(AsaasClient.prototype.buscarCobranca).mockResolvedValue({
+      id: 'pay_123',
+      status: 'RECEIVED',
+      value: 100,
+      netValue: 98.01,
+    });
     (prisma.pagamento.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
     (prisma.pagamento.findUnique as jest.Mock).mockResolvedValue({
       id: 'pagamento-1',
@@ -97,15 +105,15 @@ describe('POST /api/webhooks/asaas', () => {
     expect(response.status).toBe(200);
     expect(prisma.locacao.updateMany).toHaveBeenCalledWith({
       where: { id: 'locacao-1', status: 'APROVADA' },
-      data: { status: 'PAGA', taxaPlataforma: 10, valorLiquido: 90 },
+      data: { status: 'PAGA', taxaAsaas: 1.99, taxaPlataforma: 0, valorLiquido: 98.01 },
     });
-    // Condomínio sem síndico no mock: a taxa vai pra conta da USAI, e o dono recebe o líquido.
-    expect(prisma.lancamento.createMany).toHaveBeenCalledWith({
-      data: expect.arrayContaining([
-        expect.objectContaining({ userId: 'owner-1', tipo: 'ALUGUEL_RECEBIDO', valor: 90 }),
-        expect.objectContaining({ userId: null, tipo: 'TAXA_PLATAFORMA', valor: 10 }),
-      ]),
-    });
+    // Sem comissão negociada: o dono recebe o valor pago menos a taxa do Asaas e ninguém mais recebe nada.
+    const lancamentos = (prisma.lancamento.createMany as jest.Mock).mock.calls[0][0].data;
+    expect(lancamentos).toContainEqual(
+      expect.objectContaining({ userId: 'owner-1', tipo: 'ALUGUEL_RECEBIDO', valor: 98.01 }),
+    );
+    expect(lancamentos.map((l: { tipo: string }) => l.tipo)).not.toContain('TAXA_PLATAFORMA');
+    expect(lancamentos.map((l: { tipo: string }) => l.tipo)).not.toContain('COMISSAO_CONDOMINIO');
   });
 
   it('PAYMENT_CONFIRMED (sem o dinheiro na conta) de uma mensalidade não ativa o condomínio nem manda e-mail', async () => {

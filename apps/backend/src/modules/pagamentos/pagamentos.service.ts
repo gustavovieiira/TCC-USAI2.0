@@ -13,6 +13,17 @@ import { CriarCobrancaResultado } from './pagamentos.types';
 
 const DIAS_ATE_VENCIMENTO = 2;
 
+/** "(já descontada a taxa do Asaas de R$ 1,99)": diz só o que de fato foi descontado do que o dono recebe. */
+function descricaoDosDescontos(repasse: { taxaAsaas: number; taxaPlataforma: number }): string {
+  const partes: string[] = [];
+  if (repasse.taxaAsaas > 0) partes.push(`a taxa do Asaas de ${formatarReais(repasse.taxaAsaas)}`);
+  if (repasse.taxaPlataforma > 0) {
+    partes.push(`a comissão do condomínio de ${formatarReais(repasse.taxaPlataforma)}`);
+  }
+  if (partes.length === 0) return '';
+  return ` (já descontad${partes.length > 1 ? 'as' : 'a'} ${partes.join(' e ')})`;
+}
+
 const JANELA_CONFERENCIA_DIAS = 14;
 const LIMITE_CONFERENCIA = 100;
 const MS_POR_DIA = 24 * 60 * 60 * 1000;
@@ -168,6 +179,9 @@ export class PagamentosService {
     // (que só ativa o condomínio quando o dinheiro foi recebido, não só confirmado).
     if (await this.assinaturas?.confirmarCobranca(asaasChargeId, recebido)) return;
 
+    // A taxa que o Asaas cobrou neste PIX sai do que o dono recebe (valor pago menos o líquido que o Asaas informa).
+    const taxaAsaas = await this.consultarTaxaAsaas(asaasChargeId);
+
     const resultado = await this.prisma.$transaction(async (tx) => {
       const flipPagamento = await tx.pagamento.updateMany({
         where: { asaasChargeId, status: 'PENDENTE' },
@@ -178,7 +192,14 @@ export class PagamentosService {
       const pagamento = await tx.pagamento.findUnique({ where: { asaasChargeId } });
       if (!pagamento) return null;
 
-      const repasse = calcularRepasse(Number(pagamento.valor));
+      // Comissão do condomínio: percentual negociado pelo Admin com o síndico (padrão 0, sem comissão).
+      const alvo = await tx.locacao.findUnique({
+        where: { id: pagamento.locacaoId },
+        include: { item: { include: { condominio: { select: { percentualComissao: true } } } } },
+      });
+      const percentualComissao = Number(alvo?.item?.condominio?.percentualComissao ?? 0);
+
+      const repasse = calcularRepasse(Number(pagamento.valor), taxaAsaas, percentualComissao);
       const flipLocacao = await tx.locacao.updateMany({
         where: { id: pagamento.locacaoId, status: 'APROVADA' },
         data: { status: 'PAGA', ...repasse },
@@ -202,7 +223,8 @@ export class PagamentosService {
         include: { item: true, locatario: true },
       });
 
-      // Livro-razão: dono recebe o líquido, síndicos recebem os 10% (ou a USAI, sem síndico).
+      // Livro-razão: dono recebe o líquido (pago menos a taxa do Asaas e a comissão, se houver); a comissão vai para
+      // os síndicos (ou fica com a USAI, sem síndico).
       const registro = await registrarPagamentoConfirmado(tx, {
         locacaoId: locacao.id,
         itemTitulo: locacao.item.titulo,
@@ -211,6 +233,8 @@ export class PagamentosService {
         locatarioId: locacao.locatarioId,
         valorBruto: Number(pagamento.valor),
         taxa: repasse.taxaPlataforma,
+        taxaAsaas: repasse.taxaAsaas,
+        percentualComissao,
         valorLiquido: repasse.valorLiquido,
       });
 
@@ -239,7 +263,14 @@ export class PagamentosService {
         });
       }
 
-      return { orfao: false as const, locacao, concorrentes, repasse, registro };
+      return {
+        orfao: false as const,
+        locacao,
+        concorrentes,
+        repasse,
+        registro,
+        percentualComissao,
+      };
     });
 
     if (!resultado) return;
@@ -249,7 +280,7 @@ export class PagamentosService {
       return;
     }
 
-    const { locacao, concorrentes, repasse, registro } = resultado;
+    const { locacao, concorrentes, repasse, registro, percentualComissao } = resultado;
 
     emitirParaUsuario(locacao.locatarioId, 'locacao:atualizada', {
       locacaoId: locacao.id,
@@ -271,7 +302,7 @@ export class PagamentosService {
       userId: locacao.item.ownerId,
       tipo: 'PAGAMENTO_RECEBIDO',
       titulo: 'Você recebeu um pagamento',
-      mensagem: `${locacao.locatario.nome} pagou "${locacao.item.titulo}". Entraram ${formatarReais(repasse.valorLiquido)} no seu saldo (já descontada a taxa de ${formatarReais(repasse.taxaPlataforma)}).`,
+      mensagem: `${locacao.locatario.nome} pagou "${locacao.item.titulo}". Entraram ${formatarReais(repasse.valorLiquido)} no seu saldo${descricaoDosDescontos(repasse)}.`,
       link: '/saques',
     });
 
@@ -280,7 +311,7 @@ export class PagamentosService {
         userId: comissao.userId,
         tipo: 'COMISSAO_RECEBIDA',
         titulo: 'Você recebeu uma comissão do condomínio',
-        mensagem: `${formatarReais(comissao.valor)} de comissão (${formatarReais(repasse.taxaPlataforma)} de taxa sobre o aluguel de "${locacao.item.titulo}"${registro.comissoes.length > 1 ? `, dividida entre ${registro.comissoes.length} síndicos` : ''}).`,
+        mensagem: `${formatarReais(comissao.valor)} de comissão (${percentualComissao}% sobre o aluguel de "${locacao.item.titulo}"${registro.comissoes.length > 1 ? `, dividida entre ${registro.comissoes.length} síndicos` : ''}).`,
         link: '/saques',
       });
     }
@@ -303,6 +334,31 @@ export class PagamentosService {
         }
       }),
     );
+  }
+
+  /**
+   * Taxa que o Asaas cobrou num PIX: valor da cobrança menos o líquido que ele informa. Se a consulta falhar ou o
+   * Asaas não informar o líquido, devolve 0 e registra no log (o aluguel não pode ficar sem confirmar por isso).
+   */
+  private async consultarTaxaAsaas(asaasChargeId: string): Promise<number> {
+    try {
+      const cobranca = await this.asaas.buscarCobranca(asaasChargeId);
+      if (typeof cobranca.value === 'number' && typeof cobranca.netValue === 'number') {
+        return Math.max(0, Math.round((cobranca.value - cobranca.netValue) * 100) / 100);
+      }
+      logger.warn(
+        'O Asaas não informou o valor líquido da cobrança; taxa do Asaas gravada como 0',
+        {
+          asaasChargeId,
+        },
+      );
+    } catch (error) {
+      logger.error('Não foi possível consultar a taxa do Asaas; taxa gravada como 0', {
+        asaasChargeId,
+        error,
+      });
+    }
+    return 0;
   }
 
   /** Perdeu a corrida: avisa o locatário (que já pagou) e o Admin, que precisa devolver o dinheiro. */

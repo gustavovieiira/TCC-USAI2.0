@@ -200,21 +200,29 @@ describe('marca padrão da USAI e tela inicial', () => {
     expect(dentro.getByText(/Perda, dano, defeito ou qualquer incidente/)).toBeInTheDocument();
   });
 
-  it('explica os 10% do condomínio com o exemplo de R$ 100 (R$ 90 e R$ 10)', () => {
+  it('diz que o condomínio PODE ganhar uma comissão combinada, com o exemplo de R$ 100 (R$ 88,01, R$ 10,00 e R$ 1,99)', () => {
     renderLanding();
 
     const secao = screen
-      .getByRole('heading', { name: 'O condomínio também ganha' })
+      .getByRole('heading', { name: 'O condomínio também pode ganhar' })
       .closest('section');
     const dentro = within(secao as HTMLElement);
 
-    expect(dentro.getByText('10% de cada locação fica com o condomínio')).toBeInTheDocument();
+    expect(dentro.getByText('O condomínio pode receber uma comissão')).toBeInTheDocument();
+    expect(dentro.getByText(/pode até ser zero/)).toBeInTheDocument();
     expect(dentro.getByText(/Dinheiro para melhorias internas/)).toBeInTheDocument();
-    expect(dentro.getByText('R$ 90,00')).toBeInTheDocument();
+    expect(dentro.getByText(/num condomínio que combinou 10% de comissão/)).toBeInTheDocument();
+    expect(dentro.getByText('R$ 88,01')).toBeInTheDocument();
     expect(dentro.getByText('R$ 10,00')).toBeInTheDocument();
+    expect(dentro.getByText('R$ 1,99')).toBeInTheDocument();
     expect(
-      dentro.getByRole('img', { name: '90% para o dono do item e 10% para o condomínio' }),
+      dentro.getByRole('img', {
+        name: 'R$ 88,01 para o dono do item, R$ 10,00 de comissão do condomínio e R$ 1,99 de taxa do PIX',
+      }),
     ).toBeInTheDocument();
+    // nada de afirmar que o condomínio "ganha" 10%: é uma comissão combinada, que pode ser zero
+    expect(document.body).not.toHaveTextContent(/O condomínio também ganha/);
+    expect(document.body).not.toHaveTextContent(/10% (de cada locação|vão para o condomínio)/);
   });
 
   it('tem perguntas frequentes que abrem e fecham, sem JavaScript extra', async () => {
@@ -238,7 +246,7 @@ describe('marca padrão da USAI e tela inicial', () => {
     const mensalidade = Array.from(itens).find((d) =>
       /moradores pagam mensalidade/.test(d.textContent ?? ''),
     );
-    expect(mensalidade).toHaveTextContent(/10% vão para o condomínio e 90% para o dono/);
+    expect(mensalidade).toHaveTextContent(/o dono do item recebe esse valor, menos a taxa do PIX/);
 
     // o valor mínimo do aluguel está explicado (e é o mesmo que a plataforma aplica)
     const minimo = Array.from(itens).find((d) =>

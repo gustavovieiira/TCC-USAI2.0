@@ -86,7 +86,7 @@ describe('AbaExtratos: extrato de qualquer usuário', () => {
     expect(screen.getByText(/carla@example.com/)).toBeInTheDocument();
     // a comissão aparece com a origem e a conta
     expect(screen.getByText('Aluguel pago por Carla Locataria a Davi Dono')).toBeInTheDocument();
-    expect(screen.getByText(/Taxa de 10% sobre/)).toBeInTheDocument();
+    expect(screen.getByText(/Comissão de 10% sobre/)).toBeInTheDocument();
     expect(
       screen.getByText('Comissão do condomínio', { selector: 'span.notch-sm' }),
     ).toBeInTheDocument();
@@ -177,7 +177,7 @@ describe('AbaExtratos: conta da USAI', () => {
 
     expect(await screen.findByText(/15,50/)).toBeInTheDocument();
     expect(screen.getByText('Aluguel pago por Carla Locataria a Davi Dono')).toBeInTheDocument();
-    expect(screen.getByText(/Taxa de 10% sobre/)).toBeInTheDocument();
+    expect(screen.getByText(/Comissão de 10% sobre/)).toBeInTheDocument();
   });
 
   it('clicar numa linha abre o registro com a origem e o valor retido', async () => {

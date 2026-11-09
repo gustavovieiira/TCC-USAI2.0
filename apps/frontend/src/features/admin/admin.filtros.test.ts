@@ -24,6 +24,7 @@ const cond = (sobrescrever: Partial<CondominioAdminDTO>): CondominioAdminDTO => 
   linkSlug: 'jardim-europa',
   pin: '1234',
   ativo: true,
+  percentualComissao: 0,
   createdAt: '2026-11-01T00:00:00.000Z',
   ...sobrescrever,
 });

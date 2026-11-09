@@ -1,5 +1,4 @@
 import { Item, Locacao, Prisma, User } from '@prisma/client';
-import { TAXA_PLATAFORMA } from '@/modules/locacoes/locacoes.service';
 import type { OrigemDTO } from '@/modules/saques/saques.types';
 
 /** Tipos de lançamento do livro-razão (ver `model Lancamento` em schema.prisma). */
@@ -24,8 +23,11 @@ export function toOrigemDTO(locacao: LocacaoDeOrigem): OrigemDTO {
   };
 }
 
-const TAXA_PERCENTUAL = Math.round(TAXA_PLATAFORMA * 10000) / 100;
 const MAX_TITULO_NA_DESCRICAO = 80;
+
+function formatarValor(valor: number): string {
+  return `R$ ${valor.toFixed(2).replace('.', ',')}`;
+}
 
 function arredondarCentavos(valor: number): number {
   return Math.round(valor * 100) / 100;
@@ -38,7 +40,7 @@ function tituloCurto(titulo: string): string {
 }
 
 /**
- * Divide a taxa do condomínio em partes iguais entre `quantidade` síndicos, em centavos: o que
+ * Divide a comissão do condomínio em partes iguais entre `quantidade` síndicos, em centavos: o que
  * sobrar da divisão vai, um centavo por vez, pros primeiros, assim a soma das partes é SEMPRE a
  * taxa inteira (nenhum centavo some nem aparece).
  */
@@ -58,24 +60,29 @@ export interface PagamentoConfirmado {
   locatarioId: string;
   /** O que o locatário pagou. */
   valorBruto: number;
-  /** Os 10% (taxa do condomínio) e o que sobra pro dono. */
+  /** Comissão do condomínio (0 quando o condomínio não negociou comissão). */
   taxa: number;
+  /** Taxa cobrada pelo Asaas neste PIX (sai do que o dono recebe). */
+  taxaAsaas: number;
+  /** Percentual de comissão aplicado (o do condomínio no momento do pagamento). */
+  percentualComissao: number;
+  /** O que sobra pro dono: valor pago menos a taxa do Asaas e a comissão. */
   valorLiquido: number;
 }
 
 export interface ResultadoRegistro {
   /** Quanto cada síndico recebeu de comissão (vazio quando o condomínio não tem síndico ativo). */
   comissoes: { userId: string; valor: number }[];
-  /** Quanto ficou com a USAI (a taxa inteira, quando não há síndico). */
+  /** Quanto ficou com a USAI (a comissão inteira, quando há comissão e não há síndico). */
   retidoPelaPlataforma: number;
 }
 
 /**
  * Registra no livro-razão tudo o que um pagamento confirmado movimenta, dentro da MESMA transação
  * que passa a locação pra PAGA, ou os lançamentos existem todos, ou nenhum:
- * - o dono recebe o valor líquido (aluguel menos os 10%);
- * - os 10% vão pra conta dos síndicos ativos do condomínio (divididos igualmente); sem síndico
- *   ativo, ficam com a plataforma;
+ * - o dono recebe o valor líquido (aluguel menos a taxa do Asaas e a comissão do condomínio, se houver);
+ * - a comissão (só existe se o Admin definiu um percentual para o condomínio) vai pra conta dos síndicos
+ *   ativos (divididos igualmente); sem síndico ativo, fica com a plataforma;
  * - o locatário ganha um registro informativo do que pagou (não mexe no saldo dele).
  * Cada lançamento guarda a origem (locação), a base de cálculo e o percentual aplicado.
  */
@@ -88,7 +95,7 @@ export async function registrarPagamentoConfirmado(
     locacaoId: pagamento.locacaoId,
     condominioId: pagamento.condominioId,
     baseCalculo: pagamento.valorBruto,
-    taxaPercentual: TAXA_PERCENTUAL,
+    taxaPercentual: pagamento.percentualComissao,
   };
 
   const sindicos = await tx.user.findMany({
@@ -103,7 +110,10 @@ export async function registrarPagamentoConfirmado(
       userId: pagamento.donoId,
       tipo: TIPO_ALUGUEL_RECEBIDO,
       valor: pagamento.valorLiquido,
-      descricao: `Aluguel de "${titulo}"`,
+      descricao:
+        pagamento.taxaAsaas > 0
+          ? `Aluguel de "${titulo}" (descontada a taxa do Asaas de ${formatarValor(pagamento.taxaAsaas)})`
+          : `Aluguel de "${titulo}"`,
     },
     {
       ...comum,
@@ -118,29 +128,32 @@ export async function registrarPagamentoConfirmado(
   const comissoes: ResultadoRegistro['comissoes'] = [];
   let retidoPelaPlataforma = 0;
 
-  if (sindicos.length > 0) {
-    const partes = dividirTaxa(pagamento.taxa, sindicos.length);
+  // Sem comissão negociada (percentual 0), nada vai para o condomínio nem para a plataforma.
+  if (pagamento.taxa > 0) {
+    if (sindicos.length > 0) {
+      const partes = dividirTaxa(pagamento.taxa, sindicos.length);
 
-    sindicos.forEach((sindico, i) => {
-      comissoes.push({ userId: sindico.id, valor: partes[i] });
+      sindicos.forEach((sindico, i) => {
+        comissoes.push({ userId: sindico.id, valor: partes[i] });
+        lancamentos.push({
+          ...comum,
+          userId: sindico.id,
+          tipo: TIPO_COMISSAO_CONDOMINIO,
+          valor: partes[i],
+          divididoEntre: sindicos.length,
+          descricao: `Comissão do condomínio sobre o aluguel de "${titulo}"`,
+        });
+      });
+    } else {
+      retidoPelaPlataforma = arredondarCentavos(pagamento.taxa);
       lancamentos.push({
         ...comum,
-        userId: sindico.id,
-        tipo: TIPO_COMISSAO_CONDOMINIO,
-        valor: partes[i],
-        divididoEntre: sindicos.length,
-        descricao: `Comissão do condomínio sobre o aluguel de "${titulo}"`,
+        userId: null,
+        tipo: TIPO_TAXA_PLATAFORMA,
+        valor: retidoPelaPlataforma,
+        descricao: `Comissão sobre o aluguel de "${titulo}" (condomínio sem síndico ativo)`,
       });
-    });
-  } else {
-    retidoPelaPlataforma = arredondarCentavos(pagamento.taxa);
-    lancamentos.push({
-      ...comum,
-      userId: null,
-      tipo: TIPO_TAXA_PLATAFORMA,
-      valor: retidoPelaPlataforma,
-      descricao: `Taxa sobre o aluguel de "${titulo}" (condomínio sem síndico ativo)`,
-    });
+    }
   }
 
   await tx.lancamento.createMany({ data: lancamentos });

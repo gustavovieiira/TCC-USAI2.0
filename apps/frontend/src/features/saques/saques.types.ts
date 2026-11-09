@@ -39,7 +39,7 @@ export interface OrigemDTO {
 /** Uma linha do extrato do saldo: dinheiro que entrou (aluguel recebido) ou saiu (saque). */
 export interface MovimentoExtratoDTO {
   id: string;
-  /** COMISSAO = fatia dos 10% do condomínio que cabe a um síndico. */
+  /** COMISSAO = fatia da comissão do condomínio que cabe a um síndico (só existe se o Admin definiu um percentual). */
   tipo: 'RECEBIMENTO' | 'COMISSAO' | 'SAQUE';
   data: string;
   descricao: string;
@@ -49,8 +49,10 @@ export interface MovimentoExtratoDTO {
   valor: number;
   /** Base de cálculo: o aluguel que o locatário pagou. */
   valorBruto?: number;
-  /** Taxa total do condomínio sobre esse aluguel. */
+  /** Comissão total do condomínio sobre esse aluguel (só existe se o Admin definiu um percentual). */
   taxa?: number;
+  /** Taxa do PIX cobrada pelo Asaas nesse aluguel (descontada do que o dono recebe). */
+  taxaAsaas?: number;
   taxaPercentual?: number;
   /** Em quantos síndicos a comissão foi dividida. */
   divididoEntre?: number;
@@ -76,8 +78,9 @@ export interface PagamentoExtratoDTO {
   /** Dono do item, quem recebeu. */
   contraparte: ContraparteDTO | null;
   valor: number;
-  /** Do que foi pago: a taxa do condomínio e o que foi repassado ao dono. */
+  /** Do que foi pago: a taxa do PIX, a comissão do condomínio (se houver) e o que foi repassado ao dono. */
   taxa?: number;
+  taxaAsaas?: number;
   repasseDono?: number;
   taxaPercentual?: number;
   periodo: { inicio: string; fim: string };

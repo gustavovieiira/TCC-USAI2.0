@@ -306,8 +306,8 @@ export function CenaHero() {
             >
               Chega de grupo de WhatsApp perdido. A USAI organiza o empréstimo e a locação de itens,
               e a procura por serviços, dentro do seu condomínio: catálogo, aprovação, pagamento por
-              PIX, termo de responsabilidade e histórico em um só lugar. E o condomínio ainda recebe
-              10% de cada locação.
+              PIX, termo de responsabilidade e histórico em um só lugar. E o condomínio também pode
+              ganhar com os aluguéis.
             </p>
             <div
               className="entra mt-9 flex flex-wrap items-center gap-4"

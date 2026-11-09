@@ -252,8 +252,9 @@ function ExtratoDaPlataforma() {
           {formatCurrency(extrato.totalRetido)}
         </p>
         <p className="mt-1 text-sm text-ink-soft">
-          Taxa dos aluguéis em condomínios sem síndico ativo e dos aluguéis anteriores à comissão do
-          síndico. O resto da taxa vai para a conta do síndico do condomínio.
+          Comissão dos aluguéis em condomínios com comissão definida, mas sem síndico ativo, e dos
+          aluguéis anteriores à comissão do síndico. O resto da comissão vai para a conta do síndico
+          do condomínio.
         </p>
       </Card>
 
@@ -305,7 +306,7 @@ function ExtratoDaPlataforma() {
               </div>
               {movimento.baseCalculo !== null && movimento.taxaPercentual !== null && (
                 <p className="text-sm text-ink-soft">
-                  Taxa de {String(movimento.taxaPercentual).replace('.', ',')}% sobre{' '}
+                  Comissão de {String(movimento.taxaPercentual).replace('.', ',')}% sobre{' '}
                   {formatCurrency(movimento.baseCalculo)}
                 </p>
               )}

@@ -125,6 +125,60 @@ describe('PATCH /api/admin/condominios/:id', () => {
     expect(response.body.ativo).toBe(false);
   });
 
+  it('o Admin define a comissão do condomínio (% do aluguel) e ela volta na resposta', async () => {
+    (prisma.condominio.findUnique as jest.Mock).mockResolvedValue(condominioBase);
+    (prisma.condominio.update as jest.Mock).mockResolvedValue({
+      ...condominioBase,
+      percentualComissao: '7.5',
+    });
+    const app = createApp();
+
+    const response = await request(app)
+      .patch('/api/admin/condominios/cond-1')
+      .set('Authorization', `Bearer ${token()}`)
+      .send({ percentualComissao: 7.5 });
+
+    expect(response.status).toBe(200);
+    expect(response.body.percentualComissao).toBe(7.5);
+    expect(prisma.condominio.update).toHaveBeenCalledWith({
+      where: { id: 'cond-1' },
+      data: { percentualComissao: 7.5 },
+    });
+  });
+
+  it.each([[-1], [100.01], [250], [3.456], ['10']])(
+    'recusa comissão inválida (%p) com 400 e não altera nada',
+    async (percentual) => {
+      (prisma.condominio.update as jest.Mock).mockClear();
+      const app = createApp();
+
+      const response = await request(app)
+        .patch('/api/admin/condominios/cond-1')
+        .set('Authorization', `Bearer ${token()}`)
+        .send({ percentualComissao: percentual });
+
+      expect(response.status).toBe(400);
+      expect(prisma.condominio.update).not.toHaveBeenCalled();
+    },
+  );
+
+  it('aceita comissão 0 (o padrão) e 100', async () => {
+    (prisma.condominio.findUnique as jest.Mock).mockResolvedValue(condominioBase);
+    (prisma.condominio.update as jest.Mock).mockResolvedValue({
+      ...condominioBase,
+      percentualComissao: '0',
+    });
+    const app = createApp();
+
+    for (const percentual of [0, 100]) {
+      const response = await request(app)
+        .patch('/api/admin/condominios/cond-1')
+        .set('Authorization', `Bearer ${token()}`)
+        .send({ percentualComissao: percentual });
+      expect(response.status).toBe(200);
+    }
+  });
+
   it('retorna 404 quando o condomínio não existe', async () => {
     (prisma.condominio.findUnique as jest.Mock).mockResolvedValue(null);
     const app = createApp();

@@ -135,21 +135,21 @@ export const RESPONSABILIDADES = [
   'A devolução é no estado registrado na retirada, ressalvado o desgaste natural do uso adequado.',
 ];
 
-export const DESTINO_DO_CAIXA = [
+export const DESTINO_DO_ALUGUEL = [
   {
-    titulo: '10% de cada locação fica com o condomínio',
+    titulo: 'O condomínio pode receber uma comissão',
     texto:
-      'De todo aluguel pago pela plataforma, 10% vão para o condomínio, e o dono do item recebe os outros 90%.',
+      'Cada condomínio pode combinar com a USAI uma porcentagem de cada aluguel, que vai para o síndico. O percentual é negociado condomínio a condomínio (pode até ser zero) e, quando existe, sai da parte do dono do item.',
   },
   {
     titulo: 'Extrato detalhado, sem caixa-preta',
     texto:
-      'O condomínio acompanha de qual locação veio cada valor, qual taxa foi aplicada e quanto já foi retirado, com recibo de cada operação.',
+      'O condomínio acompanha de qual locação veio cada valor, qual comissão foi aplicada e quanto já foi retirado, com recibo de cada operação. O dono vê a taxa do PIX e a comissão separadas.',
   },
   {
     titulo: 'Dinheiro para melhorias internas',
     texto:
-      'Pintura, jardim, equipamentos, pequenos reparos: o condomínio decide o destino, e a USAI registra tudo. Quanto mais os vizinhos compartilham, mais o caixa cresce.',
+      'Pintura, jardim, equipamentos, pequenos reparos: se o condomínio combinar uma comissão, ele decide o destino do valor, e a USAI registra tudo.',
   },
 ];
 
@@ -181,7 +181,7 @@ export const PERGUNTAS = [
   {
     pergunta: 'Como o dono do item recebe?',
     resposta:
-      'Quando o PIX é confirmado, o valor do aluguel, já descontados os 10% do condomínio, entra no saldo do dono. Ele pede o saque pelo próprio app e acompanha tudo no extrato, com recibo.',
+      'Quando o PIX é confirmado, o valor do aluguel, já descontadas a taxa do PIX e a comissão do condomínio (quando houver), entra no saldo do dono. Ele pede o saque pelo próprio app e acompanha tudo no extrato, com recibo.',
   },
   {
     pergunta: 'E se o item estragar ou se perder?',
@@ -196,7 +196,7 @@ export const PERGUNTAS = [
   {
     pergunta: 'Os moradores pagam mensalidade?',
     resposta:
-      'Não. Quem assina um plano é o condomínio, pelo síndico. Na locação, o locatário paga o valor combinado e, desse valor, 10% vão para o condomínio e 90% para o dono do item.',
+      'Não. Quem assina um plano é o condomínio, pelo síndico. Na locação, o locatário paga o valor combinado e o dono do item recebe esse valor, menos a taxa do PIX e a comissão do condomínio, quando houver.',
   },
   {
     pergunta: 'Qual o valor mínimo de um aluguel?',

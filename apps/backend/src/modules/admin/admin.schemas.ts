@@ -19,6 +19,12 @@ export const atualizarCondominioSchema = z
     nome: z.string().min(3).optional(),
     pin: pinSchema.optional(),
     ativo: z.boolean().optional(),
+    percentualComissao: z
+      .number()
+      .min(0, 'A comissão não pode ser negativa')
+      .max(100, 'A comissão não pode passar de 100%')
+      .refine((valor) => Math.round(valor * 100) / 100 === valor, 'Use no máximo 2 casas decimais')
+      .optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: 'Informe ao menos um campo para atualizar',
