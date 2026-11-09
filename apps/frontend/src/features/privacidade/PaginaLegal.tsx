@@ -47,11 +47,44 @@ export function PaginaLegal({ titulo, resumo, children }: PropsWithChildren<Pagi
   );
 }
 
-export function Secao({ titulo, children }: PropsWithChildren<{ titulo: string }>) {
+export function Secao({ id, titulo, children }: PropsWithChildren<{ id: string; titulo: string }>) {
   return (
-    <section className="flex flex-col gap-3">
+    <section id={id} className="flex scroll-mt-6 flex-col gap-3">
       <h2 className="font-marca text-xl font-extrabold tracking-[-0.015em]">{titulo}</h2>
       {children}
     </section>
+  );
+}
+
+/** Índice no alto do documento: leva direto à seção (os textos são longos). */
+export function Indice({ itens }: { itens: Array<{ id: string; titulo: string }> }) {
+  return (
+    <nav
+      aria-label="Índice do documento"
+      className="rounded-[18px] border border-fachada-tinta/15 bg-white/60 p-4"
+    >
+      <p className="font-marca text-base font-extrabold">Neste documento</p>
+      <ol className="mt-2 grid gap-x-6 gap-y-0.5 text-sm sm:grid-cols-2">
+        {itens.map((item) => (
+          <li key={item.id}>
+            <a
+              href={`#${item.id}`}
+              className="inline-block py-1 font-semibold text-fachada-coral-texto underline underline-offset-2 hover:no-underline"
+            >
+              {item.titulo}
+            </a>
+          </li>
+        ))}
+      </ol>
+    </nav>
+  );
+}
+
+/** Quadro em destaque dentro do texto (o que mais importa para quem aluga ou empresta). */
+export function Destaque({ children }: PropsWithChildren) {
+  return (
+    <div className="rounded-[18px] border-2 border-fachada-coral-texto/40 bg-white p-4 font-medium">
+      {children}
+    </div>
   );
 }

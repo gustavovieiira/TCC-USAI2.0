@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/Textarea';
 import { extractErrorMessage } from '@/lib/apiClient';
 import { getStoredUser } from '@/lib/authStorage';
 import { calcularDias, formatCurrency } from '@/lib/format';
+import { AvisoResponsabilidade } from '@/features/privacidade/AvisoResponsabilidade';
 import { GerenciarAnuncio } from '@/features/itens/GerenciarAnuncio';
 import { IconFoto } from '@/features/itens/ItemCard';
 import { buscarItem } from '@/features/itens/itens.api';
@@ -221,6 +222,8 @@ export function ItemDetalhePage() {
                 {erroSolicitacao}
               </p>
             )}
+
+            <AvisoResponsabilidade papel="locatario" />
 
             <Button type="submit" isLoading={isLoading} disabled={dias === 0}>
               Solicitar locação

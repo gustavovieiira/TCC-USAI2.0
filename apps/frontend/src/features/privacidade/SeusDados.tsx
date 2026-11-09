@@ -8,12 +8,14 @@ import { extractErrorMessage } from '@/lib/apiClient';
 import { baixarMeusDados, excluirMinhaConta } from './privacidade.api';
 
 interface SeusDadosProps {
+  /** Data em que a pessoa aceitou os Termos e a Política, gravada no cadastro. */
+  aceitouTermosEm?: string | null;
   /** Chamado depois que a conta foi excluída, para encerrar a sessão neste aparelho. */
   aoExcluir: () => void;
 }
 
 /** Direitos do titular (LGPD): baixar uma cópia dos dados e excluir (anonimizar) a conta. */
-export function SeusDados({ aoExcluir }: SeusDadosProps) {
+export function SeusDados({ aceitouTermosEm, aoExcluir }: SeusDadosProps) {
   const [baixando, setBaixando] = useState(false);
   const [erroDownload, setErroDownload] = useState<string | null>(null);
   const [confirmando, setConfirmando] = useState(false);
@@ -124,16 +126,32 @@ export function SeusDados({ aoExcluir }: SeusDadosProps) {
           <h2 className="font-display font-semibold text-ink">Seus dados e privacidade</h2>
           <p className="mt-1 text-sm text-ink-soft">
             Você pode receber uma cópia de tudo o que a USAI guarda sobre você ou excluir a sua
-            conta. Veja os detalhes na{' '}
+            conta. Veja a{' '}
             <Link
               to="/privacidade"
               className="font-semibold text-fachada-coral-texto underline underline-offset-2 hover:no-underline"
             >
               Política de Privacidade
+            </Link>{' '}
+            e os{' '}
+            <Link
+              to="/termos"
+              className="font-semibold text-fachada-coral-texto underline underline-offset-2 hover:no-underline"
+            >
+              Termos de Uso
             </Link>
             .
           </p>
         </div>
+        {aceitouTermosEm && (
+          <p className="text-sm text-ink-soft">
+            Aceite registrado: você leu e aceitou os Termos de Uso e a Política de Privacidade em{' '}
+            <strong className="text-ink">
+              {new Date(aceitouTermosEm).toLocaleDateString('pt-BR')}
+            </strong>
+            .
+          </p>
+        )}
         {erroDownload && (
           <p role="alert" className="text-sm font-medium text-fachada-coral-texto">
             {erroDownload}

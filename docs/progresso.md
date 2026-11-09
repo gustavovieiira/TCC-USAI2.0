@@ -6,6 +6,35 @@
 
 ---
 
+## 2026-11-09: Termos de Uso e Política de Privacidade completos
+
+Os dois documentos foram reescritos por inteiro (`TermosPage.tsx`, `PrivacidadePage.tsx`), com índice, seções
+numeradas e um quadro de resumo no alto.
+
+- **A USAI fica por fora dos itens.** A seção 5 dos Termos diz que a responsabilidade por perda, furto, roubo, dano,
+  defeito, atraso e qualquer prejuízo ligado ao item é **exclusivamente de quem empresta e de quem aluga**, que
+  resolvem tudo entre si, de comum acordo (conserto, substituição, pagamento do valor, desconto, perdão ou outra
+  solução), sem envolver a USAI, que não media, não decide e não garante nem oferece seguro ou caução. O texto também
+  separa o que cabe ao proprietário e o que cabe ao locatário e prevê, se as partes quiserem, a ajuda do síndico como
+  mediador.
+- **Termo de cada locação (retirada e devolução)** ganhou uma nova versão (migration
+  `20261109100000_termo_locacao_usai_fora_da_relacao`) com duas cláusulas no mesmo sentido. Ela parte da versão mais
+  recente de cada tipo e nasce como MODELO, como todas.
+- **Aviso curto** nas telas de pedir e de anunciar um item (`AvisoResponsabilidade`), com link para a regra completa.
+- **Aceite uma única vez, antes de criar a conta:** a caixa de marcar, com os links, continua no cadastro e na
+  contratação, simples. O registro (data e versão) fica no usuário e agora aparece no perfil ("Aceite registrado").
+- **Política de Privacidade** com 15 seções: controlador (Gustavo Vieira Wesolowski, pessoa física), dados coletados,
+  bases legais, compartilhamento (inclusive Asaas, Google Fonts e WhatsApp), transferência internacional,
+  armazenamento no navegador, prazos de guarda, segurança, direitos e prazo de 15 dias, exclusão da conta, decisões
+  automatizadas e menores. Foro dos Termos: o do domicílio do usuário.
+- A versão dos textos passou para `2026-11-09`.
+
+**Ainda é preciso um advogado:** nenhum texto garante, sozinho, que "nada pode dar errado". Antes de uso comercial
+os dois documentos devem ser revistos por um profissional de direito. Contas de síndico criadas pelo Admin não passam
+pelo aceite do cadastro (ficam sem registro).
+
+---
+
 ## 2026-11-06: Segurança da informação e LGPD
 
 Revisão de segurança do backend, do front e das imagens Docker, e entrada da LGPD no produto. Nenhum sistema é

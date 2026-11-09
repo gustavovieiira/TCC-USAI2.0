@@ -35,6 +35,8 @@ export interface AuthenticatedUser {
   condominioId: string | null;
   apartamento: string | null;
   cpf: string | null;
+  /** Quando a pessoa aceitou os Termos de Uso e a Política de Privacidade (uma vez, antes de criar a conta). */
+  aceitouTermosEm?: string | null;
 }
 
 export interface AuthResult extends AuthTokens {
