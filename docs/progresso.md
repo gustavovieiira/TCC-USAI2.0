@@ -25,8 +25,12 @@ A USAI passa a rodar num servidor da DigitalOcean (Ubuntu 22.04, 2 GB de RAM, 50
   permissão 600, fora do Git. Modelo em `infra/producao/.env.example`.
 - **Backup** diário do banco e das fotos (`infra/producao/backup.sh`), guardando 7 dias.
 - O servidor já tinha outro projeto; foi feito backup completo na máquina do autor e a máquina foi limpa antes do deploy.
-- **Falta:** apontar o DNS (A de `usainet.com.br`, `www` e `monitor`), o primeiro deploy e, por último, trocar o Asaas
-  para produção (chave, webhook e e-mail).
+- **No ar:** o primeiro deploy automático rodou (PR #19) e https://usainet.com.br responde com certificado válido
+  (Let's Encrypt), cabeçalhos de segurança, `/metrics` fechado para a internet, Prometheus coletando e Grafana em
+  `monitor.usainet.com.br`. O login por senha no SSH foi desligado (só chave). A conta de Admin de produção foi criada
+  por um script que pede a senha no terminal do servidor (ela não passa pelo chat nem fica em arquivo).
+- **Ajuste:** o limite de memória do Grafana subiu de 192 MB para 256 MB (usava 167 MB, perto do limite).
+- **Falta:** trocar o Asaas para produção (chave, webhook e e-mail) e testar o plano de R$ 5,00.
 
 ---
 

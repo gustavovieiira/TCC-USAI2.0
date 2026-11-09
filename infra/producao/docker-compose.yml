@@ -151,7 +151,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 192m
+          memory: 256m
 
 volumes:
   mysql-data:
