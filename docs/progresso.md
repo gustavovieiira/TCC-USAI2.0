@@ -6,6 +6,22 @@
 
 ---
 
+## 2026-11-09: Fotos nos posts do Mural
+
+Os posts do Mural (avisos e pedidos de ajuda) agora aceitam **até 4 fotos**.
+- **Postar:** botão "Foto" ao lado de "Postar", com várias fotos de uma vez, prévias com ✕ para remover e contador
+  ("Fotos (2/4)"). Só JPEG, PNG e WebP, até 5 MB cada; o front confere antes de enviar.
+- **Ver:** o post mostra as fotos (uma grande, ou em grade de 2 colunas); clicar amplia a foto, com setas, Esc e
+  clique fora para fechar. Aparece no cartão do Mural e no detalhe do post.
+- **Backend:** `pedidos.imagens` (JSON, migration `20261109300000_mural_com_imagens`) e `POST /api/mural/upload-imagem`
+  (pasta `uploads/mural`). O servidor confere o **conteúdo real** do arquivo (um HTML com extensão `.png` é recusado e
+  apagado) e o post só aceita endereços de `/uploads/mural/` (nada de link de fora, que serviria para rastrear).
+- **Sem fotos esquecidas no disco:** ao excluir um post, as fotos dele também são apagadas (`removerArquivosDeUpload`,
+  que nunca sai da pasta de uploads). Ao excluir a conta (LGPD), saem do disco também as fotos dos posts e dos anúncios
+  da pessoa.
+
+---
+
 ## 2026-11-09: Catálogo de serviços, engrenagem no perfil e sessão que se renova sozinha
 
 **Serviços no catálogo.** Os moradores podem publicar serviços que prestam (eletricista, maquiagem, unha, aulas...),

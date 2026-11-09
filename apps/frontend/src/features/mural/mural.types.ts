@@ -25,6 +25,8 @@ export interface PostDTO {
   createdAt: string;
   autor: AutorDTO;
   comentariosCount: number;
+  /** Fotos do post (até 4). Posts antigos não trazem o campo. */
+  imagens?: string[];
 }
 
 export interface PostComComentariosDTO extends PostDTO {
@@ -35,6 +37,7 @@ export interface CriarPostInput {
   conteudo: string;
   tipo: TipoPost;
   categoria?: string;
+  imagens?: string[];
   condominioId?: string;
 }
 

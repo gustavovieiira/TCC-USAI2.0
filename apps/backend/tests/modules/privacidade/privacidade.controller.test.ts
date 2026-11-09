@@ -9,6 +9,7 @@ jest.mock('@/common/prisma', () => {
     tokenAcesso: { deleteMany: jest.fn() },
     notificacao: { deleteMany: jest.fn() },
     item: { updateMany: jest.fn() },
+    itemImagem: { deleteMany: jest.fn() },
     comentarioPost: { deleteMany: jest.fn() },
     post: { deleteMany: jest.fn() },
     conversaPrivada: { deleteMany: jest.fn() },
@@ -21,6 +22,7 @@ jest.mock('@/common/prisma', () => {
       item: { findMany: resultado() },
       locacao: { findMany: resultado(), count: jest.fn().mockResolvedValue(0) },
       post: { findMany: resultado() },
+      itemImagem: { findMany: resultado() },
       comentarioPost: { findMany: resultado() },
       mensagemPrivada: { findMany: resultado() },
       solicitacaoSaque: {

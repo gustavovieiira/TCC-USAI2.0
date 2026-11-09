@@ -22,6 +22,14 @@ export async function criarPost(input: CriarPostInput): Promise<PostDTO> {
   return data;
 }
 
+/** Envia uma foto e devolve o endereço dela, para anexar ao post na hora de publicar. */
+export async function uploadImagemPost(arquivo: File): Promise<{ url: string }> {
+  const formData = new FormData();
+  formData.append('imagem', arquivo);
+  const { data } = await apiClient.post<{ url: string }>('/mural/upload-imagem', formData);
+  return data;
+}
+
 export async function responderPost(id: string, input: ResponderPostInput): Promise<ComentarioDTO> {
   const { data } = await apiClient.post<ComentarioDTO>(`/mural/${id}/respostas`, input);
   return data;

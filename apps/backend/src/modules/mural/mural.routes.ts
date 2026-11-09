@@ -7,6 +7,7 @@ export const muralRouter = Router();
 
 muralRouter.use(authGuard);
 
+muralRouter.post('/upload-imagem', asyncHandler(muralController.uploadImagem));
 muralRouter.post('/', asyncHandler(muralController.criar));
 muralRouter.get('/', asyncHandler(muralController.listar));
 muralRouter.get('/:id', asyncHandler(muralController.buscarPorId));

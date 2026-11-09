@@ -4,6 +4,7 @@ import { PapelTag, PostStatusBadge } from '@/components/ui/Badge';
 import { ConversarButton } from '@/features/conversas/ConversarButton';
 import { getStoredUser } from '@/lib/authStorage';
 import { formatRelativeTime } from '@/lib/format';
+import { GaleriaDeImagens } from './GaleriaDeImagens';
 import { PostDTO } from './mural.types';
 
 interface PostCardProps {
@@ -34,6 +35,11 @@ export function PostCard({ post, canDelete, onDelete }: PostCardProps) {
             {post.conteudo}
           </p>
         </Link>
+
+        <GaleriaDeImagens
+          imagens={post.imagens ?? []}
+          descricao={`Foto do post de ${post.autor.nome}`}
+        />
 
         <div className="mt-3 flex items-center gap-4 border-t border-dashed border-paper-line pt-2.5">
           {post.tipo === 'PEDIDO' && post.status && <PostStatusBadge status={post.status} />}

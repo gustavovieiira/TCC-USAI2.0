@@ -1,4 +1,11 @@
 import bcrypt from 'bcryptjs';
+
+jest.mock('@/common/uploads', () => ({
+  ...jest.requireActual('@/common/uploads'),
+  removerArquivosDeUpload: jest.fn().mockResolvedValue(undefined),
+}));
+
+import { removerArquivosDeUpload } from '@/common/uploads';
 import { PrivacidadeService } from '@/modules/privacidade/privacidade.service';
 
 const SENHA = 'senha-forte-123';
@@ -29,6 +36,7 @@ function buildPrisma(overrides: { usuario?: Record<string, unknown> | null } = {
     tokenAcesso: { deleteMany: jest.fn() },
     notificacao: { deleteMany: jest.fn() },
     item: { updateMany: jest.fn() },
+    itemImagem: { deleteMany: jest.fn() },
     comentarioPost: { deleteMany: jest.fn() },
     post: { deleteMany: jest.fn() },
     conversaPrivada: { deleteMany: jest.fn() },
@@ -44,6 +52,7 @@ function buildPrisma(overrides: { usuario?: Record<string, unknown> | null } = {
       count: jest.fn().mockResolvedValue(0),
     },
     post: { findMany: jest.fn().mockResolvedValue([]) },
+    itemImagem: { findMany: jest.fn().mockResolvedValue([]) },
     comentarioPost: { findMany: jest.fn().mockResolvedValue([]) },
     mensagemPrivada: { findMany: jest.fn().mockResolvedValue([]) },
     solicitacaoSaque: {
@@ -216,5 +225,36 @@ describe('PrivacidadeService.exportarDados sem condomínio', () => {
     const dados = await new PrivacidadeService(prisma).exportarDados('a1');
 
     expect(dados.titular.condominio).toBeNull();
+  });
+});
+
+describe('PrivacidadeService.excluirConta: fotos', () => {
+  it('apaga do disco as fotos dos posts e dos anúncios da pessoa e os registros das fotos dos anúncios', async () => {
+    const { prisma, tx } = buildPrisma();
+    prisma.post.findMany.mockResolvedValue([
+      {
+        imagens: [
+          'http://localhost:3000/uploads/mural/p1.jpg',
+          'http://localhost:3000/uploads/mural/p2.jpg',
+        ],
+      },
+      { imagens: null },
+    ]);
+    prisma.itemImagem.findMany.mockResolvedValue([
+      { url: 'http://localhost:3000/uploads/itens/i1.jpg' },
+    ]);
+
+    await new PrivacidadeService(prisma).excluirConta('u1', SENHA);
+
+    expect(prisma.post.findMany).toHaveBeenCalledWith({
+      where: { autorId: 'u1' },
+      select: { imagens: true },
+    });
+    expect(tx.itemImagem.deleteMany).toHaveBeenCalledWith({ where: { item: { ownerId: 'u1' } } });
+    expect(removerArquivosDeUpload).toHaveBeenCalledWith([
+      'http://localhost:3000/uploads/mural/p1.jpg',
+      'http://localhost:3000/uploads/mural/p2.jpg',
+      'http://localhost:3000/uploads/itens/i1.jpg',
+    ]);
   });
 });

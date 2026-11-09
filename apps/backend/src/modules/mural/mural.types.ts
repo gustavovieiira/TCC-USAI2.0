@@ -24,6 +24,8 @@ export interface PostDTO {
   createdAt: Date;
   autor: AutorDTO;
   comentariosCount: number;
+  /** Fotos do post (até 4), enviadas pela própria plataforma. */
+  imagens: string[];
 }
 
 export interface PostComComentariosDTO extends PostDTO {
@@ -34,6 +36,7 @@ export interface CriarPostInput {
   conteudo: string;
   tipo: TipoPost;
   categoria?: string;
+  imagens?: string[];
   /** Só usado quando o autor é ADMIN (não tem condomínio próprio), precisa escolher pra qual. */
   condominioId?: string;
 }
