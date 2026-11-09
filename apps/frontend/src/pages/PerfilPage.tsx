@@ -240,9 +240,12 @@ export function PerfilPage() {
                 <p className="text-sm text-ink-soft">Apartamento {user.apartamento}</p>
               )}
             </div>
-            <Button variant="secondary" fullWidth={false} onClick={iniciarEdicao}>
-              Editar
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button variant="secondary" fullWidth={false} onClick={iniciarEdicao}>
+                Editar
+              </Button>
+              <SeusDados aceitouTermosEm={user.aceitouTermosEm} aoExcluir={handleContaExcluida} />
+            </div>
           </div>
         )}
       </Card>
@@ -314,8 +317,6 @@ export function PerfilPage() {
           {user.papel === 'ADMIN' && <QuickLink to="/admin" label="Painel Admin USAI" />}
         </div>
       </div>
-
-      <SeusDados aceitouTermosEm={user.aceitouTermosEm} aoExcluir={handleContaExcluida} />
 
       <Button variant="danger" onClick={handleLogout}>
         Sair

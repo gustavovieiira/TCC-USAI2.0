@@ -114,6 +114,8 @@ describe('PublicarItemPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Publicar' }));
 
     expect(itensApi.criarItem).toHaveBeenCalledWith({
+      tipo: 'ITEM',
+      unidadeCobranca: 'DIA',
       titulo: 'Furadeira Bosch',
       categoria: 'Ferramentas',
       descricao: 'Furadeira de impacto em ótimo estado',
@@ -302,5 +304,84 @@ describe('PublicarItemPage: identificação do bem', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Publicar' }));
 
     expect(criar.mock.calls[0][0].acessorios).toEqual(['Brocas']);
+  });
+
+  describe('serviço', () => {
+    const servicoCriado = {
+      id: 'serv-novo',
+      tipo: 'SERVICO' as const,
+      unidadeCobranca: 'HORA' as const,
+      titulo: 'Eletricista residencial',
+      descricao: 'Tomadas, chuveiros e disjuntores',
+      categoria: 'Elétrica',
+      valorDiaria: 80,
+      ativo: true,
+      ownerId: 'user-1',
+      condominioId: 'cond-1',
+      imagens: [],
+      createdAt: '2026-11-09T00:00:00.000Z',
+    };
+
+    it('troca o formulário para serviço: sem identificação do bem e com cobrança por hora ou por serviço', async () => {
+      renderPage();
+
+      expect(screen.getByRole('heading', { name: 'Publicar item' })).toBeInTheDocument();
+      expect(screen.getByText('Identificação do bem (opcional)')).toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole('button', { name: 'Serviço' }));
+
+      expect(screen.getByRole('heading', { name: 'Publicar serviço' })).toBeInTheDocument();
+      expect(screen.queryByText('Identificação do bem (opcional)')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Por hora' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+      expect(screen.getByLabelText('Valor por hora (R$)')).toBeInTheDocument();
+      expect(screen.getByRole('note')).toHaveTextContent(/não cobra nem recebe pelo serviço/);
+
+      await userEvent.click(screen.getByRole('button', { name: /Por serviço/ }));
+      expect(screen.getByLabelText('Valor do serviço (R$)')).toBeInTheDocument();
+    });
+
+    it('publica o serviço por hora, sem o piso de R$ 5,00, e abre o anúncio', async () => {
+      vi.spyOn(itensApi, 'criarItem').mockResolvedValue(servicoCriado);
+      renderPage();
+
+      await userEvent.click(screen.getByRole('button', { name: 'Serviço' }));
+      await userEvent.type(screen.getByLabelText('Título'), 'Eletricista residencial');
+      await userEvent.type(screen.getByLabelText('Categoria'), 'Elétrica');
+      await userEvent.type(screen.getByLabelText('Descrição'), 'Tomadas, chuveiros e disjuntores');
+      await userEvent.type(screen.getByLabelText('Valor por hora (R$)'), '3');
+      await userEvent.click(screen.getByRole('button', { name: 'Publicar' }));
+
+      expect(itensApi.criarItem).toHaveBeenCalledWith({
+        tipo: 'SERVICO',
+        unidadeCobranca: 'HORA',
+        titulo: 'Eletricista residencial',
+        categoria: 'Elétrica',
+        descricao: 'Tomadas, chuveiros e disjuntores',
+        valorDiaria: 3,
+        fabricante: undefined,
+        modelo: undefined,
+        numeroSerie: undefined,
+        acessorios: undefined,
+        imagens: undefined,
+      });
+      expect(await screen.findByText('Detalhe do item serv-novo')).toBeInTheDocument();
+    });
+
+    it('serviço sem valor não é enviado', async () => {
+      const criar = vi.spyOn(itensApi, 'criarItem');
+      renderPage();
+
+      await userEvent.click(screen.getByRole('button', { name: 'Serviço' }));
+      await userEvent.type(screen.getByLabelText('Título'), 'Manicure em casa');
+      await userEvent.type(screen.getByLabelText('Categoria'), 'Unhas');
+      await userEvent.type(screen.getByLabelText('Descrição'), 'Esmaltação e cutilagem');
+      await userEvent.click(screen.getByRole('button', { name: 'Publicar' }));
+
+      expect(screen.getByText('Informe um valor maior que zero.')).toBeInTheDocument();
+      expect(criar).not.toHaveBeenCalled();
+    });
   });
 });

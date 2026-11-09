@@ -73,7 +73,10 @@ describe('CatalogoPage', () => {
     );
 
     await screen.findByText('Furadeira Bosch');
-    await userEvent.type(screen.getByPlaceholderText('Buscar item, categoria, marca…'), 'taças');
+    await userEvent.type(
+      screen.getByPlaceholderText('Buscar item, serviço, categoria, marca…'),
+      'taças',
+    );
 
     await waitFor(() => expect(screen.queryByText('Furadeira Bosch')).not.toBeInTheDocument());
     expect(screen.getByText('Jogo de taças')).toBeInTheDocument();
@@ -89,7 +92,7 @@ describe('CatalogoPage', () => {
     );
 
     await screen.findByText('Furadeira Bosch');
-    const busca = screen.getByPlaceholderText('Buscar item, categoria, marca…');
+    const busca = screen.getByPlaceholderText('Buscar item, serviço, categoria, marca…');
 
     await userEvent.type(busca, 'cristal');
     await waitFor(() => expect(screen.queryByText('Furadeira Bosch')).not.toBeInTheDocument());
@@ -110,13 +113,13 @@ describe('CatalogoPage', () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByText('2 itens')).toBeInTheDocument();
+    expect(await screen.findByText('2 anúncios')).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Cozinha' }));
-    expect(screen.getByText('1 item de 2')).toBeInTheDocument();
+    expect(screen.getByText('1 anúncio de 2')).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Limpar filtros' }));
-    expect(screen.getByText('2 itens')).toBeInTheDocument();
+    expect(screen.getByText('2 anúncios')).toBeInTheDocument();
     expect(screen.getByText('Furadeira Bosch')).toBeInTheDocument();
   });
 
@@ -129,7 +132,7 @@ describe('CatalogoPage', () => {
       </MemoryRouter>,
     );
 
-    const regiao = await screen.findByRole('region', { name: 'Itens do catálogo' });
+    const regiao = await screen.findByRole('region', { name: 'Anúncios do catálogo' });
     expect(regiao).toHaveClass('overflow-y-auto');
   });
 
@@ -142,6 +145,90 @@ describe('CatalogoPage', () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByText('Ainda não há itens no catálogo')).toBeInTheDocument();
+    expect(await screen.findByText('Ainda não há nada no catálogo')).toBeInTheDocument();
+  });
+
+  describe('itens e serviços', () => {
+    const servico: ItemDTO = {
+      id: 'serv-1',
+      tipo: 'SERVICO',
+      unidadeCobranca: 'HORA',
+      titulo: 'Eletricista residencial',
+      descricao: 'Tomadas, chuveiros e disjuntores',
+      categoria: 'Elétrica',
+      valorDiaria: 80,
+      ativo: true,
+      ownerId: 'user-3',
+      condominioId: 'cond-1',
+      imagens: [],
+      createdAt: '2026-11-09T00:00:00.000Z',
+      proprietario: { nome: 'Raquel Vieira', apartamento: '12' },
+    };
+    const mistos = [...itens, servico];
+
+    function renderizar() {
+      vi.spyOn(itensApi, 'listarItens').mockResolvedValue(mistos);
+      render(
+        <MemoryRouter>
+          <CatalogoPage />
+        </MemoryRouter>,
+      );
+    }
+
+    it('mostra itens e serviços juntos, com a etiqueta e o valor por hora no serviço', async () => {
+      renderizar();
+
+      expect(await screen.findByText('Eletricista residencial')).toBeInTheDocument();
+      expect(screen.getByText('Furadeira Bosch')).toBeInTheDocument();
+      expect(screen.getByText('Serviço')).toBeInTheDocument();
+      expect(screen.getByText('/ hora')).toBeInTheDocument();
+      expect(screen.getByText('3 anúncios')).toBeInTheDocument();
+    });
+
+    it('o filtro "Serviços" mostra só os serviços e o "Itens para alugar" só os itens', async () => {
+      renderizar();
+      await screen.findByText('Eletricista residencial');
+
+      await userEvent.click(screen.getByRole('button', { name: /^Serviços/ }));
+      expect(screen.getByText('Eletricista residencial')).toBeInTheDocument();
+      expect(screen.queryByText('Furadeira Bosch')).not.toBeInTheDocument();
+      expect(screen.getByText('1 serviço')).toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole('button', { name: /^Itens para alugar/ }));
+      expect(screen.queryByText('Eletricista residencial')).not.toBeInTheDocument();
+      expect(screen.getByText('Furadeira Bosch')).toBeInTheDocument();
+      expect(screen.getByText('2 itens')).toBeInTheDocument();
+    });
+
+    it('as categorias acompanham o tipo escolhido, e a busca encontra quem presta', async () => {
+      renderizar();
+      await screen.findByText('Eletricista residencial');
+
+      await userEvent.click(screen.getByRole('button', { name: /^Serviços/ }));
+      expect(screen.queryByRole('button', { name: 'Ferramentas' })).not.toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole('button', { name: /^Tudo/ }));
+      await userEvent.type(screen.getByPlaceholderText(/Buscar item, serviço/), 'raquel');
+      expect(screen.getByText('Eletricista residencial')).toBeInTheDocument();
+      expect(screen.queryByText('Furadeira Bosch')).not.toBeInTheDocument();
+    });
+
+    it('sem nenhum serviço, a aba Serviços convida quem presta a anunciar', async () => {
+      vi.spyOn(itensApi, 'listarItens').mockResolvedValue(itens);
+      render(
+        <MemoryRouter>
+          <CatalogoPage />
+        </MemoryRouter>,
+      );
+      await screen.findByText('Furadeira Bosch');
+
+      await userEvent.click(screen.getByRole('button', { name: /^Serviços/ }));
+
+      expect(screen.getByText('Ainda não há serviços no catálogo')).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Publicar serviço' })).toHaveAttribute(
+        'href',
+        '/itens/novo',
+      );
+    });
   });
 });

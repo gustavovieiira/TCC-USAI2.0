@@ -115,6 +115,14 @@ export class LocacoesService {
       throw new NotFoundError('Item não encontrado ou indisponível');
     }
 
+    if (item.tipo === 'SERVICO') {
+      throw new AppError(
+        'Serviços não são alugados pela plataforma: combine direto com quem presta, pelo chat.',
+        400,
+        'SERVICO_NAO_ALUGAVEL',
+      );
+    }
+
     if (item.ownerId === locatarioId) {
       throw new AppError('Não é possível solicitar a locação do próprio item', 400, 'SELF_RENTAL');
     }

@@ -6,6 +6,15 @@ import { Modal } from '@/components/ui/Modal';
 import { TextField } from '@/components/ui/TextField';
 import { Textarea } from '@/components/ui/Textarea';
 import { extractErrorMessage } from '@/lib/apiClient';
+import { FiltroChips } from '@/components/ui/FiltroChips';
+import {
+  MENSAGEM_VALOR_SERVICO,
+  ROTULO_UNIDADE_DO_SERVICO,
+  ehServico,
+  rotuloDoCampoDeValor,
+  tipoDe,
+  unidadeDe,
+} from './anuncio';
 import { atualizarItem, removerItem } from './itens.api';
 import { ItemDTO } from './itens.types';
 import { MENSAGEM_VALOR_MINIMO, VALOR_MINIMO_DIARIA } from './valores';
@@ -23,6 +32,9 @@ export function GerenciarAnuncio({ item, aoAtualizar, aoRemover }: GerenciarAnun
   const [titulo, setTitulo] = useState(item.titulo);
   const [categoria, setCategoria] = useState(item.categoria);
   const [descricao, setDescricao] = useState(item.descricao);
+  const servico = ehServico(item);
+  const unidadeInicial = unidadeDe(item) === 'SERVICO' ? 'SERVICO' : 'HORA';
+  const [unidade, setUnidade] = useState<'HORA' | 'SERVICO'>(unidadeInicial);
   const [valorDiaria, setValorDiaria] = useState(String(item.valorDiaria));
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
@@ -34,6 +46,7 @@ export function GerenciarAnuncio({ item, aoAtualizar, aoRemover }: GerenciarAnun
     setCategoria(item.categoria);
     setDescricao(item.descricao);
     setValorDiaria(String(item.valorDiaria));
+    setUnidade(unidadeInicial);
     setErro(null);
     setSalvoAgora(false);
     setEditando(true);
@@ -44,7 +57,13 @@ export function GerenciarAnuncio({ item, aoAtualizar, aoRemover }: GerenciarAnun
     setErro(null);
 
     const valor = Number(valorDiaria);
-    if (!Number.isFinite(valor) || valor < VALOR_MINIMO_DIARIA) {
+    if (servico) {
+      // Serviço é combinado direto entre os moradores: não tem o piso do PIX, só precisa de um valor.
+      if (!Number.isFinite(valor) || valor <= 0) {
+        setErro(MENSAGEM_VALOR_SERVICO);
+        return;
+      }
+    } else if (!Number.isFinite(valor) || valor < VALOR_MINIMO_DIARIA) {
       setErro(MENSAGEM_VALOR_MINIMO);
       return;
     }
@@ -62,6 +81,7 @@ export function GerenciarAnuncio({ item, aoAtualizar, aoRemover }: GerenciarAnun
         categoria: categoria.trim(),
         descricao: descricao.trim(),
         valorDiaria: valor,
+        ...(servico ? { unidadeCobranca: unidade } : {}),
       });
       aoAtualizar(atualizado);
       setEditando(false);
@@ -111,11 +131,17 @@ export function GerenciarAnuncio({ item, aoAtualizar, aoRemover }: GerenciarAnun
 
       <Card className="flex flex-col gap-4 text-sm text-ink-soft">
         <p>
-          Este item é seu. Acompanhe as solicitações em{' '}
-          <Link to="/locacoes" className="font-semibold text-barro-700 hover:underline">
-            Minhas locações
-          </Link>
-          .
+          {servico ? (
+            'Este serviço é seu. Quem se interessar fala com você pelo chat (Conversas) e vocês combinam data e pagamento.'
+          ) : (
+            <>
+              Este item é seu. Acompanhe as solicitações em{' '}
+              <Link to="/locacoes" className="font-semibold text-barro-700 hover:underline">
+                Minhas locações
+              </Link>
+              .
+            </>
+          )}
         </p>
 
         {salvoAgora && !editando && (
@@ -149,11 +175,22 @@ export function GerenciarAnuncio({ item, aoAtualizar, aoRemover }: GerenciarAnun
               value={descricao}
               onChange={(e) => setDescricao(e.target.value)}
             />
+            {servico && (
+              <FiltroChips<'HORA' | 'SERVICO'>
+                rotulo="Como você cobra"
+                valor={unidade}
+                onChange={setUnidade}
+                opcoes={[
+                  { valor: 'HORA', rotulo: ROTULO_UNIDADE_DO_SERVICO.HORA },
+                  { valor: 'SERVICO', rotulo: ROTULO_UNIDADE_DO_SERVICO.SERVICO },
+                ]}
+              />
+            )}
             <TextField
-              label="Valor por diária (R$)"
+              label={rotuloDoCampoDeValor(tipoDe(item), servico ? unidade : 'DIA')}
               name="valorDiaria"
               type="number"
-              min={VALOR_MINIMO_DIARIA}
+              min={servico ? 0.01 : VALOR_MINIMO_DIARIA}
               step="0.01"
               inputMode="decimal"
               value={valorDiaria}

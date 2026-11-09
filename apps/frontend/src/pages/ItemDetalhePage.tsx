@@ -8,6 +8,8 @@ import { extractErrorMessage } from '@/lib/apiClient';
 import { getStoredUser } from '@/lib/authStorage';
 import { calcularDias, formatCurrency } from '@/lib/format';
 import { AvisoResponsabilidade } from '@/features/privacidade/AvisoResponsabilidade';
+import { ConversarButton } from '@/features/conversas/ConversarButton';
+import { ehServico, sufixoDoValor } from '@/features/itens/anuncio';
 import { GerenciarAnuncio } from '@/features/itens/GerenciarAnuncio';
 import { IconFoto } from '@/features/itens/ItemCard';
 import { buscarItem } from '@/features/itens/itens.api';
@@ -97,8 +99,16 @@ export function ItemDetalhePage() {
         <h1 className="font-display text-2xl font-bold text-ink">{item.titulo}</h1>
         <p className="mt-1 font-display text-xl font-bold text-barro-700">
           {formatCurrency(item.valorDiaria)}
-          <span className="ml-1 font-sans text-sm font-normal text-ink-soft">/ dia</span>
+          <span className="ml-1 font-sans text-sm font-normal text-ink-soft">
+            {sufixoDoValor(item)}
+          </span>
         </p>
+        {ehServico(item) && item.proprietario && (
+          <p className="mt-1 text-sm text-ink-soft">
+            Oferecido por <strong className="text-ink">{item.proprietario.nome}</strong>
+            {item.proprietario.apartamento ? ` · Apto ${item.proprietario.apartamento}` : ''}
+          </p>
+        )}
       </div>
 
       <Card>
@@ -147,6 +157,22 @@ export function ItemDetalhePage() {
           aoAtualizar={setItem}
           aoRemover={() => navigate('/catalogo', { replace: true })}
         />
+      ) : ehServico(item) ? (
+        <Card className="flex flex-col gap-4">
+          <div>
+            <h2 className="font-display font-semibold text-ink">Contratar este serviço</h2>
+            <p className="mt-1 text-sm text-ink-soft">
+              Fale com {item.proprietario?.nome ?? 'quem presta'} pelo chat e combinem data,
+              horário, valor e a forma de pagamento. Tudo é combinado direto entre vocês.
+            </p>
+          </div>
+          <ConversarButton
+            usuarioId={item.ownerId}
+            nomeDoOutro={item.proprietario?.nome ?? 'quem presta'}
+            variant="botao"
+          />
+          <AvisoResponsabilidade papel="contratante" />
+        </Card>
       ) : sucesso ? (
         <Card className="flex flex-col items-center gap-3 text-center">
           <p className="font-display font-semibold text-ink">Solicitação enviada!</p>

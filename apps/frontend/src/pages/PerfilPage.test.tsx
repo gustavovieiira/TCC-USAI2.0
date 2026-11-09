@@ -207,7 +207,8 @@ describe('PerfilPage', () => {
     const excluir = vi.spyOn(privacidadeApi, 'excluirMinhaConta').mockResolvedValue();
 
     renderPage();
-    await userEvent.click(screen.getByRole('button', { name: 'Excluir minha conta' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Dados e privacidade' }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Excluir minha conta' }));
     await userEvent.type(screen.getByLabelText('Sua senha'), 'senha-forte-123');
     await userEvent.type(screen.getByLabelText('Digite EXCLUIR para confirmar'), 'EXCLUIR');
     await userEvent.click(screen.getByRole('button', { name: 'Excluir para sempre' }));

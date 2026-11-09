@@ -56,3 +56,14 @@ describe('erros de formato da requisição', () => {
     expect(res.body.error.code).toBe('BAD_REQUEST');
   });
 });
+
+describe('token vencido ou inválido', () => {
+  it('devolve 401 com o código TOKEN_INVALIDO (o front renova a sessão só nesse caso)', async () => {
+    const response = await request(createApp())
+      .get('/api/notificacoes')
+      .set('Authorization', 'Bearer token-que-nao-vale');
+
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe('TOKEN_INVALIDO');
+  });
+});
