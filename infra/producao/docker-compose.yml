@@ -126,12 +126,55 @@ services:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.retention.time=7d
     volumes:
-      - ../prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus
+    depends_on:
+      - node-exporter
+      - cadvisor
     deploy:
       resources:
         limits:
-          memory: 192m
+          memory: 256m
+
+  # Métricas do SERVIDOR (CPU, memória, disco, carga, tempo ligado). Só lê o /proc e o /sys da máquina; sem porta aberta.
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    restart: unless-stopped
+    pid: host
+    command:
+      - --path.rootfs=/host
+      - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|run|var/lib/docker/.+|var/lib/containerd/.+)($$|/)
+    volumes:
+      - /:/host:ro,rslave
+    deploy:
+      resources:
+        limits:
+          memory: 48m
+
+  # Métricas de CADA CONTÊINER (CPU, memória e o limite dela, rede, reinícios). Só lê; sem porta aberta.
+  cadvisor:
+    # v0.49 não entende as imagens do Docker 29 (não lista os contêineres); a v0.60 entende.
+    image: ghcr.io/google/cadvisor:v0.60.6
+    restart: unless-stopped
+    # Com cgroup v2 o contêiner teria um espaço de cgroups só dele e não enxergaria os outros contêineres.
+    cgroup: host
+    command:
+      - --docker_only=true
+      - --housekeeping_interval=30s
+      - --store_container_labels=false
+      - --disable_metrics=percpu,sched,tcp,udp,advtcp,hugetlb,referenced_memory,cpu_topology,resctrl,process,memory_numa,perf_event,disk,diskIO
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    devices:
+      - /dev/kmsg
+    deploy:
+      resources:
+        limits:
+          memory: 160m
 
   grafana:
     image: grafana/grafana:latest
@@ -142,6 +185,11 @@ services:
       GF_USERS_ALLOW_SIGN_UP: 'false'
       GF_AUTH_ANONYMOUS_ENABLED: 'false'
       GF_SERVER_ROOT_URL: https://monitor.${DOMAIN}
+      # Abre direto na visão geral da USAI, em português, e sem mandar telemetria para fora.
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/usai-visao-geral.json
+      GF_USERS_DEFAULT_LANGUAGE: pt-BR
+      GF_ANALYTICS_REPORTING_ENABLED: 'false'
+      GF_ANALYTICS_CHECK_FOR_UPDATES: 'false'
     volumes:
       - grafana-data:/var/lib/grafana
       - ../grafana/provisioning:/etc/grafana/provisioning:ro
