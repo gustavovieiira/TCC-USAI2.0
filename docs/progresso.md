@@ -26,6 +26,7 @@ amarelo, vermelho) e um menu para pular entre eles. O Grafana abre direto na Vis
   as de erros e bloqueios ficam vazias quando nada disso aconteceu). Isso achou dois problemas: a carga por processador estava vazia (consulta
   corrigida) e o cAdvisor 0.49 não listava os contêineres do Docker 29 (subiu para a 0.60.6 e ganhou `cgroup: host`).
 - **Limite conhecido:** o node-exporter em contêiner não lê a rede da placa do servidor; o painel mostra o tráfego somado dos contêineres.
+- **Ajuste:** depois do deploy o Grafana usava 229 MB dos 256 MB do teto (cerca de 90%), então o limite subiu para **384 MB**.
 
 ---
 
