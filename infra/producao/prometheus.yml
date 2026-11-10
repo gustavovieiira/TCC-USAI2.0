@@ -1,0 +1,27 @@
+# Prometheus de produção: coleta, a cada 15 s, o backend, o servidor (node-exporter) e os contêineres (cAdvisor).
+# Nenhum desses alvos tem porta aberta para a internet: o Prometheus os alcança só pela rede interna do Docker.
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  # A API da USAI: requisições, erros, latência, memória do processo, event loop.
+  - job_name: 'usai-backend'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['backend:3000']
+
+  # O servidor: CPU, memória, disco, carga, tempo ligado.
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  # Cada contêiner: CPU, memória (e o limite dela), rede, reinícios. Menos frequente: são muitas séries.
+  - job_name: 'cadvisor'
+    scrape_interval: 30s
+    static_configs:
+      - targets: ['cadvisor:8080']
+
+  # O próprio Prometheus.
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

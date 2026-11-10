@@ -6,6 +6,29 @@
 
 ---
 
+## 2026-11-10: Grafana completo e explicativo, com a infraestrutura do servidor
+
+O Grafana tinha um painel só (7 gráficos, sem explicação, só o backend). Agora são **4 painéis em português** (`infra/grafana/dashboards/`),
+todos com um texto de ajuda no topo e uma descrição em cada gráfico (o que mede, o que é normal, o que fazer), cores de alerta (verde,
+amarelo, vermelho) e um menu para pular entre eles. O Grafana abre direto na Visão geral.
+- **Visão geral:** está no ar? (backend, servidor, contêineres), requisições por minuto, erros 5xx, velocidade (p95), CPU, memória, disco e
+  swap do servidor, e a memória e a CPU de cada contêiner.
+- **Servidor (infraestrutura):** ligado há, processadores, carga por processador, mortes por falta de memória (deve ser 0), CPU por tipo
+  (user, system, iowait, steal), carga 1/5/15 min, para onde vai a memória, swap, espaço de disco usado e livre, **previsão de espaço livre
+  em 7 dias**, leitura e escrita no disco, tráfego de rede e processos.
+- **Contêineres:** uma tabela do que cada peça faz e o que acontece se ela cair; memória (em bytes e em % do teto), CPU, reinícios na última
+  hora, mortes por memória, tempo ligado e rede de cada contêiner.
+- **API (backend):** requisições em 24 h, por minuto e por rota, resultado (2xx, 3xx, 4xx, 5xx), p50, p95 e p99, rotas mais lentas, erros 5xx por
+  rota, acessos negados (401/403), bloqueios por excesso (429), memória do processo, event loop e coleta de lixo.
+- **Infra nova em produção:** `node-exporter` (mede o servidor) e `cAdvisor` (mede cada contêiner), sem porta aberta, e um Prometheus de produção
+  (`infra/producao/prometheus.yml`) que coleta os dois. Limites de memória: 48 MB e 160 MB (o Prometheus subiu para 256 MB).
+- **Validação:** subi uma cópia isolada no servidor e testei cada consulta de cada painel pelo próprio Grafana (57 com dados e nenhuma com erro;
+  as de erros e bloqueios ficam vazias quando nada disso aconteceu). Isso achou dois problemas: a carga por processador estava vazia (consulta
+  corrigida) e o cAdvisor 0.49 não listava os contêineres do Docker 29 (subiu para a 0.60.6 e ganhou `cgroup: host`).
+- **Limite conhecido:** o node-exporter em contêiner não lê a rede da placa do servidor; o painel mostra o tráfego somado dos contêineres.
+
+---
+
 ## 2026-11-09: Financeiro da plataforma (assinaturas, entrou e saiu no mês, recibos e despesas)
 
 Nova aba **Plataforma** no painel do Admin, só para acompanhar o dinheiro das **vendas da plataforma** (as mensalidades que
