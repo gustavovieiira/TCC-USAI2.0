@@ -6,6 +6,18 @@
 
 ---
 
+## 2026-11-11: Correção de dois defeitos achados na revisão cruzada (issues #25 e #26)
+
+O colega Guilherme (Guirenzo) testou a USAI no site público e abriu duas issues, as duas reproduzidas e corrigidas aqui:
+- **#25, simulador de planos:** com "Anual" selecionado, a recomendação ainda dizia "a partir de R$ 299,00/mês" (o valor mensal cheio) enquanto
+  o cartão mostrava R$ 239,17/mês. Agora a recomendação usa o preço do período escolhido (`precoDe` em `PlanosPrecos.tsx`).
+- **#26, cadastro de morador:** colar o link completo do síndico no campo do código usava a URL inteira como código do condomínio. Agora
+  `extrairCodigoDoCondominio` (`features/auth/cadastro/codigoDoCondominio.ts`) tira o código do link, recusa o que não é código nem link com aviso
+  no próprio campo (antes de pedir PIN e dados), e a tela do formulário ganhou "Trocar o código".
+- **Testes:** um de regressão para cada issue (`assinaturas.test.tsx`, `CadastroPage.test.tsx`) e os do extrator de código.
+
+---
+
 ## 2026-11-10: Grafana completo e explicativo, com a infraestrutura do servidor
 
 O Grafana tinha um painel só (7 gráficos, sem explicação, só o backend). Agora são **4 painéis em português** (`infra/grafana/dashboards/`),
