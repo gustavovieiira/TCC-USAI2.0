@@ -45,6 +45,8 @@ export function PlanosPrecos() {
   const ideal = planos ? planoIdeal(planos, quantidade) : null;
   const maior = planos?.reduce((max, p) => Math.max(max, p.limiteMoradores), 0) ?? 0;
   const informou = pessoas.trim() !== '' && quantidade >= 1;
+  // O preço da recomendação segue o período escolhido (no anual, o equivalente mensal já com desconto).
+  const precoIdeal = ideal && periodo ? precoDe(ideal, periodo.codigo) : undefined;
 
   return (
     <section id="planos" className="scroll-mt-6 bg-fachada-noite-fundo">
@@ -117,7 +119,11 @@ export function PlanosPrecos() {
                 <>
                   Para <strong className="text-fachada-tinta">{quantidade} pessoas</strong>, o plano{' '}
                   <strong className="text-fachada-tinta">{ideal.nome}</strong> é o ideal (a partir
-                  de {formatCurrency(ideal.valorMensal)}/mês).
+                  de {formatCurrency(precoIdeal?.valorMensalEquivalente ?? ideal.valorMensal)}/mês
+                  {periodo && periodo.desconto > 0
+                    ? `, no período ${periodo.nome.toLowerCase()}`
+                    : ''}
+                  ).
                 </>
               ) : (
                 <>

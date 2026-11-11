@@ -179,6 +179,23 @@ describe('PlanosPrecos', () => {
     expect(screen.queryByText('Ideal para você')).not.toBeInTheDocument();
   });
 
+  it('a recomendação mostra o preço do período escolhido, não o mensal cheio (issue #25)', async () => {
+    vi.spyOn(api, 'listarPlanos').mockResolvedValue(catalogo);
+
+    renderSecao();
+    await screen.findByRole('heading', { name: 'Condomínio' });
+    await userEvent.type(screen.getByLabelText(/Quantas pessoas/), '21');
+    expect(screen.getByRole('status')).toHaveTextContent('a partir de R$ 299,00/mês');
+
+    const grupo = screen.getByRole('group', { name: 'Período de cobrança' });
+    await userEvent.click(within(grupo).getByRole('button', { name: /Anual/ }));
+
+    // Condomínio no anual: 299 x 12 = 3588, menos 20% = 2870 (239,17 por mês)
+    const recomendacao = screen.getByRole('status');
+    expect(recomendacao).toHaveTextContent('a partir de R$ 239,17/mês');
+    expect(recomendacao).not.toHaveTextContent('R$ 299,00');
+  });
+
   it('esclarece que o limite conta contas cadastradas', async () => {
     vi.spyOn(api, 'listarPlanos').mockResolvedValue(catalogo);
 

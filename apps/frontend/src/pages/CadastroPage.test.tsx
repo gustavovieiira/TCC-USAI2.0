@@ -100,6 +100,39 @@ describe('CadastroPage', () => {
     expect(screen.getByText('Condomínio: meu-condominio')).toBeInTheDocument();
   });
 
+  it('cadastro manual: cola o link completo do síndico e usa só o código do condomínio (issue #26)', async () => {
+    renderPage('/cadastro');
+
+    await userEvent.type(
+      screen.getByPlaceholderText('ex.: residencial-jardim-europa'),
+      'https://usainet.com.br/cadastro?condominio=residencial-exemplo',
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Continuar' }));
+
+    expect(screen.getByText('Condomínio: residencial-exemplo')).toBeInTheDocument();
+  });
+
+  it('cadastro manual: texto que não é código nem link recebe aviso no campo e não abre o formulário (issue #26)', async () => {
+    renderPage('/cadastro');
+
+    await userEvent.type(
+      screen.getByPlaceholderText('ex.: residencial-jardim-europa'),
+      'https://outro-site.com/pagina',
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Continuar' }));
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Não reconheci esse código');
+    expect(screen.queryByLabelText('PIN do condomínio')).not.toBeInTheDocument();
+  });
+
+  it('com o formulário aberto, dá para trocar o código do condomínio (issue #26)', async () => {
+    renderPage('/cadastro?condominio=residencial-errado');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Trocar o código' }));
+
+    expect(screen.getByText('Entrar no seu condomínio')).toBeInTheDocument();
+  });
+
   it('só deixa criar a conta depois de aceitar os Termos e a Política de Privacidade (LGPD)', async () => {
     const cadastrar = vi.spyOn(authApi, 'cadastrarMorador');
     renderPage('/cadastro?condominio=residencial-aurora');
